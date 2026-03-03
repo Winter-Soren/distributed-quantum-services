@@ -108,15 +108,15 @@ Exit criteria:
 
 Goal: expose complete job lifecycle and durable state.
 
-- [ ] Implement `POST /api/v1/circuits/submit`
-- [ ] Implement `GET /api/v1/jobs/{job_id}`
-- [ ] Implement `GET /api/v1/services`
-- [ ] Implement `GET /api/v1/metrics/fidelity/{node_id}`
-- [ ] Implement `GET /api/v1/health`
-- [ ] Implement optional websocket job updates
-- [ ] Create SQLite schema + migrations
-- [ ] Implement startup recovery for unfinished jobs and registry cache
-- [ ] Add API key auth + rate limiting toggles
+- [x] Implement `POST /api/v1/circuits/submit`
+- [x] Implement `GET /api/v1/jobs/{job_id}`
+- [x] Implement `GET /api/v1/services`
+- [x] Implement `GET /api/v1/metrics/fidelity/{node_id}`
+- [x] Implement `GET /api/v1/health`
+- [x] Implement optional websocket job updates
+- [x] Create SQLite schema + migrations
+- [x] Implement startup recovery for unfinished jobs and registry cache
+- [x] Add API key auth + rate limiting toggles
 
 Deliverables:
 - externally usable API for end-to-end job orchestration

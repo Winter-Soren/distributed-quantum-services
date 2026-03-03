@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections import defaultdict
 from datetime import datetime, timezone
+
+import anyio
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 
 from quantum_coordinator.infra.libp2p.interfaces import PeerAdapter, PubSubAdapter, PubSubMessage
 
@@ -13,21 +15,33 @@ class InMemoryPubSubBus:
     """Simple in-process pubsub bus keyed by topic and peer."""
 
     def __init__(self) -> None:
-        self._queues: dict[str, dict[str, asyncio.Queue[PubSubMessage]]] = defaultdict(dict)
-        self._lock = asyncio.Lock()
+        self._streams: dict[
+            str,
+            dict[
+                str,
+                tuple[
+                    MemoryObjectSendStream[PubSubMessage],
+                    MemoryObjectReceiveStream[PubSubMessage],
+                ],
+            ],
+        ] = defaultdict(dict)
+        self._lock = anyio.Lock()
 
     async def subscribe(self, peer_id: str, topic: str) -> None:
         async with self._lock:
-            topic_queues = self._queues[topic]
-            if peer_id not in topic_queues:
-                topic_queues[peer_id] = asyncio.Queue()
+            topic_streams = self._streams[topic]
+            if peer_id not in topic_streams:
+                send_stream, receive_stream = anyio.create_memory_object_stream[PubSubMessage](
+                    max_buffer_size=256
+                )
+                topic_streams[peer_id] = (send_stream, receive_stream)
 
     async def publish(self, sender_peer_id: str, topic: str, payload: bytes) -> None:
         async with self._lock:
-            subscribers = list(self._queues.get(topic, {}).items())
+            subscribers = list(self._streams.get(topic, {}).values())
 
-        for _, queue in subscribers:
-            await queue.put(
+        for send_stream, _ in subscribers:
+            await send_stream.send(
                 PubSubMessage(
                     topic=topic,
                     sender_peer_id=sender_peer_id,
@@ -43,17 +57,22 @@ class InMemoryPubSubBus:
         timeout_seconds: float | None,
     ) -> PubSubMessage | None:
         async with self._lock:
-            queue = self._queues.get(topic, {}).get(peer_id)
+            streams = self._streams.get(topic, {}).get(peer_id)
 
-        if queue is None:
+        if streams is None:
             return None
+        _, receive_stream = streams
 
-        try:
-            if timeout_seconds is None:
-                return await queue.get()
-            return await asyncio.wait_for(queue.get(), timeout=timeout_seconds)
-        except asyncio.TimeoutError:
+        if timeout_seconds is None:
+            return await receive_stream.receive()
+
+        message: PubSubMessage | None = None
+        with anyio.move_on_after(timeout_seconds) as scope:
+            message = await receive_stream.receive()
+
+        if scope.cancel_called:
             return None
+        return message
 
 
 class InMemoryPubSubAdapter(PubSubAdapter):

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 from quantum_coordinator.domain.models import GateType
+from quantum_coordinator.infra.persistence.migrations import run_sqlite_migrations
 from quantum_coordinator.reservation.models import ReservationRecord, ReservationState
 
 
@@ -49,46 +50,10 @@ class SQLiteRuntimeEventStore:
     def __init__(self, database_path: str) -> None:
         self._database_path = Path(database_path)
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        run_sqlite_migrations(database_path)
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self._database_path)
-
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS reservations (
-                    reservation_id TEXT PRIMARY KEY,
-                    job_id TEXT NOT NULL,
-                    fragment_id TEXT NOT NULL,
-                    node_id TEXT NOT NULL,
-                    service_type TEXT NOT NULL,
-                    min_fidelity REAL NOT NULL,
-                    window_start TEXT NOT NULL,
-                    window_end TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    reason TEXT,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS fragment_execution_events (
-                    event_id TEXT PRIMARY KEY,
-                    job_id TEXT NOT NULL,
-                    fragment_id TEXT NOT NULL,
-                    node_id TEXT NOT NULL,
-                    attempt INTEGER NOT NULL,
-                    status TEXT NOT NULL,
-                    error TEXT,
-                    observed_fidelity REAL,
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            conn.commit()
 
     def upsert_reservation(self, record: ReservationRecord) -> None:
         with self._connect() as conn:

@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Protocol
 
+from quantum_coordinator.infra.persistence.migrations import run_sqlite_migrations
 from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
 
 
@@ -25,25 +26,10 @@ class SQLiteServiceRegistryStore:
     def __init__(self, database_path: str) -> None:
         self._database_path = Path(database_path)
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        run_sqlite_migrations(database_path)
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self._database_path)
-
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS service_ads (
-                    node_id TEXT NOT NULL,
-                    service_type TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    PRIMARY KEY (node_id, service_type)
-                )
-                """
-            )
-            conn.commit()
 
     def save(self, advertisement: ServiceAdvertisement) -> None:
         with self._connect() as conn:

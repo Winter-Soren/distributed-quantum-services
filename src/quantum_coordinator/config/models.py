@@ -16,6 +16,8 @@ class APIConfig(BaseModel):
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
     max_request_bytes: int = Field(default=1_000_000, ge=1024)
     enable_auth: bool = False
+    api_key: str | None = Field(default=None, min_length=1)
+    enable_rate_limit: bool = False
     rate_limit_per_minute: int = Field(default=60, ge=1)
 
 

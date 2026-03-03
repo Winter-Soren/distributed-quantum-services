@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from datetime import timedelta
 from time import monotonic
 
+import anyio
 import pytest
 
 from quantum_coordinator.domain.models import GateType
@@ -19,7 +19,7 @@ async def _wait_for(condition: Callable[[], bool], timeout_seconds: float) -> No
     while monotonic() < deadline:
         if condition():
             return
-        await asyncio.sleep(0.01)
+        await anyio.sleep(0.01)
     raise AssertionError("Condition did not become true before timeout")
 
 

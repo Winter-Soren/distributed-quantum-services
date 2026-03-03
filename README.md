@@ -22,6 +22,10 @@ Implemented milestones:
 - Runtime executor with dependency-safe scheduling, retries, and fallback node execution
 - In-memory gate execution adapter with failure injection (timeout, reject, node drop, quality degradation)
 - SQLite persistence for reservations and fragment execution events
+- Versioned SQLite migrations and persistent job lifecycle store
+- Job manager with lifecycle transitions and startup recovery for unfinished jobs
+- M4 API endpoints: submit circuit, job status, service list, fidelity metrics, and websocket job updates
+- Optional API key auth and in-memory rate limiting guards
 
 ## Requirements
 
@@ -84,7 +88,7 @@ src/quantum_coordinator/
 
 ## Next Milestone
 
-M4 API + Persistence:
-- circuit submission and job lifecycle endpoints
-- persistent job state transitions and restart recovery
-- websocket status updates
+M5 Evaluation Plane:
+- distributed vs centralized orchestration benchmark harness
+- reproducible scenario matrix and fault injection controls
+- exportable experiment report artifacts

@@ -8,6 +8,8 @@ api:
     - "*"
   max_request_bytes: 1000000
   enable_auth: false
+  api_key: null
+  enable_rate_limit: false
   rate_limit_per_minute: 60
 
 logging:
