@@ -121,3 +121,6 @@ M5 Evaluation Plane:
 - distributed vs centralized orchestration benchmark harness
 - reproducible scenario matrix and fault injection controls
 - exportable experiment report artifacts
+
+
+NSF Grant Proposal (March 11, 2026 feedback)
