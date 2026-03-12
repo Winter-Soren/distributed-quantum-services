@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "3ef3101b-a50e-4b77-8f66-8da2b4fe1d3d",
-    "name": "Quantum Libp2p Coordinator",
+    "name": "Distributed Quantum Services",
     "description": "Import this collection into Postman to exercise the FastAPI coordinator over real HTTP endpoints.\n\nDefault base URL assumes the local demo server is running on port 8080.\n\nWebSocket endpoint for manual testing in Postman WebSocket client:\nws://127.0.0.1:8080/api/v1/jobs/{{jobId}}/ws",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
