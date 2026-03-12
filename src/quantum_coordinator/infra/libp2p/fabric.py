@@ -27,6 +27,7 @@ from quantum_coordinator.service_discovery.advertisement import (
     ServiceAdvertisement,
     validate_advertisement_payload,
 )
+from quantum_coordinator.service_discovery.registry import ServiceRegistry
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class PyLibp2pFabric:
         embedded_service_base_port: int = 9200,
         embedded_ad_interval_seconds: float = 2.0,
         enable_mdns: bool = False,
+        registry: ServiceRegistry | None = None,
     ) -> None:
         if embedded_service_count < 1:
             raise ValueError("embedded_service_count must be >= 1")
@@ -62,6 +64,7 @@ class PyLibp2pFabric:
         self._embedded_service_base_port = embedded_service_base_port
         self._embedded_ad_interval_seconds = embedded_ad_interval_seconds
         self._enable_mdns = enable_mdns
+        self._registry = registry
 
         self._portal_cm: Any | None = None
         self._portal: BlockingPortal | None = None
@@ -98,9 +101,19 @@ class PyLibp2pFabric:
             timeout_seconds,
         )
 
-    async def invoke_gate(self, node_id: str, payload: bytes) -> bytes:
+    async def invoke_gate(
+        self,
+        node_id: str,
+        payload: bytes,
+        timeout_seconds: float,
+    ) -> bytes:
         """Invoke remote gate execution protocol on target node."""
-        return await anyio.to_thread.run_sync(self._invoke_gate_sync, node_id, payload)
+        return await anyio.to_thread.run_sync(
+            self._invoke_gate_sync,
+            node_id,
+            payload,
+            timeout_seconds,
+        )
 
     def _start_sync(self) -> None:
         if self._portal is not None:
@@ -219,13 +232,6 @@ class PyLibp2pFabric:
                     )
                 )
 
-            await trio.sleep(1.0)
-            for service in services:
-                for ad in service.advertisements:
-                    await service.node.pubsub_adapter.publish(
-                        self._topic, ad.to_wire_bytes()
-                    )
-
             self._coordinator = coordinator
             self._services = services
             self._service_addrs = service_addrs
@@ -235,6 +241,7 @@ class PyLibp2pFabric:
                     nursery.start_soon(self._trio_advertise_loop, idx)
                 ready_event.set()
                 await self._stop_event.wait()
+                nursery.cancel_scope.cancel()
         finally:
             await stack.aclose()
             self._coordinator = None
@@ -282,13 +289,23 @@ class PyLibp2pFabric:
         advertisement, _ = validate_advertisement_payload(message.payload)
         return advertisement
 
-    def _invoke_gate_sync(self, node_id: str, payload: bytes) -> bytes:
+    def _invoke_gate_sync(
+        self,
+        node_id: str,
+        payload: bytes,
+        timeout_seconds: float,
+    ) -> bytes:
         portal = self._portal
         if portal is None:
             raise RuntimeError("py-libp2p fabric is not started")
-        return portal.call(self._trio_invoke_gate, node_id, payload)
+        return portal.call(self._trio_invoke_gate, node_id, payload, timeout_seconds)
 
-    async def _trio_invoke_gate(self, node_id: str, payload: bytes) -> bytes:
+    async def _trio_invoke_gate(
+        self,
+        node_id: str,
+        payload: bytes,
+        timeout_seconds: float,
+    ) -> bytes:
         coordinator = self._coordinator
         if coordinator is None:
             raise RuntimeError("coordinator node unavailable")
@@ -299,6 +316,7 @@ class PyLibp2pFabric:
                 node_id,
                 self._gate_protocol_id,
                 payload,
+                timeout_seconds=timeout_seconds,
             )
         except Exception:
             await self._ensure_service_connection(coordinator, node_id, reconnect=True)
@@ -306,6 +324,7 @@ class PyLibp2pFabric:
                 node_id,
                 self._gate_protocol_id,
                 payload,
+                timeout_seconds=timeout_seconds,
             )
 
     async def _ensure_service_connection(
@@ -319,6 +338,11 @@ class PyLibp2pFabric:
             return
 
         target_addrs = self._service_addrs.get(node_id)
+        if not target_addrs and self._registry is not None:
+            for entry in self._registry.all_entries():
+                if entry.advertisement.node_id == node_id and entry.advertisement.listen_addrs:
+                    target_addrs = tuple(entry.advertisement.listen_addrs)
+                    break
         if not target_addrs:
             raise RuntimeError(f"No listen addresses known for peer {node_id}")
 

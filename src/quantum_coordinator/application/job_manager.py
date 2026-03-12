@@ -11,11 +11,11 @@ import anyio
 from quantum_coordinator.domain.models import JobStatus
 from quantum_coordinator.infra.persistence.job_store import JobRecord, JobStore
 from quantum_coordinator.infra.persistence.runtime_store import RuntimeEventStore
-from quantum_coordinator.planning import CircuitPlanner, PlanningError
+from quantum_coordinator.planning import CircuitPlanner
+from quantum_coordinator.planning.models import ExecutionPlan
 from quantum_coordinator.reservation.protocol import ReservationProtocol
 from quantum_coordinator.runtime import (
     GateExecutionAdapter,
-    RuntimeExecutionError,
     RuntimeExecutionResult,
     RuntimeExecutor,
     RuntimePolicy,
@@ -44,6 +44,9 @@ class JobManager:
         self._gate_adapter = gate_adapter
         self._inflight_jobs: set[str] = set()
         self._inflight_lock = anyio.Lock()
+        # In-memory cache of execution plans by ID so that API consumers
+        # can inspect how a job was routed and scheduled.
+        self._plans: dict[str, ExecutionPlan] = {}
 
     def submit(self, circuit_text: str) -> JobRecord:
         """Persist a new queued job and return metadata."""
@@ -80,6 +83,8 @@ class JobManager:
 
             current = self._set_status(current, JobStatus.COMPILING, plan_id=None, error=None)
             plan = self._planner.compile(current.circuit_text)
+            # Cache the compiled plan for later introspection via the API.
+            self._plans[plan.plan_id] = plan
 
             current = self._set_status(
                 current,
@@ -123,6 +128,10 @@ class JobManager:
         finally:
             await self._release(job_id)
 
+    def get_plan(self, plan_id: str) -> ExecutionPlan | None:
+        """Return a previously compiled execution plan, if available."""
+        return self._plans.get(plan_id)
+
     async def recover_unfinished_jobs(self) -> None:
         """Restart processing for unfinished jobs from persistent storage."""
         for record in self._job_store.list_unfinished():
@@ -162,7 +171,7 @@ class JobManager:
 
 
 def _serialize_runtime_result(result: RuntimeExecutionResult) -> str:
-    payload = {
+    payload: dict[str, object] = {
         "job_id": result.job_id,
         "fragment_results": [
             {
@@ -178,4 +187,19 @@ def _serialize_runtime_result(result: RuntimeExecutionResult) -> str:
             for fr in result.fragment_results
         ],
     }
-    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    # If the runtime provided quantum output (measurements, probabilities,
+    # statevector, etc.), expose it so that API consumers can use it directly.
+    if result.quantum_result is not None:
+        payload["quantum_result"] = result.quantum_result
+    return json.dumps(
+        payload,
+        separators=(",", ":"),
+        sort_keys=True,
+        default=_json_compatible,
+    )
+
+
+def _json_compatible(value: object) -> object:
+    if isinstance(value, complex):
+        return str(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")

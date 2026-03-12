@@ -23,7 +23,7 @@ def main() -> None:
     host = args.host or config.api.host
     port = args.port or config.api.port
 
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(app, host=host, port=port, reload=True, reload_dirs=["src"])
 
 
 if __name__ == "__main__":

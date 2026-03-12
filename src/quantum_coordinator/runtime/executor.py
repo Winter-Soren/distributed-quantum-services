@@ -22,6 +22,7 @@ from quantum_coordinator.runtime.models import (
     RuntimeExecutionError,
     RuntimeExecutionResult,
 )
+from quantum_coordinator.runtime.qiskit_results import build_quantum_result
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,15 @@ class RuntimeExecutor:
                 completed.add(fragment_id)
                 pending.remove(fragment_id)
 
-        return RuntimeExecutionResult(job_id=job_id, fragment_results=tuple(results))
+        return RuntimeExecutionResult(
+            job_id=job_id,
+            fragment_results=tuple(results),
+            quantum_result=build_quantum_result(
+                plan,
+                fragment_results=tuple(results),
+                seed=self._policy.seed,
+            ),
+        )
 
     async def _execute_fragment_with_fallback(
         self,

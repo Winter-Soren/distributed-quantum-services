@@ -43,6 +43,11 @@ class RuntimeExecutionResult:
 
     job_id: str
     fragment_results: tuple[FragmentExecutionResult, ...]
+    # Optional quantum output produced by the backend.
+    # When available, this should contain measurement counts, probabilities,
+    # a pre-measurement statevector, and similar artifacts that downstream
+    # systems can consume.
+    quantum_result: dict[str, object] | None = None
 
 
 class RuntimeExecutionError(RuntimeError):

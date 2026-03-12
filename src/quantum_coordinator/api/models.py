@@ -8,6 +8,36 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class JobQuantumResult(BaseModel):
+    """Quantum output of the executed circuit.
+
+    For measured circuits, `counts` reflects sampled readout over
+    `measured_qubits`, while `probabilities` and `statevector` describe the
+    pre-measurement quantum state.
+    """
+
+    counts: dict[str, int] | None = None
+    probabilities: dict[str, float] | None = None
+    measured_probabilities: dict[str, float] | None = None
+    statevector: list[complex] | None = None
+    shots: int | None = None
+    measured_qubits: list[int] | None = None
+    observable_expectations: dict[str, float] | None = None
+    reduced_density_matrices: dict[str, list[list[complex]]] | None = None
+    bloch_vectors: dict[str, dict[str, float]] | None = None
+    entanglement_entropy: dict[str, float] | None = None
+    fidelity: dict[str, Any] | None = None
+    top_basis_states: list[dict[str, Any]] | None = None
+
+
+class JobResult(BaseModel):
+    """Structured job result including fragment execution and quantum output."""
+
+    job_id: str
+    fragment_results: list[dict[str, Any]]
+    quantum_result: JobQuantumResult | None = None
+
+
 class HealthResponse(BaseModel):
     """Response payload for health checks."""
 
@@ -38,7 +68,7 @@ class JobStatusResponse(BaseModel):
     status: str
     plan_id: str | None
     error: str | None
-    result: dict[str, Any] | None
+    result: JobResult | None
     created_at: datetime
     updated_at: datetime
 

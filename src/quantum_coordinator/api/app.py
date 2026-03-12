@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from contextlib import suppress
@@ -29,6 +28,7 @@ from quantum_coordinator.api.models import (
     FidelityMetricsResponse,
     FidelitySampleResponse,
     HealthResponse,
+    JobResult,
     JobStatusResponse,
     JobUpdateResponse,
     ServiceResponse,
@@ -45,6 +45,11 @@ from quantum_coordinator.infra.persistence import (
     run_sqlite_migrations,
 )
 from quantum_coordinator.planning import CircuitPlanner, PlannerConfig
+from quantum_coordinator.planning.models import (
+    CircuitFragment,
+    ExecutionPlan,
+    FragmentAssignment,
+)
 from quantum_coordinator.reservation.protocol import ReservationProtocol
 from quantum_coordinator.runtime import (
     GateExecutionAdapter,
@@ -121,6 +126,7 @@ def create_app(config: AppConfig) -> FastAPI:
             embedded_service_base_port=config.libp2p.embedded_service_base_port,
             embedded_ad_interval_seconds=config.libp2p.embedded_ad_interval_seconds,
             enable_mdns=config.libp2p.enable_mdns,
+            registry=registry,
         )
         gate_adapter = Libp2pGateExecutionAdapter(invoker=libp2p_fabric)
     else:
@@ -207,14 +213,13 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.on_event("startup")
     async def startup_recovery() -> None:
+        registry.prune_stale()
         if libp2p_fabric is not None:
             try:
                 await libp2p_fabric.start()
-            except Exception as exc:  # pragma: no cover - defensive for restricted envs
-                logger.warning(
-                    "py-libp2p startup failed; continuing without network fabric: %s", exc
-                )
-                app.state.libp2p_fabric = None
+            except Exception:
+                logger.exception("py-libp2p startup failed; refusing to start without libp2p")
+                raise
             else:
                 for advertisement in libp2p_fabric.available_advertisements():
                     registry.upsert(advertisement)
@@ -274,9 +279,11 @@ def create_app(config: AppConfig) -> FastAPI:
         if job is None:
             raise HTTPException(status_code=404, detail="Job not found")
 
-        result_payload = None
+        result_payload: JobResult | None = None
         if job.result_json is not None:
-            result_payload = json.loads(job.result_json)
+            # Older records may not contain quantum_result; Pydantic will
+            # ignore unknown/missing fields and still validate.
+            result_payload = JobResult.model_validate_json(job.result_json)
 
         return JobStatusResponse(
             job_id=job.job_id,
@@ -287,6 +294,59 @@ def create_app(config: AppConfig) -> FastAPI:
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
+
+    def _fragment_to_response(fragment: CircuitFragment) -> dict[str, object]:
+        return {
+            "fragment_id": fragment.fragment_id,
+            "service_type": fragment.service_type.value,
+            "qubits": list(fragment.qubits),
+            "operation_ids": list(fragment.operation_ids),
+            "dependencies": list(fragment.dependencies),
+        }
+
+    def _assignment_to_response(assignment: FragmentAssignment) -> dict[str, object]:
+        return {
+            "fragment_id": assignment.fragment_id,
+            "primary_node_id": assignment.primary_node_id,
+            "fallback_node_ids": list(assignment.fallback_node_ids),
+            "candidates": [
+                {
+                    "node_id": c.node_id,
+                    "total_cost": c.total_cost,
+                    "latency_cost": c.latency_cost,
+                    "failure_risk_cost": c.failure_risk_cost,
+                    "entanglement_cost": c.entanglement_cost,
+                    "load_cost": c.load_cost,
+                    "fidelity": c.fidelity,
+                }
+                for c in assignment.candidates
+            ],
+        }
+
+    @app.get(
+        "/api/v1/plans/{plan_id}",
+        tags=["jobs"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def get_plan(plan_id: str) -> dict[str, object]:
+        """Expose the compiled execution plan for a job."""
+        plan: ExecutionPlan | None = job_manager.get_plan(plan_id)
+        if plan is None:
+            raise HTTPException(status_code=404, detail="Plan not found")
+
+        return {
+            "plan_id": plan.plan_id,
+            "fragment_order": list(plan.fragment_order),
+            "fragments": {
+                fragment_id: _fragment_to_response(fragment)
+                for fragment_id, fragment in plan.fragments.items()
+            },
+            "assignments": {
+                fragment_id: _assignment_to_response(assignment)
+                for fragment_id, assignment in plan.assignments.items()
+            },
+            "quality_snapshot_id": plan.quality_snapshot_id,
+        }
 
     @app.get(
         "/api/v1/services",

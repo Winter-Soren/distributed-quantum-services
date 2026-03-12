@@ -24,6 +24,8 @@ from quantum_coordinator.infra.libp2p.interfaces import (
     StreamAdapter,
 )
 
+_STREAM_READ_MAX_BYTES = 2**32 - 1
+
 
 def create_libp2p_host(
     listen_addrs: Sequence[str],
@@ -237,17 +239,34 @@ class PyLibp2pStreamAdapter(StreamAdapter):
             return
         await self._host.connect(info)
 
-    async def request(self, peer_id: str, protocol_id: str, payload: bytes) -> bytes:
+    async def request(
+        self,
+        peer_id: str,
+        protocol_id: str,
+        payload: bytes,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
         """Send a request to peer over ``protocol_id`` and return raw bytes response."""
         _ensure_trio_backend()
+        import trio
         from libp2p.peer.id import ID
 
         target = ID.from_string(peer_id)
         stream = await self._host.new_stream(target, [protocol_id])
         try:
-            await stream.write(payload)
-            response = await stream.read()
-            return bytes(response)
+            if timeout_seconds is None:
+                await stream.write(payload)
+                response = await stream.read(_STREAM_READ_MAX_BYTES)
+                return bytes(response)
+
+            with trio.fail_after(timeout_seconds):
+                await stream.write(payload)
+                response = await stream.read(_STREAM_READ_MAX_BYTES)
+                return bytes(response)
+        except trio.TooSlowError as exc:
+            with suppress(Exception):
+                await stream.reset()
+            raise TimeoutError("libp2p stream request timed out") from exc
         finally:
             with suppress(Exception):
                 await stream.close()
@@ -261,7 +280,9 @@ class PyLibp2pStreamAdapter(StreamAdapter):
 
         async def stream_handler(stream: Any) -> None:
             try:
-                data = await stream.read()
+                data = await stream.read(_STREAM_READ_MAX_BYTES)
+                if not data:
+                    return
                 response = await handler(data)
                 await stream.write(response)
             except Exception:

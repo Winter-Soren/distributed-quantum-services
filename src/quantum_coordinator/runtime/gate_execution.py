@@ -25,7 +25,12 @@ class GateExecutionAdapter:
 class Libp2pGateInvoker(Protocol):
     """Minimal gate invocation transport used by libp2p adapter."""
 
-    async def invoke_gate(self, node_id: str, payload: bytes) -> bytes:
+    async def invoke_gate(
+        self,
+        node_id: str,
+        payload: bytes,
+        timeout_seconds: float,
+    ) -> bytes:
         """Invoke gate protocol on remote node."""
 
 
@@ -52,6 +57,7 @@ class Libp2pGateExecutionAdapter(GateExecutionAdapter):
         raw_response = await self._invoker.invoke_gate(
             node_id=node_id,
             payload=json.dumps(request, separators=(",", ":"), sort_keys=True).encode("utf-8"),
+            timeout_seconds=timeout_seconds,
         )
 
         try:

@@ -45,7 +45,13 @@ class PubSubAdapter(Protocol):
 class StreamAdapter(Protocol):
     """Minimal stream contract for reservation and gate invocation."""
 
-    async def request(self, peer_id: str, protocol_id: str, payload: bytes) -> bytes:
+    async def request(
+        self,
+        peer_id: str,
+        protocol_id: str,
+        payload: bytes,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
         """Open a stream, send request bytes, and return response bytes."""
 
 
