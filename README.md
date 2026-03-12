@@ -1,4 +1,4 @@
-# Quantum Libp2p Coordinator
+# Distributed Quantum Services
 
 > Distributed quantum services over `py-libp2p`, orchestrated by FastAPI, planned as dependency graphs, executed with retries and fallback, and explained with Qiskit-backed quantum analysis.
 
