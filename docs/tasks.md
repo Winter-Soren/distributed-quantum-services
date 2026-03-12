@@ -1,4 +1,4 @@
-# Implementation Plan: Quantum Libp2p Coordinator (Python POC)
+# Implementation Plan: Distributed Quantum Services (Python POC)
 
 This task plan is requirement-driven and optimized for a research POC that can evolve into production architecture.
 

@@ -11,7 +11,7 @@ from quantum_coordinator.application.bootstrap import create_application
 
 def main() -> None:
     """Run the coordinator API server."""
-    parser = argparse.ArgumentParser(description="Run Quantum Libp2p Coordinator API")
+    parser = argparse.ArgumentParser(description="Run Distributed Quantum Services API")
     parser.add_argument("--config", default=None, help="Path to YAML/TOML config file")
     parser.add_argument("--host", default=None, help="Override API host")
     parser.add_argument("--port", type=int, default=None, help="Override API port")

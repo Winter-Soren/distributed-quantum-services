@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo startup script for Quantum Libp2p Coordinator
+# Demo startup script for Distributed Quantum Services
 #
 # Ensures ports are free and optionally clears the DB for a clean run.
 # Run from project root: ./scripts/demo-start.sh [--clean]

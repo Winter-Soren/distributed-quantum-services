@@ -1,4 +1,4 @@
-# Design Document: Quantum Libp2p Coordinator (Python POC)
+# Design Document: Distributed Quantum Services (Python POC)
 
 ## 1. Design Goals
 

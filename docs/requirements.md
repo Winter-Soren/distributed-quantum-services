@@ -1,4 +1,4 @@
-# Requirements Document: Quantum Libp2p Coordinator (Python POC)
+# Requirements Document: Distributed Quantum Services (Python POC)
 
 ## 1. Purpose
 

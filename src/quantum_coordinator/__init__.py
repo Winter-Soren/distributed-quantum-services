@@ -1,4 +1,4 @@
-"""Quantum libp2p coordinator package."""
+"""Distributed Quantum Services package."""
 
 __all__ = ["__version__"]
 

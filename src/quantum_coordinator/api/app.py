@@ -87,7 +87,7 @@ class InMemoryRateLimiter:
 def create_app(config: AppConfig) -> FastAPI:
     """Create and configure FastAPI app instance."""
     app = FastAPI(
-        title="Quantum Libp2p Coordinator",
+        title="Distributed Quantum Services",
         version=__version__,
         docs_url="/docs",
         redoc_url="/redoc",
