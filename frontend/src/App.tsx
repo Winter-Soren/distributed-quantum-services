@@ -843,7 +843,7 @@ function App() {
             </CardContent>
           </Card>
 
-          {/* <Card className="glass-panel overflow-hidden border-white/60 bg-white/72 dark:border-white/10 dark:bg-[#09121f]/78">
+          <Card className="glass-panel overflow-hidden border-white/60 bg-white/72 dark:border-white/10 dark:bg-[#09121f]/78">
             <CardHeader className="gap-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <SectionTitle
@@ -1067,7 +1067,7 @@ function App() {
                 ) : null}
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
         </section>
 
         <section id="command" className="grid gap-6 xl:grid-cols-[1fr_1fr] xl:min-w-0">
@@ -2865,6 +2865,174 @@ function EmptyHint({
   )
 }
 
+type DagFragmentNodeData = {
+  fragmentId: string
+  label: string
+  serviceType: string
+  qubits: number[]
+  primaryNodeId: string | null
+  fallbackCount: number
+  status: string | null
+  observedFidelity: number | null
+  dependencyCount: number
+  isFocused: boolean
+}
+
+type DagFragmentFlowNode = Node<DagFragmentNodeData, "fragment">
+
+function DagFragmentNodeComponent({
+  data,
+  selected,
+}: NodeProps<DagFragmentFlowNode>) {
+  const style = SERVICE_STYLES[data.serviceType] ?? SERVICE_STYLES.bell_pair
+  const isActive = selected || data.isFocused
+  const statusLabel =
+    data.status === "SUCCESS"
+      ? "Completed"
+      : data.status === "FAILED"
+        ? "Failed"
+        : data.status ?? "Pending"
+  const statusClass =
+    data.status === "SUCCESS"
+      ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+      : data.status === "FAILED"
+        ? "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:bg-rose-400/10 dark:text-rose-200"
+        : "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:bg-slate-400/10 dark:text-slate-200"
+
+  return (
+    <div
+      className={cn(
+        "w-[17.75rem] rounded-[1.85rem] border p-4 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.36)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1",
+        isActive
+          ? "border-primary/40 bg-white/92 dark:border-primary/30 dark:bg-[#12243c]/96"
+          : "border-white/60 bg-white/82 dark:border-white/10 dark:bg-[#0d192c]/88"
+      )}
+      style={{
+        boxShadow: isActive ? `0 30px 72px -42px ${style.glow}` : undefined,
+      }}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!h-2.5 !w-2.5 !border-0 !bg-white/0"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!h-2.5 !w-2.5 !border-0 !bg-white/0"
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            {data.fragmentId}
+          </div>
+          <div className="mt-1 text-base font-semibold tracking-tight">{data.label}</div>
+        </div>
+        <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", statusClass)}>
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <span
+          className="rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em]"
+          style={{
+            color: style.text,
+            borderColor: style.stroke,
+            backgroundColor: style.fill,
+          }}
+        >
+          {formatServiceLabel(data.serviceType)}
+        </span>
+        <span className="rounded-full border border-white/50 px-2.5 py-1 text-[10px] font-medium text-foreground/70 dark:border-white/10">
+          q{data.qubits.join(", ")}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-white/45 bg-white/55 px-3 py-2 text-xs dark:border-white/8 dark:bg-white/6">
+          <div className="uppercase tracking-[0.2em] text-muted-foreground">Route</div>
+          <div className="mt-1 font-semibold">
+            {data.primaryNodeId ? shortId(data.primaryNodeId, 8, 4) : "--"}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/45 bg-white/55 px-3 py-2 text-xs dark:border-white/8 dark:bg-white/6">
+          <div className="uppercase tracking-[0.2em] text-muted-foreground">Observed</div>
+          <div className="mt-1 font-semibold">{formatPercent(data.observedFidelity)}</div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <span>{data.dependencyCount} incoming edges</span>
+        <span>{data.fallbackCount} fallbacks</span>
+      </div>
+    </div>
+  )
+}
+
+const dagNodeTypes = {
+  fragment: DagFragmentNodeComponent,
+}
+
+function buildDagFlowNodes({
+  dagModel,
+  selectedFragmentId,
+}: {
+  dagModel: DagModel
+  selectedFragmentId: string | null
+}) {
+  return dagModel.nodes.map<DagFragmentFlowNode>((node) => ({
+    id: node.fragmentId,
+    type: "fragment",
+    position: { x: node.x, y: node.y },
+    draggable: true,
+    data: {
+      fragmentId: node.fragmentId,
+      label: node.label,
+      serviceType: node.serviceType,
+      qubits: node.qubits,
+      primaryNodeId: node.primaryNodeId,
+      fallbackCount: node.fallbackNodeIds.length,
+      status: node.status,
+      observedFidelity: node.observedFidelity,
+      dependencyCount: node.dependencies.length,
+      isFocused: selectedFragmentId === node.fragmentId,
+    },
+  }))
+}
+
+function buildDagFlowEdges({
+  dagModel,
+  selectedFragmentId,
+}: {
+  dagModel: DagModel
+  selectedFragmentId: string | null
+}) {
+  const nodeById = new Map(dagModel.nodes.map((node) => [node.fragmentId, node]))
+
+  return dagModel.edges.map<Edge>((edge) => {
+    const sourceNode = nodeById.get(edge.from)
+    const sourceStyle =
+      SERVICE_STYLES[sourceNode?.serviceType ?? "bell_pair"] ?? SERVICE_STYLES.bell_pair
+    const isFocused =
+      selectedFragmentId !== null &&
+      (selectedFragmentId === edge.from || selectedFragmentId === edge.to)
+
+    return {
+      id: `dag-edge-${edge.from}-${edge.to}`,
+      source: edge.from,
+      target: edge.to,
+      type: "bezier",
+      animated: isFocused,
+      style: {
+        stroke: isFocused ? sourceStyle.stroke : "rgba(71, 85, 105, 0.32)",
+        strokeWidth: isFocused ? 2.8 : 1.8,
+        strokeDasharray: isFocused ? undefined : "10 8",
+      },
+    }
+  })
+}
+
 function DagBoard({
   dagModel,
   selectedFragmentId,
@@ -2874,6 +3042,43 @@ function DagBoard({
   selectedFragmentId: string | null
   onSelectFragment: (fragmentId: string) => void
 }) {
+  const baseFlowNodes = useMemo(
+    () =>
+      dagModel ? buildDagFlowNodes({ dagModel, selectedFragmentId }) : [],
+    [dagModel, selectedFragmentId]
+  )
+  const [flowNodes, setFlowNodes, onNodesChange] =
+    useNodesState<DagFragmentFlowNode>(baseFlowNodes)
+
+  useEffect(() => {
+    setFlowNodes((currentNodes) => {
+      const currentById = new Map(currentNodes.map((node) => [node.id, node]))
+
+      return baseFlowNodes.map((node) => {
+        const currentNode = currentById.get(node.id)
+        if (!currentNode) {
+          return node
+        }
+
+        return {
+          ...node,
+          position: currentNode.position,
+        }
+      })
+    })
+  }, [baseFlowNodes, setFlowNodes])
+
+  const flowEdges = useMemo(
+    () =>
+      dagModel
+        ? buildDagFlowEdges({
+            dagModel,
+            selectedFragmentId,
+          })
+        : [],
+    [dagModel, selectedFragmentId]
+  )
+
   if (!dagModel) {
     return (
       <EmptyHint
@@ -2885,94 +3090,64 @@ function DagBoard({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${dagModel.width} ${dagModel.height}`}
-        className="min-w-[920px] rounded-[2rem] border border-white/50 bg-white/65 shadow-inner shadow-black/5 dark:border-white/8 dark:bg-black/15"
-      >
-        <defs>
-          <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(15,118,110,0.35)" />
-            <stop offset="100%" stopColor="rgba(29,78,216,0.35)" />
-          </linearGradient>
-        </defs>
-
-        {dagModel.edges.map((edge) => (
-          <path
-            key={`${edge.from}-${edge.to}`}
-            d={edge.path}
-            fill="none"
-            stroke="url(#edgeGradient)"
-            strokeWidth={3}
-            strokeLinecap="round"
-            className="animate-path-pulse"
-          />
-        ))}
-
-        {dagModel.nodes.map((node) => {
-          const style = SERVICE_STYLES[node.serviceType] ?? SERVICE_STYLES.bell_pair
-          const isSelected = selectedFragmentId === node.fragmentId
-
-          return (
-            <g
-              key={node.fragmentId}
-              transform={`translate(${node.x}, ${node.y})`}
-              onClick={() => onSelectFragment(node.fragmentId)}
-              className="cursor-pointer"
-            >
-              <rect
-                width={node.width}
-                height={node.height}
-                rx={28}
-                fill={isSelected ? style.glow : "rgba(255,255,255,0.78)"}
-                stroke={style.stroke}
-                strokeWidth={isSelected ? 3 : 2}
-                className="dark:fill-[rgba(11,19,32,0.9)]"
-              />
-              <rect
-                x={16}
-                y={16}
-                width={node.width - 32}
-                height={node.height - 32}
-                rx={20}
-                fill={style.fill}
-                stroke="rgba(255,255,255,0.4)"
-              />
-              <text
-                x={22}
-                y={38}
-                fill={style.text}
-                fontSize="12"
-                letterSpacing="0.18em"
-                style={{ textTransform: "uppercase" }}
-              >
-                {node.fragmentId}
-              </text>
-              <text
-                x={22}
-                y={66}
-                fill="currentColor"
-                fontSize="18"
-                fontWeight="600"
-              >
-                {node.label}
-              </text>
-              <text x={22} y={92} fill="currentColor" fontSize="12">
-                qubits: q{node.qubits.join(", ")}
-              </text>
-              <text x={22} y={110} fill="currentColor" fontSize="12">
-                route: {node.primaryNodeId ? shortId(node.primaryNodeId, 10, 4) : "--"}
-              </text>
-              <circle
-                cx={node.width - 24}
-                cy={24}
-                r={7}
-                fill={node.status === "SUCCESS" ? "#16a34a" : style.stroke}
-              />
-            </g>
-          )
-        })}
-      </svg>
+    <div className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/68 shadow-inner shadow-black/5 dark:border-white/8 dark:bg-black/15">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/45 bg-white/48 px-4 py-3 dark:border-white/8 dark:bg-white/4">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Interactive fragment DAG
+          </div>
+          <div className="mt-1 text-sm text-foreground/68">
+            Drag fragments to inspect the execution order and dependency fan-out.
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="rounded-full px-3 py-1">
+            {dagModel.nodes.length} fragments
+          </Badge>
+          <Badge variant="outline" className="rounded-full px-3 py-1">
+            {dagModel.edges.length} dependencies
+          </Badge>
+        </div>
+      </div>
+      <div className="relative h-[36rem] overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-8 top-8 h-36 w-36 rounded-full bg-[radial-gradient(circle,rgba(20,184,166,0.12),transparent_72%)] blur-2xl" />
+          <div className="absolute right-10 top-12 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.12),transparent_74%)] blur-3xl" />
+          <div className="absolute bottom-10 left-1/3 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.1),transparent_72%)] blur-3xl" />
+        </div>
+        <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+          <div className="rounded-full border border-white/55 bg-white/78 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/72 shadow-sm dark:border-white/10 dark:bg-[#0d1a2b]/88">
+            Planner layout
+          </div>
+          <div className="rounded-full border border-white/55 bg-white/78 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/72 shadow-sm dark:border-white/10 dark:bg-[#0d1a2b]/88">
+            Drag enabled
+          </div>
+        </div>
+        <ReactFlow
+          nodes={flowNodes}
+          edges={flowEdges}
+          nodeTypes={dagNodeTypes}
+          onNodesChange={onNodesChange}
+          nodesDraggable
+          nodesConnectable={false}
+          panOnDrag={false}
+          selectionOnDrag={false}
+          fitView
+          fitViewOptions={{ padding: 0.18 }}
+          minZoom={0.55}
+          maxZoom={1.4}
+          proOptions={{ hideAttribution: true }}
+          onNodeClick={(_, node) => {
+            if (node.type === "fragment") {
+              onSelectFragment(node.id)
+            }
+          }}
+          className="bg-transparent"
+        >
+          <Background gap={26} size={1} color="rgba(148,163,184,0.16)" />
+          <Controls showInteractive={false} position="top-right" />
+        </ReactFlow>
+      </div>
     </div>
   )
 }
