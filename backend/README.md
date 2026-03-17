@@ -1,106 +1,48 @@
-# Distributed Quantum Services
+# Backend Coordinator
 
-> Distributed quantum services over `py-libp2p`, orchestrated by FastAPI, planned as dependency graphs, executed with retries and fallback, and explained with Qiskit-backed quantum analysis.
+This directory contains the original core of the project: the distributed quantum coordinator.
+It exposes the FastAPI API, manages service discovery and planning, executes routed fragments, persists runtime state, and produces Qiskit-backed result payloads.
 
-This project is a research-oriented proof of concept for **distributed quantum services**.
-Instead of treating a quantum workflow as a single monolithic backend call, it models quantum capabilities as **network-visible services** that can be:
+If you want the workspace-level overview, start at the root [`README.md`](../README.md).
 
-- advertised over `py-libp2p`
-- discovered and tracked by a coordinator
-- selected by a cost-based planner
-- reserved before execution
-- invoked remotely over real libp2p streams
-- analyzed with Qiskit after execution
+## Responsibilities
 
-The result is a system that looks less like a toy gate simulator and more like a serious coordination layer for **networked quantum capabilities**.
+- FastAPI REST and WebSocket API for health, jobs, plans, services, and live updates
+- `py-libp2p`-based service discovery and remote gate invocation
+- circuit normalization and dependency-aware planning
+- reservation, retry, timeout, and fallback handling
+- SQLite-backed job, registry, and runtime-event persistence
+- Qiskit-backed counts, probabilities, Bloch vectors, entropy, and fidelity summaries
 
-## Why It Matters
-
-- **Distributed quantum services**: quantum operations are modeled as remotely invocable capabilities, not hardcoded local functions.
-- **Real `py-libp2p` transport**: service discovery uses pubsub and execution uses direct request streams.
-- **Planning, not blind dispatch**: circuits are parsed, normalized, fragmented, and mapped to service nodes with primary and fallback candidates.
-- **Operational realism**: reservation state, fragment execution events, job lifecycle, and service snapshots are all persisted to SQLite.
-- **Explainable results**: completed jobs return counts, probabilities, statevector, observables, reduced density matrices, Bloch vectors, entanglement entropy, fidelity, and dominant basis states.
-- **Demo-ready API**: FastAPI endpoints, OpenAPI docs, WebSocket job updates, and an importable Postman collection are already included.
-
-## End-to-End Workflow
-
-```mermaid
-flowchart LR
-    U[Client or Researcher] -->|OpenQASM 2 or 3| API[FastAPI API]
-    API --> JM[Job Manager]
-    JM --> PL[Distributed Planner]
-    PL --> REG[Service Registry]
-    REG <-->|validated advertisements| DISC[Discovery Loop]
-    DISC <-->|pubsub| FAB[py-libp2p Fabric]
-    FAB <-->|streams and pubsub| NODES[Distributed Quantum Service Nodes]
-
-    JM --> RT[Runtime Executor]
-    RT --> RSV[Reservation Protocol]
-    RT --> INV[Remote Gate Invocation]
-    RSV --> REG
-    INV --> FAB
-
-    RT --> QRES[Qiskit Result Builder]
-    QRES --> DB[(SQLite)]
-    JM --> DB
-    REG --> DB
-    API --> OUT[REST and WebSocket Responses]
-```
-
-## What The System Does Today
-
-### Control Plane
-
-- Accepts OpenQASM-like quantum circuits through FastAPI.
-- Normalizes the circuit into internal IR.
-- Builds a qubit dependency graph.
-- Splits the workflow into executable fragments.
-- Selects service nodes using a deterministic cost-based planner.
-- Persists jobs, plans, reservations, runtime events, and registry state.
-
-### Execution Plane
-
-- Boots a real `py-libp2p` coordinator fabric.
-- Starts embedded quantum service nodes for demo and integration runs.
-- Advertises capabilities over pubsub.
-- Invokes remote gate services over libp2p request streams.
-- Applies retry, timeout, and fallback behavior at fragment granularity.
-
-### Result Plane
-
-- Reconstructs the executed plan as a Qiskit circuit.
-- Returns `counts`, `probabilities`, `measured_probabilities`, and `statevector`.
-- Computes `observable_expectations`, `reduced_density_matrices`, `bloch_vectors`, `entanglement_entropy`, `fidelity`, and `top_basis_states`.
-
-## Supported Distributed Quantum Services
-
-The current service vocabulary is:
-
-- `bell_pair`
-- `cnot`
-- `cz`
-- `teleportation`
-- `syndrome_extraction`
-- `distillation`
-- `measurement_feedforward`
-
-Input aliases such as `cx`, `cnot`, `teleport`, `teleportation`, `bell`, and `measure` are normalized to this service set.
-
-## Quick Start
-
-### Requirements
+## Requirements
 
 - Python `3.10+`
 - [`uv`](https://github.com/astral-sh/uv)
+- free local ports `8080`, `9100`, `9200`, `9201`, and `9202` for demo mode
 
-### Install
+## Common Commands
+
+```bash
+make install
+make demo
+make demo-clean
+make run
+make lint
+make format
+make test
+```
+
+You can also run `make help` to see the available targets.
+
+## Local Development
+
+### Install dependencies
 
 ```bash
 make install
 ```
 
-### Run the demo server
+### Start the full demo
 
 ```bash
 make demo
@@ -112,157 +54,69 @@ For a clean database:
 make demo-clean
 ```
 
-### Run in development mode
+The demo starts:
+
+- FastAPI on `http://127.0.0.1:8080`
+- the coordinator libp2p listener on port `9100`
+- embedded service nodes on ports `9200` through `9202`
+
+Important behavior:
+
+- `scripts/demo-start.sh` force-kills any process using those ports before starting
+- `demo-clean` removes `data/quantum_coordinator.db`
+
+### Run in local-only development mode
+
+If you want to exercise the API without bringing up real libp2p transport:
 
 ```bash
-make run
+QC_LIBP2P__ENABLED=false make run
 ```
 
-### Useful URLs
-
-- OpenAPI docs: `http://127.0.0.1:8080/docs`
-- ReDoc: `http://127.0.0.1:8080/redoc`
-- Health: `http://127.0.0.1:8080/api/v1/health`
-
-## Try It With `curl`
-
-### 1. Verify the coordinator
-
-```bash
-curl http://127.0.0.1:8080/api/v1/health
-```
-
-### 2. Inspect discovered services
-
-```bash
-curl http://127.0.0.1:8080/api/v1/services
-```
-
-### 3. Submit a distributed multi-step circuit
-
-```bash
-curl -X POST http://127.0.0.1:8080/api/v1/circuits/submit \
-  -H 'Content-Type: application/json' \
-  --data-binary '{
-    "circuit": "OPENQASM 3;\nqubit[2] q;\nbit[1] c;\nbell_pair q[0], q[1];\ncnot q[0], q[1];\ncz q[0], q[1];\nteleport q[0], q[1];\nsyndrome_extraction q[0];\ndistillation q[1];\nmeasure q[0] -> c[0];"
-  }'
-```
-
-### 4. Poll the job
-
-```bash
-curl http://127.0.0.1:8080/api/v1/jobs/<job_id>
-```
-
-### 5. Inspect the compiled plan
-
-```bash
-curl http://127.0.0.1:8080/api/v1/plans/<plan_id>
-```
-
-### 6. Inspect service fidelity metrics
-
-```bash
-curl http://127.0.0.1:8080/api/v1/metrics/fidelity/<node_id>
-```
-
-## Example Result Shape
-
-Successful jobs return fragment-level execution metadata plus quantum analysis:
-
-```json
-{
-  "status": "COMPLETED",
-  "result": {
-    "job_id": "job-...",
-    "fragment_results": [
-      {
-        "fragment_id": "frag-0001",
-        "node_id": "12D3KooW...",
-        "status": "SUCCESS",
-        "attempts": 1,
-        "observed_fidelity": 0.97
-      }
-    ],
-    "quantum_result": {
-      "counts": {"0": 1024},
-      "probabilities": {"00": 0.5, "10": 0.5},
-      "measured_probabilities": {"0": 1.0},
-      "statevector": ["0.707106781187+0j", "0j", "0.707106781187+0j", "0j"],
-      "measured_qubits": [0],
-      "observable_expectations": {
-        "Z_q0": 1.0,
-        "Z_q1": 0.0,
-        "ZZ_q0_q1": 0.0,
-        "XX_q0_q1": 0.0
-      },
-      "bloch_vectors": {
-        "q0": {"x": 0.0, "y": 0.0, "z": 1.0},
-        "q1": {"x": 1.0, "y": 0.0, "z": 0.0}
-      },
-      "entanglement_entropy": {
-        "q0|rest": 0.0,
-        "q1|rest": 0.0
-      },
-      "fidelity": {
-        "target_state": "ideal_compiled_state",
-        "fidelity_to_target_state": 1.0,
-        "estimated_execution_fidelity": 0.807982844781
-      }
-    }
-  }
-}
-```
+In this mode the backend uses the local in-process gate execution adapter.
 
 ## API Surface
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/v1/health` | health and uptime |
-| `POST /api/v1/circuits/submit` | submit a circuit for distributed execution |
-| `GET /api/v1/jobs/{job_id}` | fetch job status and results |
+| `GET /api/v1/health` | health, version, environment, uptime |
+| `POST /api/v1/circuits/submit` | submit a circuit for background execution |
+| `GET /api/v1/jobs/{job_id}` | fetch job status, progress, and results |
 | `GET /api/v1/plans/{plan_id}` | inspect the compiled execution plan |
-| `GET /api/v1/services` | list discovered service advertisements |
-| `GET /api/v1/metrics/fidelity/{node_id}` | inspect per-node fidelity snapshot |
-| `WS /api/v1/jobs/{job_id}/ws` | stream job status changes |
+| `GET /api/v1/services` | list the current service registry snapshot |
+| `GET /api/v1/metrics/fidelity/{node_id}` | aggregate current fidelity samples for one node |
+| `WS /api/v1/jobs/{job_id}/ws` | stream job status updates until completion |
 
-## Developer Commands
+Useful details:
 
-```bash
-make install   # install runtime + dev dependencies with uv
-make lint      # ruff + mypy
-make format    # ruff format
-make test      # pytest
-make run       # uvicorn with reload
-make demo      # curated demo startup
-make demo-clean
-```
+- `GET /api/v1/jobs/{job_id}` supports `result_detail=full|summary`
+- summary mode omits the heaviest quantum fields such as `statevector` and `reduced_density_matrices`
+- plan lookup is session-scoped because compiled plans live in the current process cache
 
 ## Configuration
 
 Start from [`config/config.example.yaml`](config/config.example.yaml).
 
-You can pass configuration either by file or by environment overrides:
+The backend loads configuration from:
 
-```bash
-QC_CONFIG_FILE=config/config.example.yaml uv run uvicorn quantum_coordinator.asgi:app --host 0.0.0.0 --port 8080
-```
+1. an optional config file
+2. `QC_`-prefixed environment overrides
 
 Examples:
 
 ```bash
+QC_CONFIG_FILE=config/config.example.yaml
 QC_API__PORT=9000
 QC_LOGGING__LEVEL=DEBUG
-QC_LIBP2P__ENABLED=true
-QC_LIBP2P__COORDINATOR_LISTEN_ADDRS='["/ip4/127.0.0.1/tcp/9100"]'
+QC_API__ENABLE_AUTH=true
+QC_API__API_KEY=super-secret
+QC_LIBP2P__ENABLED=false
+QC_DATABASE__PATH=./data/dev-alt.db
 ```
 
-Important runtime note:
+If `libp2p.enabled` is `true` and the libp2p fabric fails to start, the API fails startup rather than silently degrading.
 
-- if `libp2p.enabled` is `true` and libp2p bootstrap fails, the API **fails startup**
-- if you explicitly disable libp2p, the app can use the local in-process gate adapter for development
-
-## Project Layout
+## Package Layout
 
 ```text
 src/quantum_coordinator/
@@ -277,53 +131,26 @@ src/quantum_coordinator/
   runtime/             executor, gate adapter, Qiskit result builder
   service_discovery/   advertisement validation, discovery loop, registry
 tests/
-docs/
-postman.json
-architecture.md
 ```
 
-## Documentation Map
+## Related Project Docs
 
-- [`DEMO_GUIDE.md`](DEMO_GUIDE.md): presenter-oriented guide for explaining the project to a research audience
-- [`PRESENTATION_DECK.md`](PRESENTATION_DECK.md): presentation-style Markdown deck with diagrams for a project walkthrough
-- [`PRESENTATION_SCRIPT.md`](PRESENTATION_SCRIPT.md): exact slide-by-slide narration companion for the presentation deck
-- [`architecture.md`](architecture.md): deep technical walk-through of the full system
-- [`docs/design.md`](docs/design.md): design rationale and milestone framing
-- [`docs/requirements.md`](docs/requirements.md): functional and non-functional requirements
-- [`docs/tasks.md`](docs/tasks.md): milestone plan and exit criteria
-- [`postman.json`](postman.json): importable API collection with example requests
+- [`../README.md`](../README.md): workspace overview
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): architecture deep dive
+- [`docs/design.md`](docs/design.md): design rationale
+- [`docs/requirements.md`](docs/requirements.md): requirements
+- [`docs/tasks.md`](docs/tasks.md): milestone plan
+- [`postman.json`](postman.json): importable API collection
+- [`PRESENTATION_DECK.md`](PRESENTATION_DECK.md): presentation deck
+- [`PRESENTATION_SCRIPT.md`](PRESENTATION_SCRIPT.md): narration script
 
-## Current Status
+## Modeling Notes
 
-Implemented today:
+This backend demonstrates real orchestration, persistence, planning, and transport behavior, but some higher-level quantum semantics remain simplified:
 
-- real `py-libp2p` coordinator fabric with embedded service nodes
-- FastAPI API with REST + WebSocket job updates
-- SQLite persistence and startup recovery
-- service discovery and freshness-aware registry
-- deterministic distributed planner with fallback candidates
-- reservation protocol and dependency-safe runtime execution
-- real end-to-end execution over libp2p request streams
-- Qiskit-backed post-execution quantum analysis
-
-Planned next:
-
-- centralized baseline for apples-to-apples benchmark comparison
-- experiment harness and exportable evaluation artifacts
-- richer protocol semantics for advanced distributed quantum workflows
-
-## Important Modeling Note
-
-This repository demonstrates **distributed quantum service orchestration**.
-It does **not** yet implement a full hardware-backed quantum network stack.
-
-Current semantics:
-
-- `teleportation` is approximated as a logical `SWAP` for Qiskit state evolution
-- `syndrome_extraction` and `distillation` are treated as orchestration-level steps because the current DSL does not yet encode ancillas and full classical feedback semantics
-
-That means the coordinator, planning, libp2p transport, persistence, and orchestration logic are real, while some higher-level quantum service semantics are intentionally simplified for the proof of concept.
+- `teleportation` is approximated as logical state transfer in the current result-reconstruction flow
+- `syndrome_extraction` and `distillation` are treated as orchestration-level steps rather than full fault-tolerant protocol simulations
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [`LICENSE`](LICENSE).
+Apache-2.0. See [`LICENSE`](LICENSE).

@@ -1,0 +1,11 @@
+{
+  "title": "Core Concepts",
+  "icon": "Network",
+  "pages": [
+    "architecture",
+    "service-discovery-and-registry",
+    "planning-and-runtime",
+    "persistence-and-recovery",
+    "result-analysis"
+  ]
+}
