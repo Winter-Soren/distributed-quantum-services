@@ -50,6 +50,11 @@ make -C backend install
 make -C backend demo
 ```
 
+if you got an error during python packages installtion related to fastecdsa then run:
+sudo apt-get install -y libgmp-dev
+
+and reinstall packages
+
 For a clean database:
 
 ```bash
