@@ -1,19 +1,19 @@
 # OSV Action Plan Draft
 
 This draft is meant to be compressed into the 1-page PDF required by the 2026 OSV Fellowship form.
-The final PDF should follow the form's formatting rules:
+The final PDF should follow the form rules:
 
-- Font: `Arial`
-- Font size: `11pt`
-- Line spacing: `1.5`
+- font: `Arial`
+- size: `11pt`
+- spacing: `1.5`
 
 ## Project
 
-Build the first strong experimental platform for distributed quantum-service orchestration: a system that can discover quantum capabilities across a network, plan and route workflows across heterogeneous services, recover from failures, and generate reproducible evidence comparing distributed and centralized coordination.
+Build a serious experimental platform for distributed quantum-service orchestration: a system that can discover quantum capabilities across a network, plan and route workflows across heterogeneous services, recover from failures, and generate reproducible evidence comparing distributed and centralized coordination.
 
 ## Why this year matters
 
-The current repository already proves the core architecture:
+The current repository already proves the architectural core:
 
 - peer-to-peer discovery over `py-libp2p`
 - cost-based planning with fallbacks
@@ -22,11 +22,12 @@ The current repository already proves the core architecture:
 - Qiskit-backed result analysis
 - operator and researcher interfaces through a dashboard and docs site
 
-The missing piece is not "more concept." It is measurement, comparison, and validation.
+The missing piece is not more concept work.
+It is measurement, comparison, and validation.
 
 ## 12-Month Plan
 
-### Phase 1: Stabilize the current prototype
+### Phase 1. Stabilize the current prototype
 
 Time: `Month 1-2`
 
@@ -35,67 +36,63 @@ Goals:
 - fix the failing service-discovery integration path
 - harden startup, shutdown, and recovery behavior
 - improve distributed test reliability
-- close the most obvious truth-gap between docs and implementation
+- close the biggest truth-gaps between docs and implementation
 
 Outputs:
 
 - green backend test suite
-- more stable discovery behavior
-- cleaner demo path for reviewers and collaborators
+- more stable service discovery
+- cleaner demo and contributor path
 
-### Phase 2: Build the centralized baseline
+### Phase 2. Build the centralized baseline
 
 Time: `Month 3-4`
 
 Goals:
 
 - implement a first-class centralized execution mode
-- ensure the same benchmark circuits can run in both modes
-- make configuration, metrics, and output formats comparable
+- ensure the same circuits can run in both modes
+- align outputs, metrics, and configs so they are directly comparable
 
 Outputs:
 
-- distributed mode vs centralized mode
+- stable distributed mode
+- stable centralized mode
 - shared benchmark interface
-- apples-to-apples comparison surface
 
-### Phase 3: Build the experiment harness
+### Phase 3. Build the experiment harness
 
 Time: `Month 5-7`
 
 Goals:
 
 - create a scenario runner for repeated benchmark execution
-- capture seeds, topology, planner configuration, retries, failures, and outputs
-- add controlled fault-injection scenarios:
-  - latency spikes
-  - node drop
-  - quality degradation
-  - reservation conflict
+- capture seeds, topology, planner settings, retries, failures, and outputs
+- add controlled fault-injection scenarios such as latency spikes, node drop, quality degradation, and reservation conflict
 
 Outputs:
 
 - reproducible experiment runs
-- CSV and JSON result artifacts
+- saved CSV and JSON artifacts
 - reusable scenario matrix
 
-### Phase 4: Make planner inputs more real
+### Phase 4. Replace synthetic signals with observed telemetry
 
 Time: `Month 8-9`
 
 Goals:
 
-- replace synthetic planner signals where possible with observed runtime telemetry
+- replace synthetic planner inputs where possible with observed runtime telemetry
 - improve visibility into planner decisions and fallback behavior
-- expose richer runtime metrics for later analysis
+- expose richer execution metrics for later analysis
 
 Outputs:
 
-- better scoring inputs
-- more defensible planner behavior
-- stronger observability around execution decisions
+- better planner inputs
+- stronger observability
+- more defensible execution decisions
 
-### Phase 5: Publish evidence and sharpen the research surface
+### Phase 5. Publish evidence and make the platform usable
 
 Time: `Month 10-12`
 
@@ -103,23 +100,24 @@ Goals:
 
 - benchmark larger workflows and node counts
 - compare distributed and centralized coordination across reliability and latency scenarios
-- prepare a clear technical report, documentation updates, and public artifacts
+- publish a technical report, benchmark summary, and improved documentation
 
 Outputs:
 
-- benchmark summary
-- comparison report
-- stronger open research platform for future contributors
+- public benchmark report
+- end-to-end demo path
+- stronger open research platform
 
-## Success Metrics
+## End-of-Year Deliverables
 
-By the end of the fellowship year, success would mean:
+By the end of the fellowship year, success means:
 
-- stable distributed and centralized execution modes
-- reproducible scenario runner with saved outputs
-- benchmark evidence across multiple failure scenarios
-- improved planner realism and runtime telemetry
-- public documentation that matches system reality
+- stable distributed execution mode
+- stable centralized baseline mode
+- reproducible scenario runner
+- telemetry-backed planner inputs
+- public benchmark report
+- clear docs and demo flow for external reviewers
 
 ## Risks
 
@@ -127,33 +125,25 @@ Main risks:
 
 - spending too much time on architecture polish instead of measurement
 - over-simulating network behavior instead of validating it
-- underestimating how much infrastructure work is needed for reproducible experiments
-- building an impressive demo without producing convincing evidence
+- underestimating the infrastructure work needed for reproducible experiments
+- building a compelling demo without producing convincing evidence
 
 Mitigations:
 
 - prioritize test stability and experiment harness work early
-- make every new feature produce measurable outputs
+- make every major feature produce measurable outputs
 - keep claims narrowly tied to verified behavior
 
-## Resource Use
+## Cost Overview
 
-Funding would primarily buy time.
-The project is software-heavy and can advance far without lab infrastructure, but full-time focus would materially accelerate:
+Replace the placeholders below with real numbers before submission.
 
-- implementation
-- benchmark design
-- documentation and reporting
-- demo and research communication
-
-Expected direct costs are modest compared with the value of concentrated execution time.
-
-Possible cost categories:
-
-- living expenses for full-time focus
-- cloud compute and testing infrastructure
-- design and recording support for demos or presentations
-- occasional travel for collaboration or research presentation
+- living expenses for 12 months: `$[insert]`
+- compute and testing infrastructure: `$[insert]`
+- hardware or workstation upgrades: `$[insert]`
+- travel, collaboration, or conference costs: `$[insert]`
+- contingency buffer: `$[insert]`
+- minimum full-time budget: `$[insert]`
 
 ## Hours Commitment
 
@@ -161,5 +151,4 @@ Target commitment:
 
 - `50-60 hours/week`
 
-That matches OSV's preference for candidates willing to go all in for the year.
-
+That is strong enough for OSV if it is true.

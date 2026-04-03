@@ -5,6 +5,7 @@
 - Research focus: distributed orchestration for quantum-service workflows
 - Stack: API service, durable state management, quantum analysis, peer-to-peer coordination
 - Thesis: quantum capabilities can be treated as network-visible services and coordinated like a distributed systems problem
+- Fast hook: a torrent network for quantum services
 
 ---
 
@@ -26,6 +27,7 @@ How should a system discover, plan, reserve, execute, and interpret **distribute
 
 ## Project Thesis
 
+- Mental model: a torrent network for quantum services
 - This project is not primarily a local circuit simulator
 - It is a **distributed quantum services coordinator**
 - A client submits an OpenQASM-like circuit
