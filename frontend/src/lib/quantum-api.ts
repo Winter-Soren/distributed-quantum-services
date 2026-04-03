@@ -84,10 +84,24 @@ export interface JobQuantumResult {
   top_basis_states: TopBasisState[] | null
 }
 
+export interface JobRequestOptions {
+  detail?: "full" | "summary"
+  signal?: AbortSignal
+}
+
 export interface JobResult {
   job_id: string
   fragment_results: FragmentResult[]
   quantum_result: JobQuantumResult | null
+}
+
+export interface JobProgress {
+  total_fragments: number
+  completed_fragments: number
+  active_fragments: number
+  completion_ratio: number
+  latest_event_at: string | null
+  finalizing: boolean
 }
 
 export interface JobStatusResponse {
@@ -96,6 +110,7 @@ export interface JobStatusResponse {
   plan_id: string | null
   error: string | null
   result: JobResult | null
+  progress: JobProgress | null
   created_at: string
   updated_at: string
 }
@@ -137,6 +152,7 @@ export interface JobUpdateResponse {
   job_id: string
   status: JobStatus
   error: string | null
+  progress: JobProgress | null
   updated_at: string
 }
 
@@ -218,8 +234,16 @@ export function submitCircuit(circuit: string, signal?: AbortSignal) {
   })
 }
 
-export function getJob(jobId: string, signal?: AbortSignal) {
-  return request<JobStatusResponse>(`/api/v1/jobs/${jobId}`, { signal })
+export function getJob(jobId: string, options?: JobRequestOptions) {
+  const params = new URLSearchParams()
+  if (options?.detail) {
+    params.set("result_detail", options.detail)
+  }
+
+  const suffix = params.size > 0 ? `?${params.toString()}` : ""
+  return request<JobStatusResponse>(`/api/v1/jobs/${jobId}${suffix}`, {
+    signal: options?.signal,
+  })
 }
 
 export function getPlan(planId: string, signal?: AbortSignal) {

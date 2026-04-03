@@ -1,0 +1,9 @@
+{
+  "title": "Contributing",
+  "icon": "GitBranch",
+  "pages": [
+    "contributor-guide",
+    "testing-and-quality",
+    "docs-authoring"
+  ]
+}

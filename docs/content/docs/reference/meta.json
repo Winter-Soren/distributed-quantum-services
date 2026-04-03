@@ -1,0 +1,10 @@
+{
+  "title": "Reference",
+  "icon": "BookOpen",
+  "pages": [
+    "api-reference",
+    "circuit-language",
+    "configuration",
+    "protocol-contracts"
+  ]
+}
