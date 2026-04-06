@@ -18,6 +18,7 @@ At the end of this milestone, the platform should be able to:
 
 - orchestrate end-to-end scientific workflows instead of isolated jobs
 - support drug discovery pipelines as first-class product capabilities
+- support financial modelling and business valuation workflows for S&P 500 companies
 - run simulation-heavy and data-heavy research workflows
 - preserve provenance and reproducibility for every run
 - provide collaboration surfaces for researchers, teams, and labs
@@ -34,6 +35,7 @@ It should begin to perform the actual work of:
 - target discovery support
 - molecular candidate generation
 - screening and ranking
+- business valuation and financial model evaluation
 - simulation orchestration
 - optimization loops
 - scientific report generation
@@ -44,6 +46,7 @@ It should begin to perform the actual work of:
 | Domain | Example workloads | Expected outputs |
 | --- | --- | --- |
 | drug discovery | molecular generation, docking, scoring, hit triage, multi-stage ranking | candidate lists, ranked compounds, supporting evidence |
+| financial modelling | DCF pipelines, comparable-company analysis, factor analysis, scenario modelling, earnings sensitivity analysis | valuation ranges, model outputs, scenario reports, investment memos |
 | computational chemistry | quantum chemistry workflows, conformer generation, property estimation | energy surfaces, structure analyses, property reports |
 | simulations | distributed simulation pipelines, parameter sweeps, sensitivity analyses | run matrices, validated summaries, comparison reports |
 | lab operations | experiment planning, sample tracking, protocol execution support | reproducible experimental records and handoff packages |
@@ -87,6 +90,18 @@ The platform should eventually support workflows such as:
 6. rank based on combined evidence
 7. generate a lab-ready report and candidate package
 
+### Example financial modelling loop
+
+The platform should also eventually support workflows such as:
+
+1. ingest SEC filings, earnings calls, and structured market data
+2. normalize financial statements across a chosen S&P 500 company or peer basket
+3. build or update DCF, comps, and scenario models
+4. run assumption sweeps on revenue growth, margins, discount rates, and terminal values
+5. compare outputs against historical ranges and peer sets
+6. generate valuation ranges with assumption provenance
+7. produce an investment or research memo with machine-readable model artifacts
+
 ## 2. Domain Service Catalog
 
 The platform needs a structured catalog of scientific service types.
@@ -104,6 +119,20 @@ Potential first-class services include:
 - property prediction
 - candidate ranking and prioritization
 - active learning and Bayesian optimization loops
+
+### Financial modelling service classes
+
+Potential first-class services include:
+
+- filing ingestion and statement normalization
+- company-specific KPI extraction
+- DCF model construction
+- comparable-company and precedent-transaction analysis
+- scenario and sensitivity analysis
+- capital structure modelling
+- factor and risk decomposition
+- macro overlay and forecast adjustment
+- valuation narrative generation and memo drafting
 
 ### Simulation and science service classes
 
@@ -147,6 +176,14 @@ For drug discovery and scientific work, teams must be able to answer:
 - which node or service executed each stage?
 - who approved the transition to the next stage?
 
+For financial modelling work, teams must also be able to answer:
+
+- which filing set or market data snapshot was used?
+- which assumptions drove this valuation range?
+- which model version generated this recommendation?
+- which peer set or benchmark universe was selected?
+- which scenario package produced this downside and upside case?
+
 ## 4. Discovery Intelligence Layer
 
 This is where the platform itself starts "doing discovery."
@@ -156,6 +193,7 @@ The intelligence layer should support:
 - candidate generation loops
 - iterative screening
 - score aggregation across heterogeneous services
+- scenario generation and assumption stress testing
 - adaptive re-routing to better models or simulations
 - experiment suggestion
 - hypothesis ranking
@@ -172,6 +210,16 @@ The intelligence layer should support:
 7. produce a narrowed list for lab validation
 
 This is not just job scheduling. It is an iterative discovery system.
+
+### Example financial decision loop
+
+1. ingest fresh company and peer data
+2. update valuation models automatically
+3. stress assumptions across bull, base, and bear scenarios
+4. compare model outputs against historical and sector benchmarks
+5. surface the assumptions with highest impact on valuation
+6. recommend deeper review on companies with the most asymmetric outcome profiles
+7. generate a new memo or updated watchlist package
 
 ## 5. Research Collaboration Product
 
@@ -222,6 +270,33 @@ The platform should be able to produce:
 - workflow lineage bundle
 - machine-readable export for downstream lab systems
 
+## 6A. Financial Modelling Product Surface
+
+If the platform is also meant to do financial modelling directly, it needs explicit product modules for that domain as well.
+
+### Core financial modelling modules
+
+- S&P 500 company universe explorer
+- filing and market-data ingestion workspace
+- valuation model builder
+- assumption library and scenario manager
+- comparable-company analysis board
+- earnings and event-impact workspace
+- sensitivity heatmap and downside-risk page
+- memo and investment-thesis generator
+
+### Financial modelling outputs
+
+The platform should be able to produce:
+
+- company valuation ranges
+- base, bull, and bear case outputs
+- assumption audit trail
+- sensitivity matrices
+- comparable-company benchmark packs
+- machine-readable financial model artifacts
+- analyst-ready or executive-ready memo bundles
+
 ## 7. Dataset, Model, And Artifact Platform
 
 This milestone requires a real scientific data layer.
@@ -248,6 +323,7 @@ This milestone requires a real scientific data layer.
 - candidate sets
 - docking result bundles
 - simulation trajectories or summaries
+- valuation models and scenario packs
 - comparison reports
 - publishable evidence packages
 
@@ -281,6 +357,7 @@ Later in M3, it should integrate with:
 - ELN and LIMS systems where relevant
 - dataset repositories
 - external model registries
+- market-data providers and SEC filing pipelines
 - simulation backends
 - collaboration tools and reporting systems
 
@@ -295,6 +372,7 @@ Later in M3, it should integrate with:
 ### M3-B Simulation and analysis platform
 
 - simulation service types
+- financial model service types
 - experiment comparison
 - lineage-aware reporting
 
@@ -304,14 +382,21 @@ Later in M3, it should integrate with:
 - ranking and evidence aggregation
 - candidate review experience
 
-### M3-D Discovery loops and optimization
+### M3-D Financial modelling core
+
+- DCF and comps workflows
+- assumption and scenario management
+- valuation and sensitivity reporting
+
+### M3-E Discovery loops and optimization
 
 - adaptive workflow logic
 - iterative screening
+- valuation stress testing and scenario search
 - multi-objective optimization
 - active learning style loops
 
-### M3-E Research collaboration and publication
+### M3-F Research collaboration and publication
 
 - collaboration surfaces
 - report packages
@@ -325,6 +410,7 @@ This milestone is successful when:
 - the platform can run full scientific workflows instead of isolated service invocations
 - researchers can trace every important result to data, models, and execution lineage
 - drug discovery workflows generate ranked candidates with supporting evidence
+- financial modelling workflows generate valuation ranges with assumption-level provenance
 - teams can compare experiments and export reproducible result bundles
 - the product meaningfully reduces time from idea to research output
 
@@ -335,8 +421,9 @@ Do not declare M3 complete until all are true:
 1. the platform can express and run complex scientific workflows
 2. provenance is strong enough to audit discovery outcomes
 3. at least one drug discovery workflow exists as a first-class product flow
-4. simulation and ranking outputs are reviewable and exportable
-5. research teams can collaborate through the product, not only through raw APIs
+4. at least one financial modelling workflow exists as a first-class product flow
+5. simulation, valuation, and ranking outputs are reviewable and exportable
+6. research teams can collaborate through the product, not only through raw APIs
 
 ## What M3 Unlocks
 
@@ -346,5 +433,5 @@ It unlocks:
 
 - high-value scientific demand for peer and swarm infrastructure
 - model and dataset distribution needs that justify M4
+- market and financial data distribution needs that justify M4
 - a criticality level where Hydra-style resilience in M5 becomes necessary
-
