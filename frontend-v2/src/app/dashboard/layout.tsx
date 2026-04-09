@@ -2,24 +2,44 @@
 
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import Link from 'next/link';
 import {
-	ActivityIcon,
 	BellIcon,
 	BotIcon,
 	CalendarIcon,
 	ChevronDownIcon,
-	CircleIcon,
+	FileTextIcon,
+	FolderKanbanIcon,
+	GaugeIcon,
 	HomeIcon,
-	LayoutDashboardIcon,
-	LockIcon,
+	NetworkIcon,
 	PlusIcon,
 	SearchIcon,
 	SettingsIcon,
-	SparklesIcon,
 	VideoIcon
 } from 'lucide-react';
 
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarProvider
+} from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 type DashboardLayoutProps = {
@@ -28,59 +48,89 @@ type DashboardLayoutProps = {
 
 const navItems = [
 	{
-		key: 'overview',
+		key: 'home',
 		railLabel: 'Home',
-		label: 'Overview',
+		label: 'Home',
 		icon: HomeIcon,
-		emoji: 'OV'
+		emoji: 'HM'
 	},
 	{
-		key: 'agents',
-		railLabel: 'Agents',
-		label: 'Agents',
+		key: 'network',
+		railLabel: 'Network',
+		label: 'Network',
+		icon: NetworkIcon,
+		emoji: 'NW'
+	},
+	{
+		key: 'runs-projects',
+		railLabel: 'Runs',
+		label: 'Runs & Projects',
+		icon: FolderKanbanIcon,
+		emoji: 'RP'
+	},
+	{
+		key: 'analytics',
+		railLabel: 'Analytics',
+		label: 'Analytics',
+		icon: GaugeIcon,
+		emoji: 'AN'
+	},
+	{
+		key: 'docs',
+		railLabel: 'Docs',
+		label: 'Docs',
+		icon: FileTextIcon,
+		emoji: 'DC'
+	},
+	{
+		key: 'ai',
+		railLabel: 'AI',
+		label: 'AI Assistant',
 		icon: BotIcon,
 		emoji: 'AI'
 	},
 	{
-		key: 'signals',
-		railLabel: 'Signals',
-		label: 'Signals',
-		icon: ActivityIcon,
-		emoji: 'SI'
-	},
-	{
-		key: 'experiments',
-		railLabel: 'Labs',
-		label: 'Experiments',
-		icon: SparklesIcon,
-		emoji: 'EX'
+		key: 'settings',
+		railLabel: 'Settings',
+		label: 'Settings',
+		icon: SettingsIcon,
+		emoji: 'ST'
 	}
 ] as const;
 
 const panelData: Record<string, { group: string; items: string[] }[]> = {
-	overview: [
-		{ group: 'Workspace', items: ['Inbox', 'Assigned Comments', 'All Tasks', 'My Tasks'] },
-		{ group: 'Views', items: ['List', 'Board', 'Calendar', 'Gantt'] }
+	home: [
+		{ group: 'Home', items: ['Overview', 'Activity', 'Quick Actions'] },
+		{ group: 'Current Focus', items: ['Network Health', 'Open Runs', 'Recent Alerts'] }
 	],
-	agents: [
-		{ group: 'Agents', items: ['All Agents', 'Running Jobs', 'Agent Logs'] },
-		{ group: 'Automation', items: ['Workflows', 'Triggers', 'Task Rules'] }
+	network: [
+		{ group: 'Network', items: ['Service Mesh', 'Nodes', 'Services', 'Fidelity'] },
+		{ group: 'Topology', items: ['DAG View', 'Circuit Paths', 'Zones'] }
 	],
-	signals: [
-		{ group: 'Signals', items: ['Live Feed', 'Alerts', 'Anomaly Detection'] },
-		{ group: 'Reports', items: ['Daily Summary', 'Trends', 'Exports'] }
+	'runs-projects': [
+		{ group: 'Runs', items: ['Active Run', 'Run History', 'Plans', 'Results'] },
+		{ group: 'Projects', items: ['All Projects', 'Experiments', 'Reports', 'Artifacts'] }
 	],
-	experiments: [
-		{ group: 'Labs', items: ['Experiments', 'Templates', 'Runs'] },
-		{ group: 'Insights', items: ['Comparisons', 'Artifacts', 'Metrics'] }
+	analytics: [
+		{ group: 'Analytics', items: ['Measurements', 'Geometry', 'Deep State', 'Comparisons'] },
+		{ group: 'Insights', items: ['Trend Explorer', 'Anomalies', 'Forecasts'] }
+	],
+	docs: [
+		{ group: 'Documentation', items: ['System Docs', 'Roadmap', 'API Reference'] },
+		{ group: 'Developer', items: ['Schemas', 'Examples', 'Playbooks'] }
+	],
+	ai: [
+		{ group: 'AI', items: ['Assistant', 'Prompt Studio', 'Automation'] },
+		{ group: 'Knowledge', items: ['Context Packs', 'Model Runs', 'Suggestions'] }
+	],
+	settings: [
+		{ group: 'Workspace', items: ['General', 'Integrations', 'Users'] },
+		{ group: 'System', items: ['Security', 'Observability', 'Audit Logs'] }
 	]
 };
 
-const viewTabs = ['List', 'Board', 'Calendar', 'Gantt', 'Table'] as const;
-
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	const [activeItem, setActiveItem] = useState<(typeof navItems)[number]['key']>(navItems[0].key);
-	const [activeView, setActiveView] = useState<(typeof viewTabs)[number]>('List');
 	const [activePanelItem, setActivePanelItem] = useState<string | null>(null);
 
 	const activeNav = navItems.find(item => item.key === activeItem) ?? navItems[0];
@@ -148,7 +198,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 				</div>
 			</header>
 
-			<div className='flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden p-3 pt-3'>
+			<div className='flex min-h-0 min-w-0 flex-1 gap-2 overflow-hidden px-2 pb-2 pt-2'>
 				{/* Floating rail — icons + short labels (no scroll; height follows viewport) */}
 				<aside className='flex min-h-0 w-16 shrink-0 flex-col items-center overflow-hidden rounded-2xl border border-border bg-card py-2 shadow-lg ring-1 ring-black/5'>
 					<div className='mb-1.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 text-[9px] font-bold text-primary'>
@@ -195,160 +245,102 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 					</button>
 				</aside>
 
-				{/* Single floating shell: secondary sidebar + main (ClickUp-style) */}
-				<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl ring-1 ring-black/5'>
-					<div className='flex min-h-0 min-w-0 flex-1 overflow-hidden'>
-						<aside className='flex min-h-0 w-64 shrink-0 flex-col overflow-hidden border-r border-border bg-muted/20'>
-							<div className='flex items-center justify-between gap-2 border-b border-border px-4 py-3'>
-								<div className='min-w-0'>
-									<p className='truncate text-sm font-semibold text-foreground'>{activeNav.label}</p>
-									<p className='text-xs text-muted-foreground'>Workspace navigation</p>
-								</div>
-								<Button
-									type='button'
-									size='icon'
-									variant='outline'
-									className='size-8 shrink-0 rounded-lg border-border bg-background'
-									aria-label='Add'
-								>
-									<PlusIcon className='size-4' />
-								</Button>
-							</div>
-
-							<div className='min-h-0 flex-1 space-y-5 overflow-hidden px-3 py-4'>
-								{activeGroups.map(group => (
-									<div key={group.group}>
-										<p className='mb-2 px-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase'>
-											{group.group}
-										</p>
-										<ul className='space-y-0.5'>
-											{group.items.map(item => {
-												const isSelected = activePanelItem === item;
-												return (
-													<li key={item}>
-														<button
-															type='button'
-															onClick={() => setActivePanelItem(item)}
-															className={cn(
-																'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors',
-																isSelected
-																	? 'bg-primary/15 font-medium text-primary'
-																	: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-															)}
-														>
-															<CircleIcon className='size-2 shrink-0 fill-current opacity-70' />
-															<span className='truncate'>{item}</span>
-														</button>
-													</li>
-												);
-											})}
-										</ul>
+				{/* Secondary sidebar (shadcn sidebar-01: grouped nav) + main */}
+				<SidebarProvider className='!min-h-0 flex min-w-0 flex-1 flex-col overflow-hidden'>
+					<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl ring-1 ring-black/5'>
+						<div className='flex min-h-0 min-w-0 flex-1 overflow-hidden'>
+							<Sidebar
+								collapsible='none'
+								className='h-full min-h-0 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground'
+							>
+								<SidebarHeader className='gap-1 border-b border-sidebar-border px-4 py-3'>
+									<div className='flex items-start justify-between gap-2'>
+										<div className='min-w-0'>
+											<p className='truncate text-sm font-semibold'>{activeNav.label}</p>
+											<p className='text-xs text-sidebar-foreground/70'>Workspace navigation</p>
+										</div>
+										<Button
+											type='button'
+											size='icon'
+											variant='outline'
+											className='size-8 shrink-0 rounded-lg border-sidebar-border bg-sidebar-accent/50'
+											aria-label='Add'
+										>
+											<PlusIcon className='size-4' />
+										</Button>
 									</div>
-								))}
-							</div>
-						</aside>
+								</SidebarHeader>
+								<SidebarContent className='gap-0 px-0 py-2'>
+									{activeGroups.map(section => (
+										<SidebarGroup key={section.group}>
+											<SidebarGroupLabel className='px-4 text-xs font-medium text-sidebar-foreground/70'>
+												{section.group}
+											</SidebarGroupLabel>
+											<SidebarGroupContent>
+												<SidebarMenu>
+													{section.items.map(item => (
+														<SidebarMenuItem key={item}>
+															<SidebarMenuButton
+																type='button'
+																isActive={activePanelItem === item}
+																onClick={() => setActivePanelItem(item)}
+																className='px-4'
+															>
+																<span className='truncate'>{item}</span>
+															</SidebarMenuButton>
+														</SidebarMenuItem>
+													))}
+												</SidebarMenu>
+											</SidebarGroupContent>
+										</SidebarGroup>
+									))}
+								</SidebarContent>
+							</Sidebar>
 
-						<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background'>
-							{/* Breadcrumbs */}
-							<div className='flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-4 py-2.5 text-xs text-muted-foreground'>
-								<span className='font-medium text-foreground'>Engineering</span>
-								<span className='text-border'>/</span>
-								<span>Dashboard</span>
-								<LockIcon className='size-3 opacity-60' />
-								<span className='text-border'>/</span>
-								<span>TODOs</span>
-								<LockIcon className='size-3 opacity-60' />
-							</div>
-
-							{/* View tabs */}
-							<div className='flex shrink-0 items-center gap-1 border-b border-border px-2'>
-								{viewTabs.map(tab => (
-									<button
-										key={tab}
-										type='button'
-										onClick={() => setActiveView(tab)}
-										className={cn(
-											'relative px-3 py-2.5 text-sm font-medium transition-colors',
-											activeView === tab
-												? 'text-foreground after:absolute after:right-3 after:bottom-0 after:left-3 after:h-0.5 after:rounded-full after:bg-primary'
-												: 'text-muted-foreground hover:text-foreground'
+							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background'>
+							<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3'>
+								<Breadcrumb>
+									<BreadcrumbList>
+										<BreadcrumbItem>
+											<BreadcrumbLink asChild>
+												<Link href='/dashboard'>Dashboard</Link>
+											</BreadcrumbLink>
+										</BreadcrumbItem>
+										<BreadcrumbSeparator />
+										{activePanelItem ? (
+											<>
+												<BreadcrumbItem className='max-w-[40vw] sm:max-w-none'>
+													<BreadcrumbLink asChild>
+														<Link
+															href='/dashboard'
+															className='truncate'
+															onClick={() => setActivePanelItem(null)}
+														>
+															{activeNav.label}
+														</Link>
+													</BreadcrumbLink>
+												</BreadcrumbItem>
+												<BreadcrumbSeparator />
+												<BreadcrumbItem className='min-w-0 max-w-[min(100%,12rem)] sm:max-w-md'>
+													<BreadcrumbPage className='truncate'>{activePanelItem}</BreadcrumbPage>
+												</BreadcrumbItem>
+											</>
+										) : (
+											<BreadcrumbItem>
+												<BreadcrumbPage>{activeNav.label}</BreadcrumbPage>
+											</BreadcrumbItem>
 										)}
-									>
-										{tab}
-									</button>
-								))}
-								<Button
-									type='button'
-									variant='ghost'
-									size='sm'
-									className='ml-1 text-muted-foreground'
-								>
-									+ View
-								</Button>
-								<div className='ml-auto flex items-center gap-2 pr-2'>
-									<Button
-										type='button'
-										variant='outline'
-										size='sm'
-										className='hidden sm:inline-flex'
-									>
-										Agents
-									</Button>
-									<Button
-										type='button'
-										variant='secondary'
-										size='sm'
-										className='gap-1.5'
-									>
-										<SparklesIcon className='size-3.5' />
-										Ask AI
-									</Button>
-									<Button
-										type='button'
-										size='sm'
-									>
-										Share
-									</Button>
-								</div>
-							</div>
-
-							{/* Toolbar row */}
-							<div className='flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2'>
-								<div className='flex flex-wrap items-center gap-1'>
-									<Button
-										type='button'
-										variant='ghost'
-										size='icon-sm'
-										className='text-muted-foreground'
-										aria-label='Filter'
-									>
-										<SearchIcon className='size-4' />
-									</Button>
-									<Button
-										type='button'
-										variant='ghost'
-										size='icon-sm'
-										className='text-muted-foreground'
-										aria-label='Status'
-									>
-										<LayoutDashboardIcon className='size-4' />
-									</Button>
-								</div>
-								<Button
-									type='button'
-									size='sm'
-								>
-									<PlusIcon className='size-4' />
-									Task
-								</Button>
-							</div>
+									</BreadcrumbList>
+								</Breadcrumb>
+							</header>
 
 							<main className='min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain'>
 								{children}
 							</main>
+							</div>
 						</div>
 					</div>
-				</div>
+				</SidebarProvider>
 			</div>
 		</div>
 	);
