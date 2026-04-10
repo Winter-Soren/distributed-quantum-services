@@ -54,6 +54,17 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 		}
 
 		const fallback = plan.fragmentOrder[0] ?? null;
+
+		if (!fragmentParam) {
+			setSelectedFragmentId(prev => {
+				if (prev && validIds.has(prev)) {
+					return prev;
+				}
+				return fallback;
+			});
+			return;
+		}
+
 		setSelectedFragmentId(fallback);
 
 		if (fragmentParam && !validIds.has(fragmentParam) && fallback) {
@@ -299,12 +310,12 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 															return (
 																<TableRow
 																	key={candidate.nodeId}
-																	className={isPrimary ? 'bg-primary/5' : undefined}
+																	className={isPrimary ? 'bg-muted/50' : undefined}
 																>
 																	<TableCell className='max-w-[140px] font-mono text-[11px] break-all'>
 																		{shortFragmentId(candidate.nodeId, 10, 4)}
 																		{isPrimary ? (
-																			<span className='ml-1 text-primary'>•</span>
+																			<span className='ml-1 text-muted-foreground'>•</span>
 																		) : null}
 																	</TableCell>
 																	<TableCell className='text-right text-xs'>

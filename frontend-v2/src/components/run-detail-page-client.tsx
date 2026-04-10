@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircleIcon, Loader2Icon, RefreshCcwIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircleIcon, GitBranchIcon, Loader2Icon, RefreshCcwIcon } from 'lucide-react';
 
+import { FragmentFlowCanvas } from '@/components/fragment-flow-canvas';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useRunDetail } from '@/hooks/use-run-detail';
+import { buildFragmentDagModel } from '@/lib/fragment-dag-model';
 import { RunStatusBadge } from '@/components/run-status-badge';
 
 type RunDetailPageClientProps = {
@@ -20,6 +23,30 @@ type RunDetailPageClientProps = {
 
 export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 	const { snapshot, error, isLoading, isRefreshing, refresh } = useRunDetail(runId);
+	const [embedFragmentId, setEmbedFragmentId] = useState<string | null>(null);
+
+	const dagModel = useMemo(
+		() =>
+			snapshot?.plan
+				? buildFragmentDagModel(snapshot.plan, snapshot.run.fragmentResults)
+				: null,
+		[snapshot?.plan, snapshot?.run.fragmentResults]
+	);
+
+	useEffect(() => {
+		const plan = snapshot?.plan;
+		if (!plan) {
+			setEmbedFragmentId(null);
+			return;
+		}
+
+		setEmbedFragmentId(current => {
+			if (current && plan.fragments.some(f => f.fragmentId === current)) {
+				return current;
+			}
+			return plan.fragmentOrder[0] ?? null;
+		});
+	}, [snapshot?.plan]);
 
 	if (!snapshot && !isLoading && error) {
 		return (
@@ -67,6 +94,16 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 					<p className='font-mono text-sm text-muted-foreground'>{run.id}</p>
 				</div>
 				<div className='flex flex-wrap items-center gap-2'>
+					<Button
+						variant='outline'
+						size='sm'
+						asChild
+					>
+						<Link href={`/runs/${encodeURIComponent(runId)}/fragment-flow`}>
+							<GitBranchIcon />
+							Fragment flow
+						</Link>
+					</Button>
 					<Button
 						variant='outline'
 						size='sm'
@@ -188,12 +225,25 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 
 				<Card className='border-border/80 shadow-sm'>
 					<CardHeader>
-						<CardTitle>Execution plan</CardTitle>
-						<CardDescription>
-							{plan
-								? `${plan.fragments.length} fragments routed across the mesh.`
-								: 'Plan data is not available yet.'}
-						</CardDescription>
+						<div className='flex flex-wrap items-start justify-between gap-3'>
+							<div>
+								<CardTitle>Execution plan</CardTitle>
+								<CardDescription>
+									{plan
+										? `${plan.fragments.length} fragments routed across the mesh.`
+										: 'Plan data is not available yet.'}
+								</CardDescription>
+							</div>
+							<Button
+								variant={plan ? 'secondary' : 'outline'}
+								size='sm'
+								asChild
+							>
+								<Link href={`/runs/${encodeURIComponent(runId)}/fragment-flow`}>
+									{plan ? 'Open fragment flow' : 'Fragment flow (plan pending)'}
+								</Link>
+							</Button>
+						</div>
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						{plan ? (
@@ -203,6 +253,17 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 									<p>Quality snapshot: {plan.qualitySnapshotId ?? 'Unavailable'}</p>
 								</div>
 								<Separator />
+								{dagModel && dagModel.nodes.length > 0 ? (
+									<>
+										<FragmentFlowCanvas
+											variant='embed'
+											dagModel={dagModel}
+											selectedFragmentId={embedFragmentId}
+											onSelectFragment={setEmbedFragmentId}
+										/>
+										<Separator />
+									</>
+								) : null}
 								<div className='space-y-3'>
 									{plan.fragments.map(fragment => (
 										<div

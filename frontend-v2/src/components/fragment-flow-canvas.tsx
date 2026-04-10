@@ -7,6 +7,7 @@ import {
 	Background,
 	Controls,
 	Handle,
+	MiniMap,
 	Position,
 	ReactFlow,
 	useNodesState,
@@ -220,15 +221,23 @@ function buildDagFlowEdges({
 	});
 }
 
-export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
-	dagModel,
-	selectedFragmentId,
-	onSelectFragment
-}: {
+export type FragmentFlowCanvasProps = {
 	dagModel: FragmentDagModel | null;
 	selectedFragmentId: string | null;
 	onSelectFragment: (fragmentId: string) => void;
-}) {
+	/** Compact canvas for embedding on run detail. */
+	variant?: 'default' | 'embed';
+	className?: string;
+};
+
+export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
+	dagModel,
+	selectedFragmentId,
+	onSelectFragment,
+	variant = 'default',
+	className
+}: FragmentFlowCanvasProps) {
+	const isEmbed = variant === 'embed';
 	const baseFlowNodes = useMemo(
 		() => (dagModel ? buildDagFlowNodes({ dagModel, selectedFragmentId }) : []),
 		[dagModel, selectedFragmentId]
@@ -263,14 +272,32 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 	}
 
 	return (
-		<div className='relative flex min-h-[min(560px,calc(100dvh-14rem))] flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-muted/20'>
-			<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/40 px-4 py-3'>
+		<div
+			className={cn(
+				'relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-muted/20',
+				isEmbed ? 'min-h-[340px]' : 'min-h-[min(560px,calc(100dvh-14rem))]',
+				className
+			)}
+		>
+			<div
+				className={cn(
+					'flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/40 px-4',
+					isEmbed ? 'py-2' : 'py-3'
+				)}
+			>
 				<div>
 					<div className='text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground'>
-						Fragment DAG
+						Generated fragment DAG
 					</div>
-					<p className='mt-1 text-sm text-muted-foreground'>
-						Drag nodes and pan the canvas. Click a fragment to open analytics.
+					<p
+						className={cn(
+							'text-muted-foreground',
+							isEmbed ? 'mt-0.5 text-xs' : 'mt-1 text-sm'
+						)}
+					>
+						{isEmbed
+							? 'Pan, zoom, and click fragments to highlight them. Use Open fragment flow for full analytics.'
+							: 'Drag nodes and pan the canvas. Click a fragment for details.'}
 					</p>
 				</div>
 				<div className='flex flex-wrap gap-2 text-xs text-muted-foreground'>
@@ -278,7 +305,7 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 					<span className='rounded-full border border-border/70 px-3 py-1'>{dagModel.edges.length} edges</span>
 				</div>
 			</div>
-			<div className='relative min-h-[480px] flex-1'>
+			<div className={cn('relative flex-1', isEmbed ? 'min-h-[260px]' : 'min-h-[480px]')}>
 				<ReactFlow
 					nodes={flowNodes}
 					edges={flowEdges}
@@ -301,11 +328,11 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 					className='bg-transparent'
 				>
 					<FlowViewportSync
-						viewportKey={`${dagModel.width}:${dagModel.height}:${dagModel.nodes.length}:${dagModel.edges.length}`}
+						viewportKey={`${dagModel.width}:${dagModel.height}:${dagModel.nodes.length}:${dagModel.edges.length}:${variant}`}
 						fitViewOptions={DAG_FIT_VIEW_OPTIONS}
 					/>
 					<Background
-						gap={26}
+						gap={isEmbed ? 22 : 26}
 						size={1}
 						color='rgba(148,163,184,0.16)'
 					/>
@@ -313,6 +340,19 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 						showInteractive={false}
 						position='top-right'
 					/>
+					{isEmbed ? null : (
+						<MiniMap
+							position='bottom-left'
+							pannable
+							zoomable
+							nodeColor={n => {
+								const svc = (n.data as DagFragmentNodeData | undefined)?.serviceType;
+								return (
+									FRAGMENT_SERVICE_STYLES[svc ?? 'bell_pair']?.stroke ?? 'var(--primary)'
+								);
+							}}
+						/>
+					)}
 				</ReactFlow>
 			</div>
 		</div>
