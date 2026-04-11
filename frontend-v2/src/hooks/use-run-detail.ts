@@ -10,29 +10,45 @@ type UseRunDetailOptions = {
 	refreshIntervalMs?: number;
 };
 
-async function requestRunDetail(runId: string, signal?: AbortSignal) {
-	const response = await fetch(`/api/runs/${encodeURIComponent(runId)}?result_detail=summary`, {
-		method: 'GET',
-		cache: 'no-store',
-		headers: {
-			Accept: 'application/json'
-		},
-		signal
-	});
-	const payload = (await response.json().catch(() => null)) as RunDetailSnapshot | RunsApiError | null;
+const inflightRunDetailRequests = new Map<string, Promise<RunDetailSnapshot>>();
 
-	if (!response.ok) {
-		const message =
-			payload && 'error' in payload
-				? payload.details
-					? `${payload.error} ${payload.details}`
-					: payload.error
-				: `Failed to load run ${runId}.`;
-
-		throw new Error(message);
+async function requestRunDetail(runId: string) {
+	const existingRequest = inflightRunDetailRequests.get(runId);
+	if (existingRequest) {
+		return existingRequest;
 	}
 
-	return payload as RunDetailSnapshot;
+	const request = (async () => {
+		const response = await fetch(`/api/runs/${encodeURIComponent(runId)}?result_detail=summary`, {
+			method: 'GET',
+			cache: 'no-store',
+			headers: {
+				Accept: 'application/json'
+			}
+		});
+		const payload = (await response.json().catch(() => null)) as RunDetailSnapshot | RunsApiError | null;
+
+		if (!response.ok) {
+			const message =
+				payload && 'error' in payload
+					? payload.details
+						? `${payload.error} ${payload.details}`
+						: payload.error
+					: `Failed to load run ${runId}.`;
+
+			throw new Error(message);
+		}
+
+		return payload as RunDetailSnapshot;
+	})();
+
+	inflightRunDetailRequests.set(runId, request);
+
+	try {
+		return await request;
+	} finally {
+		inflightRunDetailRequests.delete(runId);
+	}
 }
 
 export function useRunDetail(runId: string, { refreshIntervalMs = 2_000 }: UseRunDetailOptions = {}) {
@@ -50,7 +66,7 @@ export function useRunDetail(runId: string, { refreshIntervalMs = 2_000 }: UseRu
 			startDetailLoading(runId, silent);
 
 			try {
-				const nextSnapshot = await requestRunDetail(runId, signal);
+				const nextSnapshot = await requestRunDetail(runId);
 
 				if (signal?.aborted) {
 					return;

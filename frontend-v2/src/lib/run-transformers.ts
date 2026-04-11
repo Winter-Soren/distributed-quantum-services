@@ -259,7 +259,9 @@ function buildQuantumSummary(quantumResult: BackendJobQuantumResult | null): Run
 		entanglementEntropy: sortMeasurementBuckets(quantumResult.entanglement_entropy),
 		blochVectors: quantumResult.bloch_vectors ?? null,
 		fidelity: quantumResult.fidelity ?? null,
-		topBasisStates: quantumResult.top_basis_states ?? []
+		topBasisStates: quantumResult.top_basis_states ?? [],
+		statevector: quantumResult.statevector ?? null,
+		reducedDensityMatrices: quantumResult.reduced_density_matrices ?? null
 	};
 }
 

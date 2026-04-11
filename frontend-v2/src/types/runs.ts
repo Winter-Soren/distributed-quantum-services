@@ -96,6 +96,10 @@ export type RunQuantumSummary = {
 	blochVectors: Record<string, Record<string, number>> | null;
 	fidelity: Record<string, unknown> | null;
 	topBasisStates: Array<Record<string, unknown>>;
+	/** Populated when the job is fetched with `result_detail=full`. */
+	statevector: string[] | null;
+	/** Populated when the job is fetched with `result_detail=full`. */
+	reducedDensityMatrices: Record<string, string[][]> | null;
 };
 
 export type RunPlanCandidateSummary = {
