@@ -218,11 +218,19 @@ function iconForSidebarItem(label: string): LucideIcon {
 	return SIDEBAR_ITEM_ICONS[label] ?? CircleDotIcon;
 }
 
-function parseRunIdFromPath(pathname: string): string | null {
-	const m = /^\/runs\/([^/]+)\/?$/.exec(pathname);
-	if (!m) return null;
-	if (m[1] === 'new') return null;
-	return m[1];
+function parseRunsRoute(pathname: string): {
+	runId: string | null;
+	isFragmentFlow: boolean;
+} {
+	const flow = /^\/runs\/([^/]+)\/fragment-flow\/?$/.exec(pathname);
+	if (flow && flow[1] !== 'new') {
+		return { runId: flow[1], isFragmentFlow: true };
+	}
+	const detail = /^\/runs\/([^/]+)\/?$/.exec(pathname);
+	if (detail && detail[1] !== 'new') {
+		return { runId: detail[1], isFragmentFlow: false };
+	}
+	return { runId: null, isFragmentFlow: false };
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
@@ -230,8 +238,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const searchParams = useSearchParams();
 	const [manualActiveItem, setManualActiveItem] = useState<(typeof navItems)[number]['key']>('home');
 	const [manualActivePanelItem, setManualActivePanelItem] = useState<string | null>(null);
-	const runId = useMemo(() => parseRunIdFromPath(pathname), [pathname]);
+	const { runId, isFragmentFlow } = useMemo(() => parseRunsRoute(pathname), [pathname]);
 	const statusFilter = searchParams.get('status');
+	const fragmentBreadcrumbId = searchParams.get('fragment');
 	const routeState = useMemo(() => {
 		if (pathname.startsWith('/runs')) {
 			return {
@@ -595,10 +604,52 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													</BreadcrumbItem>
 													<BreadcrumbSeparator />
 													<BreadcrumbItem className='min-w-0 max-w-[min(100%,14rem)] sm:max-w-md'>
-														<BreadcrumbPage className='truncate font-mono text-sm'>
-															Run {runId}
-														</BreadcrumbPage>
+														{isFragmentFlow ? (
+															<BreadcrumbLink asChild>
+																<Link
+																	href={`/runs/${encodeURIComponent(runId)}`}
+																	className='truncate font-mono text-sm'
+																>
+																	Run {runId}
+																</Link>
+															</BreadcrumbLink>
+														) : (
+															<BreadcrumbPage className='truncate font-mono text-sm'>
+																Run {runId}
+															</BreadcrumbPage>
+														)}
 													</BreadcrumbItem>
+													{isFragmentFlow ? (
+														<>
+															<BreadcrumbSeparator />
+															<BreadcrumbItem className='min-w-0 max-w-[min(100%,12rem)] sm:max-w-md'>
+																{fragmentBreadcrumbId ? (
+																	<BreadcrumbLink asChild>
+																		<Link
+																			href={`/runs/${encodeURIComponent(runId)}/fragment-flow`}
+																			className='truncate'
+																		>
+																			Fragment flow
+																		</Link>
+																	</BreadcrumbLink>
+																) : (
+																	<BreadcrumbPage className='truncate'>
+																		Fragment flow
+																	</BreadcrumbPage>
+																)}
+															</BreadcrumbItem>
+															{fragmentBreadcrumbId ? (
+																<>
+																	<BreadcrumbSeparator />
+																	<BreadcrumbItem className='min-w-0 max-w-[min(100%,14rem)] sm:max-w-md'>
+																		<BreadcrumbPage className='truncate font-mono text-sm'>
+																			{fragmentBreadcrumbId}
+																		</BreadcrumbPage>
+																	</BreadcrumbItem>
+																</>
+															) : null}
+														</>
+													) : null}
 												</>
 											) : pathname === '/runs' ? (
 												<>

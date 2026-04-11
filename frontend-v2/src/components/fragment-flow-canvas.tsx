@@ -210,7 +210,7 @@ function buildDagFlowEdges({
 			id: `dag-edge-${edge.from}-${edge.to}`,
 			source: edge.from,
 			target: edge.to,
-			type: 'bezier',
+			type: 'simplebezier',
 			animated: isFocused,
 			style: {
 				stroke: isFocused ? sourceStyle.stroke : 'rgba(71, 85, 105, 0.32)',
@@ -274,8 +274,9 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 	return (
 		<div
 			className={cn(
-				'relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-muted/20',
-				isEmbed ? 'min-h-[340px]' : 'min-h-[min(560px,calc(100dvh-14rem))]',
+				'relative flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-muted/20',
+				/* Embed sits in CardContent (not a flex parent): React Flow needs a definite height — flex-1 collapses to 0. */
+				isEmbed ? 'w-full' : 'min-h-[min(560px,calc(100dvh-14rem))] flex-1',
 				className
 			)}
 		>
@@ -305,7 +306,12 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 					<span className='rounded-full border border-border/70 px-3 py-1'>{dagModel.edges.length} edges</span>
 				</div>
 			</div>
-			<div className={cn('relative flex-1', isEmbed ? 'min-h-[260px]' : 'min-h-[480px]')}>
+			<div
+				className={cn(
+					'relative w-full',
+					isEmbed ? 'h-[min(360px,max(280px,32vh))] shrink-0' : 'min-h-[480px] flex-1'
+				)}
+			>
 				<ReactFlow
 					nodes={flowNodes}
 					edges={flowEdges}
@@ -325,7 +331,7 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 							onSelectFragment(node.id);
 						}
 					}}
-					className='bg-transparent'
+					className='h-full w-full bg-transparent'
 				>
 					<FlowViewportSync
 						viewportKey={`${dagModel.width}:${dagModel.height}:${dagModel.nodes.length}:${dagModel.edges.length}:${variant}`}
