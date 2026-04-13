@@ -4,13 +4,13 @@ This repository is the full workspace for a research-oriented distributed quantu
 What started as a backend-only proof of concept now includes:
 
 - a Python backend coordinator
-- a React dashboard frontend
+- a Next.js dashboard frontend
 - a dedicated documentation site
 
 The root `README.md` is now the project-level guide. Each app also has its own local README:
 
 - [`backend/README.md`](backend/README.md)
-- [`frontend/README.md`](frontend/README.md)
+- [`frontend-v2/README.md`](frontend-v2/README.md)
 - [`docs/README.md`](docs/README.md)
 
 ## Workspace At A Glance
@@ -18,7 +18,7 @@ The root `README.md` is now the project-level guide. Each app also has its own l
 | Folder | Purpose | Main stack | Local start command |
 | --- | --- | --- | --- |
 | `backend/` | Coordinator, planner, API, persistence, runtime, libp2p integration | Python, FastAPI, py-libp2p, Qiskit | `make -C backend demo` |
-| `frontend/` | Operator and research dashboard for jobs, topology, plans, and analysis | React 19, Vite, TypeScript | `npm --prefix frontend run dev` |
+| `frontend-v2/` | Current operator dashboard for jobs, topology, runs, and finance analysis | Next.js 16, React 19, TypeScript | `npm --prefix frontend-v2 run dev` |
 | `docs/` | Public docs site and reference handbook | Next.js 16, Fumadocs, MDX | `npm --prefix docs run dev` |
 
 ## What The Project Does
@@ -34,6 +34,59 @@ The root `README.md` is now the project-level guide. Each app also has its own l
 ## Quick Start
 
 The commands below are intended to be run from the repository root.
+
+### Docker Quick Start
+
+The repository now includes a Docker-first deployment path for the current Next.js dashboard in `frontend-v2`, the FastAPI backend, and a Caddy reverse proxy in front.
+
+1. Copy the root env template:
+
+```bash
+cp .env.example .env
+```
+
+2. For local Docker usage, leave `CADDY_SITE_ADDRESS=http://localhost`.
+
+3. Start the stack:
+
+```bash
+docker compose up --build
+```
+
+4. Open:
+
+- `http://localhost` for the dashboard
+- `http://localhost/docs` for FastAPI docs
+- `http://localhost/api/v1/health` for the backend health check
+
+Notes:
+
+- The Docker stack persists SQLite data in the named volume `backend_data`.
+- `frontend-v2` talks to the backend over the internal Docker network, so no manual API URL wiring is needed.
+- If you want the simplest container runtime, set `QC_LIBP2P__ENABLED=false` in `.env`. Leaving it `true` keeps the embedded demo libp2p services enabled inside the backend container.
+- The frontend production build currently fetches Google font assets during `next build`, so the machine running `docker compose build` needs outbound HTTPS access.
+
+### EC2 + Caddy
+
+For an EC2 deployment with automatic HTTPS:
+
+1. Point a domain A record at the EC2 public IP.
+2. Open inbound security-group ports `80` and `443`.
+3. Set `CADDY_SITE_ADDRESS` in the root `.env` to your real domain, for example `quantum.example.com`.
+4. Start the stack in the background:
+
+```bash
+docker compose up -d --build
+```
+
+5. Check the rollout:
+
+```bash
+docker compose ps
+docker compose logs -f caddy backend frontend-v2
+```
+
+If you deploy by raw EC2 IP or public DNS name instead of a real domain, keep `CADDY_SITE_ADDRESS` on an `http://...` value so Caddy serves plain HTTP rather than trying to mint a certificate.
 
 ### Requirements
 
@@ -71,14 +124,14 @@ Important note:
 In a second terminal:
 
 ```bash
-npm --prefix frontend install
-npm --prefix frontend run dev
+npm --prefix frontend-v2 install
+npm --prefix frontend-v2 run dev
 ```
 
 If the backend is running somewhere other than `http://127.0.0.1:8080`:
 
 ```bash
-VITE_API_BASE_URL=http://127.0.0.1:8080 npm --prefix frontend run dev
+QUANTUM_BACKEND_URL=http://127.0.0.1:8080 npm --prefix frontend-v2 run dev
 ```
 
 ### 3. Start the docs site
@@ -102,7 +155,7 @@ Optional AI docs assistant:
 | Backend OpenAPI | `http://127.0.0.1:8080/docs` |
 | Backend ReDoc | `http://127.0.0.1:8080/redoc` |
 | Backend health | `http://127.0.0.1:8080/api/v1/health` |
-| Frontend dashboard | `http://127.0.0.1:5173` |
+| Frontend dashboard | `http://127.0.0.1:3000` |
 | Docs site | `http://127.0.0.1:3000` |
 
 ## Example API Flow
@@ -166,7 +219,10 @@ Normalization details:
 │   ├── scripts/
 │   ├── src/quantum_coordinator/
 │   └── tests/
-├── frontend/                  # React dashboard
+├── frontend-v2/               # Current Next.js operator dashboard
+│   ├── README.md
+│   └── src/
+├── frontend/                  # Legacy Vite dashboard
 │   ├── README.md
 │   └── src/
 └── docs/                      # Next.js + Fumadocs site
@@ -179,7 +235,7 @@ Normalization details:
 ## Documentation Map
 
 - [`backend/README.md`](backend/README.md): backend-specific setup, API, and developer commands
-- [`frontend/README.md`](frontend/README.md): dashboard setup and API wiring
+- [`frontend-v2/README.md`](frontend-v2/README.md): current dashboard setup and API wiring
 - [`docs/README.md`](docs/README.md): docs site setup, search, and authoring notes
 - [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md): system-level architecture deep dive
 - [`backend/docs/design.md`](backend/docs/design.md): design rationale
@@ -191,6 +247,7 @@ Normalization details:
 ## Important Notes
 
 - There is no root workspace `Makefile` right now. Backend commands must be run via `make -C backend ...` or from inside `backend/`.
+- `frontend-v2/` is the active UI. `frontend/` is legacy and should not be used for new setup or deployment work.
 - `GET /api/v1/plans/{plan_id}` is backed by the coordinator's in-memory plan cache, so plan lookup is only guaranteed for plans compiled since the current backend process started.
 - If `QC_LIBP2P__ENABLED=false`, the backend falls back to a local in-process gate adapter instead of real libp2p transport.
 - This is a proof-of-concept orchestration system, not a full hardware-backed quantum network stack.

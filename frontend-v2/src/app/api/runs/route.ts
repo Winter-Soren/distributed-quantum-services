@@ -9,7 +9,7 @@ import type {
 	BackendJobListItemResponse,
 	BackendJobStatus
 } from '@/types/backend';
-import type { RunsApiError } from '@/types/runs';
+import type { BackendFinancialJobListItem, RunsApiError } from '@/types/runs';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,13 +40,15 @@ export async function GET(request: NextRequest) {
 			jobsPath.append('status', status);
 		}
 
-		const [healthResult, jobsResult] = await Promise.allSettled([
+		const [healthResult, jobsResult, financeResult] = await Promise.allSettled([
 			fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
-			fetchBackendJson<BackendJobListItemResponse[]>(`/api/v1/jobs?${jobsPath.toString()}`)
+			fetchBackendJson<BackendJobListItemResponse[]>(`/api/v1/jobs?${jobsPath.toString()}`),
+			fetchBackendJson<BackendFinancialJobListItem[]>(`/api/v1/finance?limit=${limit}`)
 		]);
 
 		let jobs: BackendJobListItemResponse[] = [];
 		let jobsListUnavailable = false;
+		let financialJobs: BackendFinancialJobListItem[] = [];
 
 		if (jobsResult.status === 'fulfilled') {
 			jobs = jobsResult.value;
@@ -75,11 +77,27 @@ export async function GET(request: NextRequest) {
 			warnings.push('Coordinator health metadata is unavailable, but run history still loaded.');
 		}
 
+		if (financeResult.status === 'fulfilled') {
+			financialJobs = financeResult.value;
+		} else if (financeResult.status === 'rejected') {
+			const reason = financeResult.reason;
+			if (reason instanceof BackendClientError && reason.status === 404) {
+				warnings.push(
+					'Financial jobs API is not available on this coordinator — circuit runs still appear when listed.'
+				);
+			} else {
+				warnings.push(
+					`Financial analysis history could not be loaded (${reason instanceof BackendClientError ? reason.details ?? reason.message : 'unknown error'}).`
+				);
+			}
+		}
+
 		return NextResponse.json(
 			buildRunsListSnapshot({
 				generatedAt,
 				health: healthResult.status === 'fulfilled' ? healthResult.value : null,
 				jobs,
+				financialJobs,
 				warnings,
 				jobsListUnavailable
 			})

@@ -5,6 +5,7 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import {
 	ActivityIcon,
 	AlertCircleIcon,
+	BarChart2Icon,
 	FileCode2Icon,
 	GitBranchIcon,
 	Loader2Icon,
@@ -308,17 +309,28 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 
 	const { run, plan, health } = snapshot;
 	const quantum = run.quantumSummary;
-	const circuitSourceMissing = run.circuitText.trim().length === 0;
-	const runHeadline = circuitSourceMissing ? 'Circuit source not returned by API' : run.circuitPreview;
+	const isFinancial = run.jobKind === 'financial';
+	const circuitSourceMissing = !isFinancial && run.circuitText.trim().length === 0;
+	const runHeadline = isFinancial
+		? run.circuitPreview
+		: circuitSourceMissing
+			? 'Circuit source not returned by API'
+			: run.circuitPreview;
 
 	const progressHint = run.progress
 		? `${run.progress.completedFragments}/${run.progress.totalFragments} fragments`
 		: undefined;
 
 	const shotsDisplay = quantum?.shots != null ? String(quantum.shots) : '—';
-	const measuredDisplay = quantum?.measuredQubits.length
-		? quantum.measuredQubits.join(', ')
-		: '—';
+	const measuredDisplay = isFinancial
+		? plan
+			? String(plan.fragments.length)
+			: quantum?.measuredQubits.length
+				? String(quantum.measuredQubits.length)
+				: '—'
+		: quantum?.measuredQubits.length
+			? quantum.measuredQubits.join(', ')
+			: '—';
 
 	return (
 		<div className='space-y-6 bg-background p-4 pb-10 md:p-6'>
@@ -347,6 +359,17 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 					</div>
 					<CardAction>
 						<div className='flex flex-wrap justify-end gap-2'>
+							{isFinancial ? (
+								<Button
+									size='sm'
+									asChild
+								>
+									<Link href={`/finance?jobId=${encodeURIComponent(runId)}`}>
+										<BarChart2Icon data-icon='inline-start' />
+										Full analytics
+									</Link>
+								</Button>
+							) : null}
 							<Button
 								size='sm'
 								asChild
@@ -414,15 +437,24 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 						hint={progressHint}
 					/>
 					<StatCard
-						label='Shots'
+						label={isFinancial ? 'Dataset rows' : 'Shots'}
 						value={shotsDisplay}
-						hint={quantum ? 'Result summary' : 'Pending'}
+						hint={
+							isFinancial
+								? quantum
+									? 'Row count from the ingested CSV'
+									: 'Pending'
+								: quantum
+									? 'Result summary'
+									: 'Pending'
+						}
 					/>
 					<StatCard
-						label='Measured qubits'
+						label={isFinancial ? 'Pipeline fragments' : 'Measured qubits'}
 						value={
 							<span className='break-all font-mono text-base font-normal sm:text-lg'>{measuredDisplay}</span>
 						}
+						hint={isFinancial ? 'Stages in the financial execution plan' : undefined}
 					/>
 					<StatCard
 						label='Plan'
@@ -484,7 +516,7 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 						<Separator />
 						<div className='min-h-0 flex-1'>
 							<p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-								Plan reference
+								{isFinancial ? 'Plan id (= job id)' : 'Plan reference'}
 							</p>
 							<p className='mt-1 break-all font-mono text-xs leading-relaxed'>{run.planId ?? '—'}</p>
 						</div>
@@ -538,11 +570,13 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 										<FileCode2Icon className='size-5' />
 									</div>
 									<div className='min-w-0 flex-1 space-y-1'>
-										<CardTitle>Submitted circuit</CardTitle>
+										<CardTitle>{isFinancial ? 'Dataset summary' : 'Submitted circuit'}</CardTitle>
 										<CardDescription>
-											{circuitSourceMissing
-												? 'API did not return stored circuit text.'
-												: 'OpenQASM persisted by the backend.'}
+											{isFinancial
+												? 'Key facts from the financial coordinator payload (same job id as the plan).'
+												: circuitSourceMissing
+													? 'API did not return stored circuit text.'
+													: 'OpenQASM persisted by the backend.'}
 										</CardDescription>
 									</div>
 								</div>
@@ -553,7 +587,9 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 									value={
 										circuitSourceMissing
 											? '(Not available — coordinator omitted circuit_text.)'
-											: run.circuitText
+											: isFinancial && !run.circuitText.trim()
+												? '(Financial analysis in progress — summary will appear when complete.)'
+												: run.circuitText
 									}
 									className='min-h-[260px] resize-y rounded-3xl border-border bg-muted/30 font-mono text-sm leading-relaxed shadow-inner dark:bg-muted/20'
 								/>
@@ -570,8 +606,12 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 										<CardTitle>Execution plan</CardTitle>
 										<CardDescription>
 											{plan
-												? `${plan.fragments.length} fragments · ${plan.fragmentOrder.length} ordered`
-												: 'Plan not available yet.'}
+												? `${plan.fragments.length} fragments · ${plan.fragmentOrder.length} ordered${
+														isFinancial ? ' · linear CSV pipeline' : ''
+													}`
+												: isFinancial
+													? 'Plan materializes when the coordinator returns the analysis result.'
+													: 'Plan not available yet.'}
 										</CardDescription>
 									</div>
 								</div>
@@ -666,7 +706,11 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 								</div>
 								<div className='min-w-0 flex-1 space-y-1'>
 									<CardTitle>Fragment execution</CardTitle>
-									<CardDescription>Live and completed snapshots from the runtime.</CardDescription>
+									<CardDescription>
+										{isFinancial
+											? 'Per-stage routing from the financial engine (mirrors circuit fragment results).'
+											: 'Live and completed snapshots from the runtime.'}
+									</CardDescription>
 								</div>
 							</div>
 						</CardHeader>
@@ -697,6 +741,8 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 						quantum={quantum}
 						run={run}
 						runId={runId}
+						variant={isFinancial ? 'financial' : 'quantum'}
+						financialResult={snapshot.financialResult ?? null}
 					/>
 			</div>
 		</div>

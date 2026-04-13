@@ -1,5 +1,5 @@
 import type { BackendJobStatus } from '@/types/backend';
-import type { RunBadgeVariant, RunStatusGroup } from '@/types/runs';
+import type { FinancialJobStatus, RunBadgeVariant, RunListBackendStatus, RunStatusGroup } from '@/types/runs';
 
 export function getRunStatusGroup(status: BackendJobStatus): RunStatusGroup {
 	switch (status) {
@@ -48,6 +48,49 @@ export function getRunBadgeVariant(status: BackendJobStatus): RunBadgeVariant {
 	}
 }
 
-export function isTerminalRunStatus(status: BackendJobStatus) {
+export function isTerminalRunStatus(status: RunListBackendStatus) {
 	return status === 'COMPLETED' || status === 'FAILED';
+}
+
+export function getRunStatusGroupFinancial(status: FinancialJobStatus): RunStatusGroup {
+	switch (status) {
+		case 'QUEUED':
+			return 'queued';
+		case 'INGESTING':
+		case 'ANALYSING':
+			return 'running';
+		case 'COMPLETED':
+			return 'completed';
+		case 'FAILED':
+			return 'failed';
+	}
+}
+
+export function getRunStatusLabelFinancial(status: FinancialJobStatus): string {
+	switch (status) {
+		case 'QUEUED':
+			return 'Queued';
+		case 'INGESTING':
+			return 'Ingesting';
+		case 'ANALYSING':
+			return 'Analysing';
+		case 'COMPLETED':
+			return 'Completed';
+		case 'FAILED':
+			return 'Failed';
+	}
+}
+
+export function getRunBadgeVariantFinancial(status: FinancialJobStatus): RunBadgeVariant {
+	switch (status) {
+		case 'ANALYSING':
+			return 'default';
+		case 'QUEUED':
+		case 'INGESTING':
+			return 'secondary';
+		case 'COMPLETED':
+			return 'outline';
+		case 'FAILED':
+			return 'destructive';
+	}
 }

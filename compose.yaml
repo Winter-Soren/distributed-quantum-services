@@ -1,0 +1,74 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      QC_API__ENABLE_AUTH: "${QC_API__ENABLE_AUTH:-false}"
+      QC_API__API_KEY: "${QUANTUM_BACKEND_API_KEY:-}"
+      QC_API__ENABLE_CORS: "false"
+      QC_DATABASE__PATH: "${QC_DATABASE__PATH:-/var/lib/quantum-coordinator/quantum_coordinator.db}"
+      QC_LIBP2P__ENABLED: "${QC_LIBP2P__ENABLED:-true}"
+      QC_LIBP2P__ENABLE_MDNS: "false"
+    volumes:
+      - backend_data:/var/lib/quantum-coordinator
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health', timeout=5)"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend-v2:
+    build:
+      context: ./frontend-v2
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      QUANTUM_BACKEND_API_KEY: "${QUANTUM_BACKEND_API_KEY:-}"
+      QUANTUM_BACKEND_URL: "http://backend:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then((res) => process.exit(res.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend-v2:
+        condition: service_healthy
+    environment:
+      CADDY_SITE_ADDRESS: "${CADDY_SITE_ADDRESS:-http://localhost}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  caddy_data:
+  caddy_config:

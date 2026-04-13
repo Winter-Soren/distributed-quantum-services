@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { BackendClientError, fetchBackendJson } from '@/lib/backend-client';
-import { buildRunDetailSnapshot } from '@/lib/run-transformers';
+import { buildFinancialRunDetailSnapshot, buildRunDetailSnapshot } from '@/lib/run-transformers';
 import type { BackendHealthResponse, BackendJobStatusResponse, BackendPlanResponse } from '@/types/backend';
+import type { FinancialJobResponse } from '@/types/financial';
 import type { RunsApiError } from '@/types/runs';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 	const resultDetail = request.nextUrl.searchParams.get('result_detail') === 'full' ? 'full' : 'summary';
 
 	try {
+		/** Financial jobs use `fin-{uuid}` and live under `/api/v1/finance`, not `/api/v1/jobs`. */
+		if (runId.startsWith('fin-')) {
+			const [healthResult, financeResult] = await Promise.allSettled([
+				fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
+				fetchBackendJson<FinancialJobResponse>(`/api/v1/finance/${encodeURIComponent(runId)}`)
+			]);
+
+			if (financeResult.status === 'rejected') {
+				throw financeResult.reason;
+			}
+
+			if (healthResult.status === 'rejected') {
+				warnings.push('Coordinator health metadata is unavailable for this run detail view.');
+			}
+
+			return NextResponse.json(
+				buildFinancialRunDetailSnapshot({
+					generatedAt,
+					health: healthResult.status === 'fulfilled' ? healthResult.value : null,
+					job: financeResult.value,
+					warnings
+				})
+			);
+		}
+
 		const [healthResult, jobResult] = await Promise.allSettled([
 			fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
 			fetchBackendJson<BackendJobStatusResponse>(

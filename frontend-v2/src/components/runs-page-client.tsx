@@ -260,7 +260,8 @@ export function RunsPageClient() {
 								) : null}
 							</div>
 							<p className='text-sm text-muted-foreground'>
-								Coordinator-backed run history with live lifecycle status and fragment progress.
+								Quantum circuit runs and financial CSV analyses in one timeline — status, progress, and
+								links back to each job.
 							</p>
 						</div>
 						<div className='flex flex-wrap items-center gap-2'>
@@ -377,7 +378,8 @@ export function RunsPageClient() {
 							<CardHeader>
 								<CardTitle>Run history</CardTitle>
 								<CardDescription>
-									Queued jobs, active execution, and completed results from the coordinator.
+									Circuit jobs and financial modelling jobs share this list (newest first). Open a row
+									to view the run detail page or financial analytics.
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
@@ -395,11 +397,16 @@ export function RunsPageClient() {
 											</TableRow>
 										</TableHeader>
 										<TableBody>
-											{rows.map(row => (
+											{rows.map(row => {
+												const detailHref =
+													row.jobKind === 'financial'
+														? `/finance?jobId=${encodeURIComponent(row.id)}`
+														: `/runs/${encodeURIComponent(row.id)}`;
+												return (
 												<TableRow key={row.id}>
 													<TableCell>
 														<Link
-															href={`/runs/${row.id}`}
+															href={detailHref}
 															className='font-medium text-primary underline-offset-4 hover:underline'
 														>
 															{row.circuitPreview}
@@ -407,6 +414,14 @@ export function RunsPageClient() {
 														<div className='mt-0.5 font-mono text-xs text-muted-foreground'>
 															{row.id}
 														</div>
+														{row.jobKind === 'financial' ? (
+															<div className='mt-1 text-xs text-muted-foreground'>
+																Financial analysis
+																{row.resultAvailable && row.backendStatus === 'COMPLETED'
+																	? ' · result ready'
+																	: ''}
+															</div>
+														) : null}
 														{row.planId ? (
 															<div className='mt-1 text-xs text-muted-foreground'>
 																Plan {row.planId}
@@ -425,7 +440,10 @@ export function RunsPageClient() {
 															{row.progress ? (
 																<div className='text-xs text-muted-foreground'>
 																	{row.progress.completedFragments}/{row.progress.totalFragments}{' '}
-																	fragments complete
+																	{row.jobKind === 'financial'
+																		? 'analysis phases'
+																		: 'fragments'}{' '}
+																	complete
 																</div>
 															) : null}
 														</div>
@@ -450,7 +468,8 @@ export function RunsPageClient() {
 													</TableCell>
 													<TableCell className='text-muted-foreground'>{row.updatedAtLabel}</TableCell>
 												</TableRow>
-											))}
+											);
+											})}
 										</TableBody>
 									</Table>
 								) : (

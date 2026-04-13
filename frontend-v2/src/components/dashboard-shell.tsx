@@ -2,6 +2,12 @@
 
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
+
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger
+} from '@/components/ui/collapsible';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -15,11 +21,13 @@ import {
 	BrainIcon,
 	CalendarIcon,
 	ChevronDownIcon,
+	ChevronRightIcon,
 	CircleDotIcon,
 	ClipboardListIcon,
 	CpuIcon,
 	FileCodeIcon,
 	FileTextIcon,
+	FlameIcon,
 	FlaskConicalIcon,
 	FolderKanbanIcon,
 	GaugeIcon,
@@ -67,9 +75,13 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
 	SidebarProvider,
 	SidebarSeparator
 } from '@/components/ui/sidebar';
+import { useHash } from '@/hooks/use-hash';
 import { cn } from '@/lib/utils';
 
 export type DashboardShellProps = {
@@ -165,7 +177,30 @@ const runsProjectsItemHref: Record<string, string> = {
 	'Active Run': '/runs?status=running'
 };
 
+/** Financial submenu under Runs → Projects (hash matches analytics tabs). */
+const FINANCIAL_SUBMENU_LINKS: { label: string; href: string }[] = [
+	{ label: 'Upload & Analyse', href: '/finance' },
+	{ label: 'Column Profiles', href: '/finance#profiles' },
+	{ label: 'Correlations', href: '/finance#correlations' },
+	{ label: 'Trends', href: '/finance#trends' },
+	{ label: 'DCF Valuation', href: '/finance#dcf' },
+	{ label: 'Anomalies', href: '/finance#anomalies' },
+	{ label: 'Execution', href: '/finance#execution' }
+];
+
+function financialSubLinkIsActive(href: string, pathname: string, hash: string): boolean {
+	if (!pathname.startsWith('/finance')) return false;
+	const hashIdx = href.indexOf('#');
+	if (hashIdx === -1) return !hash;
+	return hash === href.slice(hashIdx + 1);
+}
+
 const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
+	'Upload & Analyse': FlameIcon,
+	'Recent Jobs': ClipboardListIcon,
+	'DCF Valuation': BarChart3Icon,
+	Scenarios: BoxIcon,
+	Correlations: ActivityIcon,
 	Overview: LayoutDashboardIcon,
 	Activity: ActivityIcon,
 	'Quick Actions': ZapIcon,
@@ -187,6 +222,7 @@ const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
 	Experiments: FlaskConicalIcon,
 	Reports: FileTextIcon,
 	Artifacts: PackageIcon,
+	Financial: FlameIcon,
 	Measurements: GaugeIcon,
 	Geometry: BoxIcon,
 	'Deep State': BrainIcon,
@@ -236,6 +272,7 @@ function parseRunsRoute(pathname: string): {
 export function DashboardShell({ children }: DashboardShellProps) {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
+	const hash = useHash();
 	const [manualActiveItem, setManualActiveItem] = useState<(typeof navItems)[number]['key']>('home');
 	const [manualActivePanelItem, setManualActivePanelItem] = useState<string | null>(null);
 	const { runId, isFragmentFlow } = useMemo(() => parseRunsRoute(pathname), [pathname]);
@@ -251,6 +288,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
 							? 'Active Run'
 							: 'Run History'
 						: null
+			};
+		}
+
+		if (pathname.startsWith('/finance')) {
+			return {
+				activeItem: 'runs-projects' as const,
+				activePanelItem: null
 			};
 		}
 
@@ -270,7 +314,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const activeGroups = panelData[activeItem] ?? [];
 
 	const homeRailActive = (pathname === '/dashboard' || pathname === '/') && activeItem === 'home';
-	const runsRailActive = pathname.startsWith('/runs') && activeItem === 'runs-projects';
+	const runsRailActive =
+		(pathname.startsWith('/runs') || pathname.startsWith('/finance')) && activeItem === 'runs-projects';
 
 	const railItemActive = (key: (typeof navItems)[number]['key']) => {
 		if (key === 'home') return homeRailActive;
@@ -376,31 +421,31 @@ export function DashboardShell({ children }: DashboardShellProps) {
 								);
 							}
 
-							if (item.key === 'runs-projects') {
-								return (
-									<Link
-										key={item.key}
-										href='/runs'
-										aria-label={item.label}
-										aria-current={isActive ? 'page' : undefined}
-										onClick={() => {
-											setManualActiveItem('runs-projects');
-											setManualActivePanelItem('Run History');
-										}}
-										className={cn(
-											'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
-											isActive
-												? 'bg-primary/15 text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)] ring-1 ring-primary/30 dark:shadow-[0_2px_10px_-2px_rgba(0,0,0,0.4)]'
-												: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-										)}
-									>
-										<Icon className='size-4 shrink-0' />
-										<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
-											{item.railLabel}
-										</span>
-									</Link>
-								);
-							}
+						if (item.key === 'runs-projects') {
+							return (
+								<Link
+									key={item.key}
+									href='/runs'
+									aria-label={item.label}
+									aria-current={isActive ? 'page' : undefined}
+									onClick={() => {
+										setManualActiveItem('runs-projects');
+										setManualActivePanelItem('Run History');
+									}}
+									className={cn(
+										'flex w-full flex-col items-center gap-px rounded-lg px-1 py-1.5 transition-colors',
+										isActive
+											? 'bg-primary/15 text-primary shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)] ring-1 ring-primary/30 dark:shadow-[0_2px_10px_-2px_rgba(0,0,0,0.4)]'
+											: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+									)}
+								>
+									<Icon className='size-4 shrink-0' />
+									<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
+										{item.railLabel}
+									</span>
+								</Link>
+							);
+						}
 
 							return (
 								<button
@@ -459,7 +504,20 @@ export function DashboardShell({ children }: DashboardShellProps) {
 												</p>
 											</div>
 										</div>
-										{activeItem === 'runs-projects' ? (
+									{activeItem === 'runs-projects' ? (
+										pathname.startsWith('/finance') ? (
+											<Button
+												asChild
+												size='icon'
+												variant='outline'
+												className='size-8 shrink-0 rounded-lg border-primary/25 bg-background/50 shadow-sm hover:bg-primary/10'
+												aria-label='New analysis'
+											>
+												<Link href='/finance'>
+													<PlusIcon className='size-4' />
+												</Link>
+											</Button>
+										) : (
 											<Button
 												asChild
 												size='icon'
@@ -471,7 +529,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 													<PlusIcon className='size-4' />
 												</Link>
 											</Button>
-										) : (
+										)
+									) : (
 											<Button
 												type='button'
 												size='icon'
@@ -555,6 +614,55 @@ export function DashboardShell({ children }: DashboardShellProps) {
 																</SidebarMenuItem>
 															);
 														})}
+														{section.group === 'Projects' && activeItem === 'runs-projects' ? (
+															<SidebarMenuItem>
+																<Collapsible
+																	defaultOpen={pathname.startsWith('/finance')}
+																	className='group/collapsible w-full'
+																>
+																	<CollapsibleTrigger asChild>
+																		<SidebarMenuButton
+																			isActive={pathname.startsWith('/finance')}
+																			className='px-3'
+																		>
+																			<FlameIcon className='opacity-80' />
+																			<span className='truncate'>Financial</span>
+																			<ChevronRightIcon className='ml-auto size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90' />
+																		</SidebarMenuButton>
+																	</CollapsibleTrigger>
+																	<CollapsibleContent>
+																		<SidebarMenuSub>
+																			{FINANCIAL_SUBMENU_LINKS.map(link => (
+																				<SidebarMenuSubItem key={link.href}>
+																					<SidebarMenuSubButton
+																						asChild
+																						size='sm'
+																						isActive={financialSubLinkIsActive(
+																							link.href,
+																							pathname,
+																							hash
+																						)}
+																					>
+																						<Link
+																							href={link.href}
+																							onClick={() =>
+																								setManualActivePanelItem(
+																									'Financial'
+																								)
+																							}
+																						>
+																							<span className='truncate'>
+																								{link.label}
+																							</span>
+																						</Link>
+																					</SidebarMenuSubButton>
+																				</SidebarMenuSubItem>
+																			))}
+																		</SidebarMenuSub>
+																	</CollapsibleContent>
+																</Collapsible>
+															</SidebarMenuItem>
+														) : null}
 													</SidebarMenu>
 												</SidebarGroupContent>
 											</SidebarGroup>
@@ -651,17 +759,34 @@ export function DashboardShell({ children }: DashboardShellProps) {
 														</>
 													) : null}
 												</>
-											) : pathname === '/runs' ? (
-												<>
-													<BreadcrumbItem>
-														<BreadcrumbPage>Runs & Projects</BreadcrumbPage>
-													</BreadcrumbItem>
-													<BreadcrumbSeparator />
-													<BreadcrumbItem>
-														<BreadcrumbPage>All runs</BreadcrumbPage>
-													</BreadcrumbItem>
-												</>
-											) : activePanelItem ? (
+								) : pathname === '/runs' ? (
+											<>
+												<BreadcrumbItem>
+													<BreadcrumbPage>Runs & Projects</BreadcrumbPage>
+												</BreadcrumbItem>
+												<BreadcrumbSeparator />
+												<BreadcrumbItem>
+													<BreadcrumbPage>All runs</BreadcrumbPage>
+												</BreadcrumbItem>
+											</>
+										) : pathname.startsWith('/finance') ? (
+											<>
+												<BreadcrumbItem className='max-w-[40vw] sm:max-w-none'>
+													<BreadcrumbLink asChild>
+														<Link
+															href='/runs'
+															className='truncate'
+														>
+															Runs & Projects
+														</Link>
+													</BreadcrumbLink>
+												</BreadcrumbItem>
+												<BreadcrumbSeparator />
+												<BreadcrumbItem>
+													<BreadcrumbPage>Financial Analytics</BreadcrumbPage>
+												</BreadcrumbItem>
+											</>
+										) : activePanelItem ? (
 												<>
 													<BreadcrumbItem className='max-w-[40vw] sm:max-w-none'>
 														<BreadcrumbLink asChild>

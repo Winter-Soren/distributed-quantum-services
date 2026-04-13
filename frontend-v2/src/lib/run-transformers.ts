@@ -6,9 +6,20 @@ import type {
 	BackendJobStatusResponse,
 	BackendPlanResponse
 } from '@/types/backend';
-import { getRunBadgeVariant, getRunStatusGroup, getRunStatusLabel } from '@/lib/run-status';
+import {
+	getRunBadgeVariant,
+	getRunBadgeVariantFinancial,
+	getRunStatusGroup,
+	getRunStatusGroupFinancial,
+	getRunStatusLabel,
+	getRunStatusLabelFinancial
+} from '@/lib/run-status';
+import type { FinancialAnalysisResult, FinancialJobResponse } from '@/types/financial';
 import type {
+	BackendFinancialJobListItem,
+	FinancialJobStatus,
 	RunDetailSnapshot,
+	RunFragmentResultSummary,
 	RunHealthSummary,
 	RunMeasurementBucket,
 	RunPlanCandidateSummary,
@@ -27,6 +38,8 @@ type BuildRunsListSnapshotInput = {
 	jobs: BackendJobListItemResponse[];
 	warnings?: string[];
 	jobsListUnavailable?: boolean;
+	/** Financial CSV analysis jobs (merged into run history). */
+	financialJobs?: BackendFinancialJobListItem[];
 };
 
 type BuildRunDetailSnapshotInput = {
@@ -34,6 +47,13 @@ type BuildRunDetailSnapshotInput = {
 	health: BackendHealthResponse | null;
 	job: BackendJobStatusResponse;
 	plan: BackendPlanResponse | null;
+	warnings?: string[];
+};
+
+type BuildFinancialRunDetailSnapshotInput = {
+	generatedAt: string;
+	health: BackendHealthResponse | null;
+	job: FinancialJobResponse;
 	warnings?: string[];
 };
 
@@ -210,6 +230,7 @@ export function countRuns(runs: RunSummary[]): RunsCountSummary {
 export function toRunSummaryFromListItem(job: BackendJobListItemResponse, referenceDate: Date): RunSummary {
 	return {
 		id: job.job_id,
+		jobKind: 'circuit',
 		backendStatus: job.status,
 		statusLabel: getRunStatusLabel(job.status),
 		statusGroup: getRunStatusGroup(job.status),
@@ -226,9 +247,70 @@ export function toRunSummaryFromListItem(job: BackendJobListItemResponse, refere
 	};
 }
 
+const FINANCIAL_FRAGMENTS_TOTAL = 6;
+
+function financialProgressSynthetic(status: FinancialJobStatus): RunProgressSummary | null {
+	let completed = 0;
+	switch (status) {
+		case 'QUEUED':
+			completed = 0;
+			break;
+		case 'INGESTING':
+			completed = 1;
+			break;
+		case 'ANALYSING':
+			completed = 4;
+			break;
+		case 'COMPLETED':
+			completed = FINANCIAL_FRAGMENTS_TOTAL;
+			break;
+		case 'FAILED':
+			completed = 0;
+			break;
+		default:
+			return null;
+	}
+	const ratio = completed / FINANCIAL_FRAGMENTS_TOTAL;
+	return {
+		totalFragments: FINANCIAL_FRAGMENTS_TOTAL,
+		completedFragments: completed,
+		activeFragments: Math.max(0, FINANCIAL_FRAGMENTS_TOTAL - completed),
+		completionRatio: ratio,
+		completionPercentage: Math.round(ratio * 100),
+		latestEventAt: null,
+		latestEventLabel: '—',
+		finalizing: status === 'ANALYSING' || status === 'INGESTING'
+	};
+}
+
+export function toRunSummaryFromFinancialListItem(
+	row: BackendFinancialJobListItem,
+	referenceDate: Date
+): RunSummary {
+	const status = row.status;
+	return {
+		id: row.job_id,
+		jobKind: 'financial',
+		backendStatus: status,
+		statusLabel: getRunStatusLabelFinancial(status),
+		statusGroup: getRunStatusGroupFinancial(status),
+		badgeVariant: getRunBadgeVariantFinancial(status),
+		circuitPreview: `Financial · ${row.filename}`,
+		planId: null,
+		error: row.error,
+		resultAvailable: status === 'COMPLETED',
+		createdAt: row.created_at,
+		createdAtLabel: formatAbsoluteDateTime(row.created_at),
+		updatedAt: row.updated_at,
+		updatedAtLabel: formatRelativeTime(row.updated_at, referenceDate),
+		progress: financialProgressSynthetic(status)
+	};
+}
+
 export function toRunSummaryFromDetail(job: BackendJobStatusResponse, referenceDate: Date): RunSummary {
 	return {
 		id: job.job_id,
+		jobKind: 'circuit',
 		backendStatus: job.status,
 		statusLabel: getRunStatusLabel(job.status),
 		statusGroup: getRunStatusGroup(job.status),
@@ -314,10 +396,13 @@ export function buildRunsListSnapshot({
 	health,
 	jobs,
 	warnings = [],
-	jobsListUnavailable = false
+	jobsListUnavailable = false,
+	financialJobs = []
 }: BuildRunsListSnapshotInput): RunsListSnapshot {
 	const referenceDate = new Date(generatedAt);
-	const runs = sortRunSummaries(jobs.map(job => toRunSummaryFromListItem(job, referenceDate)));
+	const circuitRuns = jobs.map(job => toRunSummaryFromListItem(job, referenceDate));
+	const financialRuns = financialJobs.map(row => toRunSummaryFromFinancialListItem(row, referenceDate));
+	const runs = sortRunSummaries([...circuitRuns, ...financialRuns]);
 
 	return {
 		generatedAt,
@@ -326,6 +411,220 @@ export function buildRunsListSnapshot({
 		health: toRunHealthSummary(health),
 		counts: countRuns(runs),
 		runs
+	};
+}
+
+function toRunSummaryFromFinancialJob(job: FinancialJobResponse, referenceDate: Date): RunSummary {
+	const row: BackendFinancialJobListItem = {
+		job_id: job.job_id,
+		status: job.status,
+		filename: job.filename,
+		row_count: job.row_count ?? null,
+		col_count: job.col_count ?? null,
+		error: job.error ?? null,
+		created_at: job.created_at,
+		updated_at: job.updated_at
+	};
+	return toRunSummaryFromFinancialListItem(row, referenceDate);
+}
+
+function truncateLabel(s: string, max: number): string {
+	if (s.length <= max) return s;
+	return `${s.slice(0, Math.max(0, max - 1))}…`;
+}
+
+/** Linear DAG: each financial pipeline stage depends on the previous (matches engine ordering). */
+function buildFinancialPlanFromResult(result: FinancialAnalysisResult, jobId: string): RunPlanSummary {
+	const segs = result.node_execution;
+	const fragmentOrder = segs.map((_, i) => `fin-frag-${i}`);
+	const fragments: RunPlanFragmentSummary[] = segs.map((seg, i) => {
+		const fragmentId = `fin-frag-${i}`;
+		const deps = i === 0 ? [] : [`fin-frag-${i - 1}`];
+		const label = seg.task.replace(/_/g, ' ');
+		const candidate: RunPlanCandidateSummary = {
+			nodeId: seg.node_id,
+			totalCost: seg.duration_ms,
+			latencyCost: seg.duration_ms * 0.4,
+			failureRiskCost: Math.max(0, 1 - seg.fidelity_score),
+			loadCost: seg.rows_processed,
+			fidelity: seg.fidelity_score
+		};
+		return {
+			fragmentId,
+			serviceType: label,
+			qubits: [],
+			qubitsLabel: '—',
+			operationIds: [seg.task],
+			dependencies: deps,
+			operationCount: 1,
+			dependencyCount: deps.length,
+			primaryNodeId: seg.node_id,
+			fallbackNodeIds: [],
+			candidateCount: 1,
+			candidates: [candidate]
+		};
+	});
+
+	return {
+		planId: jobId,
+		qualitySnapshotId: null,
+		fragmentOrder,
+		fragments
+	};
+}
+
+function buildFinancialFragmentResults(
+	result: FinancialAnalysisResult,
+	referenceDate: Date
+): RunFragmentResultSummary[] {
+	return result.node_execution.map((seg, i) => ({
+		fragmentId: `fin-frag-${i}`,
+		nodeId: seg.node_id,
+		status: 'COMPLETED',
+		attempts: 1,
+		observedFidelityRatio: seg.fidelity_score,
+		observedFidelity: `${(seg.fidelity_score * 100).toFixed(2)}%`,
+		startedAt: null,
+		startedAtLabel: formatRelativeTime(null, referenceDate),
+		finishedAt: null,
+		finishedAtLabel: formatRelativeTime(null, referenceDate),
+		error: null
+	}));
+}
+
+function buildFinancialQuantumSummary(result: FinancialAnalysisResult): RunQuantumSummary {
+	const dtypeBuckets: RunMeasurementBucket[] = [];
+	let n = 0,
+		c = 0,
+		d = 0;
+	for (const p of result.column_profiles) {
+		if (p.dtype === 'numeric') n++;
+		else if (p.dtype === 'categorical') c++;
+		else d++;
+	}
+	if (n) dtypeBuckets.push({ key: 'numeric columns', value: n });
+	if (c) dtypeBuckets.push({ key: 'categorical columns', value: c });
+	if (d) dtypeBuckets.push({ key: 'datetime columns', value: d });
+
+	const correlations = result.top_correlations.slice(0, 32);
+	const measuredProbabilities: RunMeasurementBucket[] = correlations.map(pair => ({
+		key: `${truncateLabel(pair.col_a, 10)}↔${truncateLabel(pair.col_b, 10)}`,
+		value: Math.min(1, Math.abs(pair.pearson))
+	}));
+
+	const topBasisStates = correlations.slice(0, 16).map(pair => ({
+		basis_state: `${pair.col_a} ↔ ${pair.col_b}`,
+		probability: Math.min(1, Math.abs(pair.pearson))
+	}));
+
+	const observableExpectations: RunMeasurementBucket[] = result.time_series_insights
+		.slice(0, 24)
+		.map(insight => ({
+			key: truncateLabel(insight.column, 18),
+			value: Math.max(-1, Math.min(1, insight.momentum / 100))
+		}));
+
+	const entanglementEntropy: RunMeasurementBucket[] = result.time_series_insights
+		.slice(0, 20)
+		.map(insight => ({
+			key: truncateLabel(insight.column, 22),
+			value: Math.min(1, Math.log1p(Math.max(0, insight.volatility)) / 8)
+		}));
+
+	const maxDur = Math.max(...result.node_execution.map(s => s.duration_ms), 1);
+	const maxRows = Math.max(...result.node_execution.map(s => s.rows_processed), 1);
+	const blochVectors: Record<string, Record<string, number>> = {};
+	result.node_execution.forEach((seg, i) => {
+		blochVectors[`frag-${i}`] = {
+			x: (seg.duration_ms / maxDur) * 2 - 1,
+			y: seg.fidelity_score * 2 - 1,
+			z: (seg.rows_processed / maxRows) * 2 - 1
+		};
+	});
+
+	const fids = result.node_execution.map(s => s.fidelity_score);
+	const meanFid = fids.length ? fids.reduce((a, b) => a + b, 0) / fids.length : 0;
+	const minFid = fids.length ? Math.min(...fids) : 0;
+
+	return {
+		shots: result.row_count,
+		measuredQubits: result.node_execution.map((_, i) => i),
+		countBuckets: dtypeBuckets,
+		measuredProbabilities,
+		observableExpectations,
+		entanglementEntropy,
+		blochVectors,
+		fidelity: {
+			fidelity_to_target_state: meanFid,
+			estimated_execution_fidelity: minFid,
+			target_state: result.filename
+		},
+		topBasisStates,
+		statevector: null,
+		reducedDensityMatrices: null
+	};
+}
+
+function buildFinancialCircuitText(job: FinancialJobResponse, result: FinancialAnalysisResult): string {
+	const lines = [
+		'Financial CSV analysis (distributed pipeline)',
+		`Job id: ${job.job_id}`,
+		`File: ${result.filename}`,
+		`Shape: ${result.row_count.toLocaleString()} rows × ${result.col_count} columns`,
+		`Pipeline fragments: ${result.fragments_executed} · Nodes used: ${result.distributed_nodes_used}`,
+		`Wall time: ${(result.analysis_duration_ms / 1000).toFixed(2)}s`,
+		`Anomalies flagged: ${result.anomalies.length} · Strong correlations: ${result.correlations.filter(c => c.strength === 'strong').length}`,
+		'',
+		'Open “Full analytics” on the Financial page for charts, DCF, and interactive tables.'
+	];
+	return lines.join('\n');
+}
+
+/** Maps a financial CSV job into the same surfaces as circuit runs (plan, peers, fragments, analysis). */
+export function buildFinancialRunDetailSnapshot({
+	generatedAt,
+	health,
+	job,
+	warnings = []
+}: BuildFinancialRunDetailSnapshotInput): RunDetailSnapshot {
+	const referenceDate = new Date(generatedAt);
+	const baseSummary = toRunSummaryFromFinancialJob(job, referenceDate);
+	const result = job.result ?? null;
+
+	if (!result) {
+		return {
+			generatedAt,
+			warnings,
+			health: toRunHealthSummary(health),
+			financialResult: null,
+			run: {
+				...baseSummary,
+				circuitText: '',
+				fragmentResults: [],
+				quantumSummary: null
+			},
+			plan: null
+		};
+	}
+
+	const plan = buildFinancialPlanFromResult(result, job.job_id);
+	const fragmentResults = buildFinancialFragmentResults(result, referenceDate);
+	const quantumSummary = buildFinancialQuantumSummary(result);
+	const circuitText = buildFinancialCircuitText(job, result);
+
+	return {
+		generatedAt,
+		warnings,
+		health: toRunHealthSummary(health),
+		financialResult: result,
+		run: {
+			...baseSummary,
+			planId: job.job_id,
+			circuitText,
+			fragmentResults,
+			quantumSummary
+		},
+		plan
 	};
 }
 

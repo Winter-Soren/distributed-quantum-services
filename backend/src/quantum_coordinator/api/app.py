@@ -3,21 +3,26 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import json
 import logging
 import time
 from contextlib import suppress
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import anyio
 from fastapi import (
     BackgroundTasks,
     Depends,
     FastAPI,
+    File,
     Header,
     HTTPException,
     Query,
     Request,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
@@ -41,6 +46,9 @@ from quantum_coordinator.api.models import (
 from quantum_coordinator.application.job_manager import JobManager
 from quantum_coordinator.config.models import AppConfig
 from quantum_coordinator.domain.models import JobStatus
+from quantum_coordinator.financial.engine import FinancialAnalysisEngine
+from quantum_coordinator.financial.models import FinancialJobRecord, FinancialJobStatus
+from quantum_coordinator.financial.store import FinancialJobStore, run_financial_migrations
 from quantum_coordinator.infra.libp2p.fabric import PyLibp2pFabric
 from quantum_coordinator.infra.libp2p.protocols import SERVICE_AD_TOPIC_DEFAULT
 from quantum_coordinator.infra.persistence import (
@@ -187,12 +195,19 @@ def create_app(config: AppConfig) -> FastAPI:
         job_store=job_store,
         gate_adapter=gate_adapter,
     )
+    # Financial analysis infrastructure
+    run_financial_migrations(config.database.path)
+    financial_store = FinancialJobStore(config.database.path)
+    financial_engine = FinancialAnalysisEngine(registry=registry)
+
     app.state.job_manager = job_manager
     app.state.job_store = job_store
     app.state.runtime_store = runtime_store
     app.state.registry = registry
     app.state.libp2p_fabric = libp2p_fabric
     app.state.discovery_task = None
+    app.state.financial_store = financial_store
+    app.state.financial_engine = financial_engine
 
     rate_limiter = InMemoryRateLimiter(config.api.rate_limit_per_minute)
 
@@ -575,5 +590,141 @@ def create_app(config: AppConfig) -> FastAPI:
                 await anyio.sleep(0.2)
         except WebSocketDisconnect:
             return
+
+    # ------------------------------------------------------------------
+    # Financial analysis endpoints
+    # ------------------------------------------------------------------
+
+    def _make_financial_record(
+        job_id: str,
+        filename: str,
+        status: FinancialJobStatus,
+        error: str | None = None,
+        result_json: str | None = None,
+        row_count: int | None = None,
+        col_count: int | None = None,
+    ) -> FinancialJobRecord:
+        now = datetime.now(timezone.utc)
+        return FinancialJobRecord(
+            job_id=job_id,
+            status=status,
+            filename=filename,
+            row_count=row_count,
+            col_count=col_count,
+            error=error,
+            result_json=result_json,
+            created_at=now,
+            updated_at=now,
+        )
+
+    async def _run_financial_analysis(job_id: str, filename: str, csv_bytes: bytes) -> None:
+        store: FinancialJobStore = app.state.financial_store
+        engine: FinancialAnalysisEngine = app.state.financial_engine
+        try:
+            # Update to analysing
+            existing = store.get(job_id)
+            if existing is None:
+                return
+            store.upsert(dataclasses.replace(
+                existing,
+                status=FinancialJobStatus.ANALYSING,
+                updated_at=datetime.now(timezone.utc),
+            ))
+            result = await anyio.to_thread.run_sync(
+                lambda: engine.analyse(csv_bytes, filename, job_id)
+            )
+            result_json = json.dumps(dataclasses.asdict(result), default=str)
+            final = dataclasses.replace(
+                existing,
+                status=FinancialJobStatus.COMPLETED,
+                row_count=result.row_count,
+                col_count=result.col_count,
+                result_json=result_json,
+                error=None,
+                updated_at=datetime.now(timezone.utc),
+            )
+            store.upsert(final)
+            logger.info("financial_analysis_complete job_id=%s rows=%d", job_id, result.row_count)
+        except Exception as exc:
+            existing = store.get(job_id)
+            if existing is not None:
+                store.upsert(dataclasses.replace(
+                    existing,
+                    status=FinancialJobStatus.FAILED,
+                    error=str(exc),
+                    updated_at=datetime.now(timezone.utc),
+                ))
+            logger.exception("financial_analysis_failed job_id=%s", job_id)
+
+    @app.post(
+        "/api/v1/finance/submit",
+        tags=["financial"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def submit_financial_csv(
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+    ) -> dict[str, str]:
+        if not file.filename or not file.filename.lower().endswith(".csv"):
+            raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
+        csv_bytes = await file.read()
+        if len(csv_bytes) > 50 * 1024 * 1024:  # 50 MB cap
+            raise HTTPException(status_code=413, detail="CSV file too large (max 50 MB).")
+        job_id = f"fin-{uuid4()}"
+        store: FinancialJobStore = app.state.financial_store
+        record = _make_financial_record(
+            job_id=job_id,
+            filename=file.filename,
+            status=FinancialJobStatus.INGESTING,
+        )
+        store.upsert(record)
+        background_tasks.add_task(_run_financial_analysis, job_id, file.filename, csv_bytes)
+        logger.info("financial_job_submitted job_id=%s file=%s size=%d", job_id, file.filename, len(csv_bytes))
+        return {"job_id": job_id, "status": FinancialJobStatus.INGESTING.value}
+
+    @app.get(
+        "/api/v1/finance/{job_id}",
+        tags=["financial"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def get_financial_job(job_id: str) -> dict[str, object]:
+        store: FinancialJobStore = app.state.financial_store
+        record = store.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Financial job not found.")
+        payload: dict[str, object] = {
+            "job_id": record.job_id,
+            "status": record.status.value,
+            "filename": record.filename,
+            "row_count": record.row_count,
+            "col_count": record.col_count,
+            "error": record.error,
+            "created_at": record.created_at.isoformat(),
+            "updated_at": record.updated_at.isoformat(),
+            "result": json.loads(record.result_json) if record.result_json else None,
+        }
+        return payload
+
+    @app.get(
+        "/api/v1/finance",
+        tags=["financial"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def list_financial_jobs(limit: int = Query(default=20, ge=1, le=100)) -> list[dict[str, object]]:
+        store: FinancialJobStore = app.state.financial_store
+        records = store.list_recent(limit=limit)
+        return [
+            {
+                "job_id": r.job_id,
+                "status": r.status.value,
+                "filename": r.filename,
+                "row_count": r.row_count,
+                "col_count": r.col_count,
+                "error": r.error,
+                "created_at": r.created_at.isoformat(),
+                "updated_at": r.updated_at.isoformat(),
+            }
+            for r in records
+        ]
 
     return app

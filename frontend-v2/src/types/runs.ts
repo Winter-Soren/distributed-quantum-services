@@ -1,4 +1,23 @@
 import type { BackendJobStatus } from '@/types/backend';
+import type { FinancialAnalysisResult } from '@/types/financial';
+
+/** Financial job statuses from the coordinator (distinct from circuit jobs). */
+export type FinancialJobStatus = 'QUEUED' | 'INGESTING' | 'ANALYSING' | 'COMPLETED' | 'FAILED';
+
+/** List row from `GET /api/v1/finance`. */
+export type BackendFinancialJobListItem = {
+	job_id: string;
+	status: FinancialJobStatus;
+	filename: string;
+	row_count: number | null;
+	col_count: number | null;
+	error: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
+/** Status shown on unified run history rows (circuit or financial). */
+export type RunListBackendStatus = BackendJobStatus | FinancialJobStatus;
 
 export type RunBadgeVariant = 'default' | 'secondary' | 'outline' | 'destructive';
 export type RunStatusFilter = 'all' | 'queued' | 'running' | 'completed' | 'failed';
@@ -30,7 +49,9 @@ export type RunProgressSummary = {
 
 export type RunSummary = {
 	id: string;
-	backendStatus: BackendJobStatus;
+	/** Circuit execution vs financial CSV analysis (default circuit). */
+	jobKind?: 'circuit' | 'financial';
+	backendStatus: RunListBackendStatus;
 	statusLabel: string;
 	statusGroup: RunStatusGroup;
 	badgeVariant: RunBadgeVariant;
@@ -146,4 +167,6 @@ export type RunDetailSnapshot = {
 	health: RunHealthSummary | null;
 	run: RunDetail;
 	plan: RunPlanSummary | null;
+	/** Populated for financial CSV runs so deep analysis UI can render without another fetch. */
+	financialResult?: FinancialAnalysisResult | null;
 };

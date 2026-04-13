@@ -21,6 +21,7 @@ dependencies = [
   "py-multicodec>=1.0.0",
   "libp2p @ https://github.com/libp2p/py-libp2p/archive/refs/heads/main.tar.gz",
   "qiskit>=2.3.0",
+  "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
