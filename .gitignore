@@ -33,3 +33,6 @@ dist-ssr
 *.sw?
 *.db
 *.pem
+backend/data/quantum_coordinator.db
+backend/data/quantum_coordinator.db-shm
+backend/data/quantum_coordinator.db-wal
