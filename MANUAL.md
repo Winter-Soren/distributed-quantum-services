@@ -429,6 +429,48 @@ If the frontend container fails during build:
 - confirm Docker can reach npm and Google Fonts
 - rebuild with `docker compose -f docker-compose.yaml build frontend-v2`
 
+If the build fails with `ENOSPC` or `no space left on device`:
+
+- check disk and Docker usage:
+
+```bash
+df -h
+docker system df
+```
+
+- if root filesystem (`/`) is near `100%`, free temporary space:
+
+```bash
+docker compose -f docker-compose.yaml down
+docker system prune -a --volumes -f
+docker builder prune -a -f
+sudo apt-get clean
+sudo journalctl --vacuum-time=3d
+```
+
+- if the EC2 root volume was resized in AWS but `/` is still small in `lsblk`, grow partition and filesystem:
+
+```bash
+lsblk
+sudo growpart /dev/nvme0n1 1
+sudo resize2fs /dev/nvme0n1p1
+df -h
+```
+
+- if `growpart` is missing:
+
+```bash
+sudo apt-get update && sudo apt-get install -y cloud-guest-utils
+```
+
+- then rebuild:
+
+```bash
+docker compose -f docker-compose.yaml up -d --build --force-recreate
+```
+
+- practical guidance: for this stack, use at least `20 GB`; if you do frequent rebuilds on the same host, `30-40 GB` is safer
+
 If the backend is up but the UI cannot load data:
 
 - confirm `frontend-v2` can reach `http://backend:8080` inside Compose
