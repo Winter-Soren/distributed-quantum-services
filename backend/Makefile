@@ -1,4 +1,4 @@
-.PHONY: install lint format test run demo demo-clean clean help
+.PHONY: install lint format test run demo demo-clean demo-clean-docker clean help
 
 install:
 	uv sync --extra dev
@@ -22,6 +22,9 @@ demo:
 demo-clean:
 	./scripts/demo-start.sh --clean
 
+demo-clean-docker:
+	./scripts/demo-start.sh --clean
+
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov .venv
@@ -36,4 +39,5 @@ help:
 	@echo "  run        Run the application in development mode with uvicorn"
 	@echo "  demo       Start the demo server with demo-start.sh"
 	@echo "  demo-clean Clean the demo server with demo-start.sh --clean"
+	@echo "  demo-clean-docker Clean-start the Docker container with the baked virtualenv"
 	@echo "  clean      Clean the project"

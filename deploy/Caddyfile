@@ -1,12 +1,11 @@
-{$CADDY_SITE_ADDRESS:http://localhost} {
+{$CADDY_FRONTEND_SITE_ADDRESS:http://localhost:3000} {
 	encode zstd gzip
 
-	@backend path /api/v1/* /docs /docs/* /redoc /redoc/* /openapi.json
-	handle @backend {
-		reverse_proxy backend:8080
-	}
+	reverse_proxy frontend-v2:3000
+}
 
-	handle {
-		reverse_proxy frontend-v2:3000
-	}
+{$CADDY_API_SITE_ADDRESS:http://localhost:8080} {
+	encode zstd gzip
+
+	reverse_proxy backend:8080
 }

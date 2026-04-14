@@ -4,13 +4,13 @@ services:
       context: ./backend
     environment:
       QC_API__ENABLE_AUTH: "${QC_API__ENABLE_AUTH:-false}"
-      QC_API__API_KEY: "${QUANTUM_BACKEND_API_KEY:-}"
+      QC_API__API_KEY: "${QUANTUM_BACKEND_API_KEY:-null}"
       QC_API__ENABLE_CORS: "false"
-      QC_DATABASE__PATH: "${QC_DATABASE__PATH:-/var/lib/quantum-coordinator/quantum_coordinator.db}"
+      QC_DATABASE__PATH: "${QC_DATABASE__PATH:-/workspace/backend/data/quantum_coordinator.db}"
       QC_LIBP2P__ENABLED: "${QC_LIBP2P__ENABLED:-true}"
       QC_LIBP2P__ENABLE_MDNS: "false"
     volumes:
-      - backend_data:/var/lib/quantum-coordinator
+      - backend_data:/workspace/backend/data
     healthcheck:
       test:
         [
@@ -58,10 +58,13 @@ services:
       frontend-v2:
         condition: service_healthy
     environment:
-      CADDY_SITE_ADDRESS: "${CADDY_SITE_ADDRESS:-http://localhost}"
+      CADDY_FRONTEND_SITE_ADDRESS: "${CADDY_FRONTEND_SITE_ADDRESS:-http://localhost:3000}"
+      CADDY_API_SITE_ADDRESS: "${CADDY_API_SITE_ADDRESS:-http://localhost:8080}"
     ports:
       - "80:80"
       - "443:443"
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

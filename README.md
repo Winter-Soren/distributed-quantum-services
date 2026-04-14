@@ -18,7 +18,7 @@ The root `README.md` is now the project-level guide. Each app also has its own l
 | Folder | Purpose | Main stack | Local start command |
 | --- | --- | --- | --- |
 | `backend/` | Coordinator, planner, API, persistence, runtime, libp2p integration | Python, FastAPI, py-libp2p, Qiskit | `make -C backend demo` |
-| `frontend-v2/` | Current operator dashboard for jobs, topology, runs, and finance analysis | Next.js 16, React 19, TypeScript | `npm --prefix frontend-v2 run dev` |
+| `frontend-v2/` | Current operator dashboard for jobs, topology, runs, and finance analysis | Next.js 16, React 19, TypeScript, Bun | `bun --cwd frontend-v2 run dev` |
 | `docs/` | Public docs site and reference handbook | Next.js 16, Fumadocs, MDX | `npm --prefix docs run dev` |
 
 ## What The Project Does
@@ -37,7 +37,7 @@ The commands below are intended to be run from the repository root.
 
 ### Docker Quick Start
 
-The repository now includes a Docker-first deployment path for the current Next.js dashboard in `frontend-v2`, the FastAPI backend, and a Caddy reverse proxy in front.
+The repository now includes a Docker-first deployment path in `docker-compose.yaml` for the current Next.js dashboard in `frontend-v2`, the FastAPI backend, and a Caddy reverse proxy in front.
 
 1. Copy the root env template:
 
@@ -45,7 +45,12 @@ The repository now includes a Docker-first deployment path for the current Next.
 cp .env.example .env
 ```
 
-2. For local Docker usage, leave `CADDY_SITE_ADDRESS=http://localhost`.
+2. For local Docker usage, leave:
+
+```dotenv
+CADDY_FRONTEND_SITE_ADDRESS=http://localhost:3000
+CADDY_API_SITE_ADDRESS=http://localhost:8080
+```
 
 3. Start the stack:
 
@@ -55,44 +60,61 @@ docker compose up --build
 
 4. Open:
 
-- `http://localhost` for the dashboard
-- `http://localhost/docs` for FastAPI docs
-- `http://localhost/api/v1/health` for the backend health check
+- `http://localhost:3000` for the dashboard
+- `http://localhost:8080/docs` for FastAPI docs
+- `http://localhost:8080/api/v1/health` for the backend health check
 
 Notes:
 
-- The Docker stack persists SQLite data in the named volume `backend_data`.
+- The Docker stack persists SQLite data in the named volume `backend_data`, mounted at `backend/data` inside the backend container.
 - `frontend-v2` talks to the backend over the internal Docker network, so no manual API URL wiring is needed.
 - If you want the simplest container runtime, set `QC_LIBP2P__ENABLED=false` in `.env`. Leaving it `true` keeps the embedded demo libp2p services enabled inside the backend container.
 - The frontend production build currently fetches Google font assets during `next build`, so the machine running `docker compose build` needs outbound HTTPS access.
+- Locally, Caddy exposes the frontend on `localhost:3000` and the backend on `localhost:8080`, so you do not need custom localhost subdomains.
+- The backend container now boots through `make demo-clean-docker`, which clears `backend/data/quantum_coordinator.db` on container start before launching the API.
 
 ### EC2 + Caddy
 
 For an EC2 deployment with automatic HTTPS:
 
-1. Point a domain A record at the EC2 public IP.
-2. Open inbound security-group ports `80` and `443`.
-3. Set `CADDY_SITE_ADDRESS` in the root `.env` to your real domain, for example `quantum.example.com`.
-4. Start the stack in the background:
+1. Point your root domain A record at the EC2 public IP.
+2. Point `api.<domain>` at the same EC2 public IP.
+3. Open inbound security-group ports `80` and `443`.
+4. Set `CADDY_FRONTEND_SITE_ADDRESS` and `CADDY_API_SITE_ADDRESS` in the root `.env`, for example:
+
+```dotenv
+CADDY_FRONTEND_SITE_ADDRESS=quantum.example.com
+CADDY_API_SITE_ADDRESS=api.quantum.example.com
+```
+
+5. Start the stack in the background:
 
 ```bash
 docker compose up -d --build
 ```
 
-5. Check the rollout:
+6. Check the rollout:
 
 ```bash
 docker compose ps
 docker compose logs -f caddy backend frontend-v2
 ```
 
-If you deploy by raw EC2 IP or public DNS name instead of a real domain, keep `CADDY_SITE_ADDRESS` on an `http://...` value so Caddy serves plain HTTP rather than trying to mint a certificate.
+If you deploy by raw EC2 IP instead of real DNS, use plain HTTP values such as:
+
+```dotenv
+CADDY_FRONTEND_SITE_ADDRESS=http://<EC2_PUBLIC_IP>
+CADDY_API_SITE_ADDRESS=http://api.<EC2_PUBLIC_IP>.nip.io
+```
+
+or use a real domain for both hosts if you want automatic HTTPS.
 
 ### Requirements
 
 - Python `3.10+`
 - [`uv`](https://github.com/astral-sh/uv)
 - Node.js `20+`
+- `bun`
 - `npm`
 - free local ports for the backend demo: `8080`, `9100`, `9200`, `9201`, `9202`
 
@@ -124,14 +146,14 @@ Important note:
 In a second terminal:
 
 ```bash
-npm --prefix frontend-v2 install
-npm --prefix frontend-v2 run dev
+bun --cwd frontend-v2 install
+bun --cwd frontend-v2 run dev
 ```
 
 If the backend is running somewhere other than `http://127.0.0.1:8080`:
 
 ```bash
-QUANTUM_BACKEND_URL=http://127.0.0.1:8080 npm --prefix frontend-v2 run dev
+QUANTUM_BACKEND_URL=http://127.0.0.1:8080 bun --cwd frontend-v2 run dev
 ```
 
 ### 3. Start the docs site
@@ -234,6 +256,7 @@ Normalization details:
 
 ## Documentation Map
 
+- [`MANUAL.md`](MANUAL.md): EC2 deployment guide for the Docker + Caddy stack
 - [`backend/README.md`](backend/README.md): backend-specific setup, API, and developer commands
 - [`frontend-v2/README.md`](frontend-v2/README.md): current dashboard setup and API wiring
 - [`docs/README.md`](docs/README.md): docs site setup, search, and authoring notes

@@ -16,10 +16,10 @@ COPY src ./src
 RUN uv sync --frozen --no-dev
 
 
-FROM python:3.11-slim-bookworm AS runner
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS runner
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgmp10 \
+    && apt-get install -y --no-install-recommends bash libgmp10 lsof make \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/workspace/backend/.venv/bin:$PATH" \
@@ -29,12 +29,13 @@ ENV PATH="/workspace/backend/.venv/bin:$PATH" \
 WORKDIR /workspace/backend
 
 COPY --from=builder /workspace/backend/.venv ./.venv
-COPY README.md pyproject.toml ./
+COPY Makefile README.md pyproject.toml ./
 COPY config ./config
+COPY scripts ./scripts
 COPY src ./src
 
-RUN mkdir -p /var/lib/quantum-coordinator
+RUN mkdir -p /workspace/backend/data
 
 EXPOSE 8080
 
-CMD ["uvicorn", "quantum_coordinator.asgi:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["make", "demo-clean-docker"]

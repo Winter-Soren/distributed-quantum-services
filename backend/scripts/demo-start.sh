@@ -69,4 +69,8 @@ echo ""
 echo "Press Ctrl+C to stop."
 echo ""
 
-QC_CONFIG_FILE="$CONFIG_FILE" uv run uvicorn quantum_coordinator.asgi:app --host 0.0.0.0 --port "$API_PORT"
+if [ -x ".venv/bin/uvicorn" ]; then
+  QC_CONFIG_FILE="$CONFIG_FILE" .venv/bin/uvicorn quantum_coordinator.asgi:app --host 0.0.0.0 --port "$API_PORT"
+else
+  QC_CONFIG_FILE="$CONFIG_FILE" uv run uvicorn quantum_coordinator.asgi:app --host 0.0.0.0 --port "$API_PORT"
+fi

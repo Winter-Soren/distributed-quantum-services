@@ -2,8 +2,8 @@ FROM node:20-bookworm-slim AS deps
 
 WORKDIR /workspace/frontend-v2
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN npm install -g bun && bun install --frozen-lockfile
 
 
 FROM node:20-bookworm-slim AS builder
@@ -15,7 +15,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /workspace/frontend-v2/node_modules ./node_modules
 COPY . .
 
-RUN npm run build
+RUN npm install -g bun && bun run build
 
 
 FROM node:20-bookworm-slim AS runner
@@ -33,4 +33,5 @@ COPY --from=builder /workspace/frontend-v2/.next/static ./.next/static
 
 EXPOSE 3000
 
+# Next standalone output emits a minimal runtime entrypoint at .next/standalone/server.js.
 CMD ["node", "server.js"]
