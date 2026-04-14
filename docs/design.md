@@ -1,5 +1,13 @@
 # Design Document: Distributed Quantum Services (Python POC)
 
+Back to [Docs Index](README.md)
+
+## Use this document when
+
+- you want design rationale and intended boundaries
+- you are evaluating tradeoffs, risks, and open questions
+- you need protocol and state model references
+
 ## 1. Design Goals
 
 This design targets a publishable proof-of-concept where:

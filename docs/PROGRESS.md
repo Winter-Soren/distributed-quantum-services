@@ -1,5 +1,13 @@
 # Progress Report: Frontend Migration and Platform Console Foundation
 
+Back to [Docs Index](README.md)
+
+## Use this document when
+
+- you want completed work only (not planned work)
+- you are checking migration status and shipped capabilities
+- you need roadmap alignment notes for delivered frontend scope
+
 This document records **completed work** for migrating the legacy React dashboard (`frontend/`) to the Next.js application (`frontend-v2/`) and relates it to the long-horizon plan in [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md).
 
 ## How this maps to the future roadmap
