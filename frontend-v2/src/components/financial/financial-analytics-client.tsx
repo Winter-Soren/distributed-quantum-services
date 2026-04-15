@@ -278,7 +278,7 @@ function SummaryKpis({ result }: { result: FinancialAnalysisResult }) {
 						<div className={cn('mb-2', card.color)}>{card.icon}</div>
 						<p className='text-2xl font-bold tabular-nums'>{card.value}</p>
 						<p className='text-xs font-medium text-foreground'>{card.label}</p>
-						<p className='mt-0.5 text-[11px] text-muted-foreground'>{card.sub}</p>
+						<p className='text-ds-label mt-0.5 text-muted-foreground'>{card.sub}</p>
 					</CardContent>
 				</Card>
 			))}
@@ -311,14 +311,14 @@ function ColumnProfiles({ profiles }: { profiles: ColumnProfile[] }) {
 							<CardDescription className='flex gap-2'>
 								<Badge
 									variant='outline'
-									className='text-[10px]'
+									className='text-ds-tight'
 								>
 									{p.dtype}
 								</Badge>
 								{(p.null_pct ?? 0) > 5 && (
 									<Badge
 										variant='destructive'
-										className='text-[10px]'
+										className='text-ds-tight'
 									>
 										{p.null_pct}% null
 									</Badge>
@@ -572,7 +572,7 @@ function TrendPanel({ insights }: { insights: TimeSeriesInsight[] }) {
 							</div>
 							<Badge
 								variant='outline'
-								className='w-fit text-[10px] capitalize'
+								className='text-ds-tight w-fit capitalize'
 							>
 								{i.trend}
 							</Badge>
@@ -1058,7 +1058,7 @@ function ExecutionPanel({ segments, result }: { segments: NodeExecutionSegment[]
 								key={i}
 								className='flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 px-4 py-3'
 							>
-								<div className='flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold text-primary'>
+								<div className='text-ds-label flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary'>
 									F{i}
 								</div>
 								<div className='min-w-0 flex-1'>
@@ -1372,7 +1372,7 @@ export function FinancialAnalyticsClient() {
 								{result.anomalies.length > 0 && (
 									<Badge
 										variant='destructive'
-										className='ml-1.5 text-[10px]'
+										className='text-ds-tight ml-1.5'
 									>
 										{result.anomalies.length}
 									</Badge>

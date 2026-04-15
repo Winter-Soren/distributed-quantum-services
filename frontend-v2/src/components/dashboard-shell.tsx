@@ -327,7 +327,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-muted/30 text-foreground'>
 			<header className='flex h-11 shrink-0 items-center gap-3 border-b bg-background px-3'>
 				<div className='flex items-center gap-2'>
-					<span className='flex size-7 items-center justify-center rounded-md bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'>
+					<span className='text-ds-tight flex size-7 items-center justify-center rounded-md bg-primary font-bold text-primary-foreground shadow-sm'>
 						QG
 					</span>
 					<button
@@ -350,7 +350,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 					<div className='flex w-full items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground'>
 						<SearchIcon className='size-4 shrink-0 opacity-60' />
 						<span className='flex-1 truncate'>Search</span>
-						<kbd className='hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block'>
+						<kbd className='text-ds-tight hidden rounded border border-border bg-background px-1.5 py-0.5 font-mono text-muted-foreground sm:inline-block'>
 							⌘ K
 						</kbd>
 					</div>
@@ -375,7 +375,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 					</Button>
 					<button
 						type='button'
-						className='relative ml-1 flex size-8 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-background'
+						className='text-ds-tight relative ml-1 flex size-8 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground ring-2 ring-background'
 						aria-label='Account'
 					>
 						SB
@@ -386,7 +386,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
 			<div className='flex min-h-0 min-w-0 flex-1 gap-2 overflow-hidden px-2 pb-2 pt-2'>
 				<aside className='flex min-h-0 w-16 shrink-0 flex-col items-center overflow-hidden rounded-2xl border bg-card py-2 shadow-sm'>
-					<div className='mb-1.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 text-[9px] font-bold text-primary'>
+					<div className='text-ds-micro mb-1.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 font-bold text-primary'>
 						QG
 					</div>
 
@@ -414,7 +414,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										)}
 									>
 										<Icon className='size-4 shrink-0' />
-										<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
+										<span className='text-ds-micro max-w-full truncate font-medium leading-tight'>
 											{item.railLabel}
 										</span>
 									</Link>
@@ -440,7 +440,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										)}
 									>
 										<Icon className='size-4 shrink-0' />
-										<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
+										<span className='text-ds-micro max-w-full truncate font-medium leading-tight'>
 											{item.railLabel}
 										</span>
 									</Link>
@@ -465,7 +465,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 									)}
 								>
 									<Icon className='size-4 shrink-0' />
-									<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
+									<span className='text-ds-micro max-w-full truncate font-medium leading-tight'>
 										{item.railLabel}
 									</span>
 								</button>
@@ -550,7 +550,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 												<SidebarSeparator className='my-3 bg-gradient-to-r from-transparent via-sidebar-border to-transparent' />
 											)}
 											<SidebarGroup className='gap-1.5'>
-												<SidebarGroupLabel className='px-4 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50'>
+												<SidebarGroupLabel className='text-ds-tight px-4 font-semibold uppercase tracking-wider text-sidebar-foreground/50'>
 													{section.group}
 												</SidebarGroupLabel>
 												<SidebarGroupContent>

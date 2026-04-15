@@ -69,7 +69,7 @@ function PaletteDraggable({ id, item, label, short, className }: PaletteRow & { 
 			{...listeners}
 			{...attributes}
 		>
-			<span className='text-[11px] text-muted-foreground'>{label}</span>
+			<span className='text-ds-label text-muted-foreground'>{label}</span>
 			<span className='mt-0.5 font-mono text-sm'>{short}</span>
 		</button>
 	);
@@ -222,7 +222,7 @@ export function VisualCircuitBuilder({ visual, onVisualChange }: VisualCircuitBu
 							{visual.columns.map((_, m) => (
 								<div
 									key={`hdr-${m}`}
-									className='flex w-14 shrink-0 justify-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground'
+									className='text-ds-tight flex w-14 shrink-0 justify-center font-medium uppercase tracking-wider text-muted-foreground'
 								>
 									t{m + 1}
 								</div>
@@ -264,7 +264,7 @@ export function VisualCircuitBuilder({ visual, onVisualChange }: VisualCircuitBu
 
 			<details className='rounded-2xl border border-border/60 bg-muted/10 px-3 py-2 text-xs'>
 				<summary className='cursor-pointer font-medium text-muted-foreground'>Generated OpenQASM preview</summary>
-				<pre className='mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-5 text-foreground/90'>
+				<pre className='text-ds-label mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono leading-5 text-foreground/90'>
 					{serializedPreview || '—'}
 				</pre>
 			</details>

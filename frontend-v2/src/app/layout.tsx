@@ -1,11 +1,17 @@
 import type { Metadata } from 'next';
-import { JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 
-/** DESIGN.md: system SF Pro stack in globals; JetBrains Mono substitutes SF Mono until hosted. */
+/** DESIGN.md §3: Inter (NotionInter substitute) + technical mono. */
+const inter = Inter({
+	subsets: ['latin'],
+	variable: '--font-inter',
+	display: 'swap'
+});
+
 const jetbrainsMono = JetBrains_Mono({
 	subsets: ['latin'],
 	variable: '--font-mono-technical',
@@ -25,7 +31,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang='en'
-			className={cn('h-full', 'antialiased', jetbrainsMono.variable, 'font-sans')}
+			className={cn('h-full', 'antialiased', inter.variable, jetbrainsMono.variable, 'font-sans')}
 		>
 			<TooltipProvider>
 				<body className='min-h-full flex flex-col'>

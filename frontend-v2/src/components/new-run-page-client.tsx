@@ -545,7 +545,7 @@ export function NewRunPageClient() {
 																	</p>
 																	<code
 																		className={cn(
-																			'mt-3 block max-h-40 overflow-y-auto rounded-2xl px-3 py-2 font-mono text-[11px] leading-5 whitespace-pre-wrap break-all',
+																			'text-ds-label mt-3 block max-h-40 overflow-y-auto rounded-2xl px-3 py-2 font-mono leading-5 whitespace-pre-wrap break-all',
 																			theme.code
 																		)}
 																	>
@@ -625,7 +625,7 @@ export function NewRunPageClient() {
 function MetricTile({ label, value }: { label: string; value: string }) {
 	return (
 		<div className='rounded-3xl border border-border/70 bg-muted/25 px-3 py-2'>
-			<p className='text-[11px] uppercase tracking-[0.2em] text-muted-foreground'>{label}</p>
+			<p className='text-ds-label uppercase tracking-[0.2em] text-muted-foreground'>{label}</p>
 			<p className='mt-1 text-sm font-medium'>{value}</p>
 		</div>
 	);

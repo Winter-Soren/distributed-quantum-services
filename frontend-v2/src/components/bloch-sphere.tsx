@@ -8,15 +8,26 @@ type BlochSphereProps = {
 	vector: [number, number, number];
 	/** Optional label (e.g. qubit name) */
 	label?: string;
-	/** Size in pixels */
+	/** Size in pixels; omit to use `var(--ds-bloch-preview-size)` from globals */
 	size?: number;
 	className?: string;
 };
 
+function previewBoxStyle(size: number | undefined) {
+	return typeof size === 'number'
+		? { width: size, height: size, minWidth: size, minHeight: size }
+		: {
+				width: 'var(--ds-bloch-preview-size)',
+				height: 'var(--ds-bloch-preview-size)',
+				minWidth: 'var(--ds-bloch-preview-size)',
+				minHeight: 'var(--ds-bloch-preview-size)'
+			};
+}
+
 export const BlochSphere = memo(function BlochSphere({
 	vector,
 	label,
-	size = 240,
+	size,
 	className
 }: BlochSphereProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -80,7 +91,7 @@ export const BlochSphere = memo(function BlochSphere({
 			{activeError ? (
 				<div
 					className='flex items-center justify-center rounded-2xl border border-border/80 bg-muted/40 text-sm text-muted-foreground dark:bg-muted/25'
-					style={{ width: size, height: size, minWidth: size, minHeight: size }}
+					style={previewBoxStyle(size)}
 				>
 					{activeError}
 				</div>
@@ -88,7 +99,7 @@ export const BlochSphere = memo(function BlochSphere({
 				<div
 					ref={containerRef}
 					className='rounded-2xl border border-border/80 bg-muted/40 dark:bg-muted/25'
-					style={{ width: size, height: size, minWidth: size, minHeight: size }}
+					style={previewBoxStyle(size)}
 				/>
 			)}
 		</div>

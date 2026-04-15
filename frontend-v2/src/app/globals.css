@@ -30,11 +30,13 @@
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
+	--color-placeholder-foreground: var(--placeholder-foreground);
 	--color-muted: var(--muted);
 	--color-secondary-foreground: var(--secondary-foreground);
 	--color-secondary: var(--secondary);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-primary: var(--primary);
+	--color-primary-hover: var(--primary-hover);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-popover: var(--popover);
 	--color-card-foreground: var(--card-foreground);
@@ -49,186 +51,224 @@
 }
 
 /*
- * Design tokens from DESIGN.md (Apple-inspired).
+ * Design tokens from DESIGN.md (Notion-inspired).
  * Prefer editing this file for theme-wide changes; components should use semantic
  * Tailwind tokens (bg-background, text-primary, etc.) or var(--ds-*).
  */
 :root {
 	/* —— Core palette (DESIGN.md §2) —— */
 	--ds-black: #000000;
-	--ds-light-gray: #f5f5f7;
-	--ds-near-black: #1d1d1f;
 	--ds-white: #ffffff;
-	--ds-apple-blue: #0071e3;
-	--ds-link-blue: #0066cc;
-	--ds-bright-blue: #2997ff;
-	--ds-sk-focus: #0071e3;
-	--ds-text-on-light-secondary: rgba(0, 0, 0, 0.8);
-	--ds-text-on-light-tertiary: rgba(0, 0, 0, 0.48);
-	--ds-dark-surface-1: #272729;
-	--ds-dark-surface-2: #262628;
-	--ds-dark-surface-3: #28282a;
-	--ds-dark-surface-4: #2a2a2d;
-	--ds-dark-surface-5: #242426;
-	--ds-button-default-light: #fafafc;
-	--ds-button-active: #ededf2;
-	--ds-overlay-scrim: rgba(210, 210, 215, 0.64);
+	--ds-near-black: rgba(0, 0, 0, 0.95);
+	--ds-warm-white: #f6f5f4;
+	--ds-warm-dark: #31302e;
+	--ds-warm-gray-500: #615d59;
+	--ds-warm-gray-300: #a39e98;
+	--ds-notion-blue: #0075de;
+	--ds-active-blue: #005bab;
+	--ds-deep-navy: #213183;
+	--ds-link-light-blue: #62aef0;
+	--ds-focus-blue: #097fe8;
+	--ds-badge-blue-bg: #f2f9ff;
+	--ds-badge-blue-text: #097fe8;
+	--ds-input-border: #dddddd;
+	--ds-secondary-surface: rgba(0, 0, 0, 0.05);
+	--ds-whisper-border: rgba(0, 0, 0, 0.1);
+	--ds-teal: #2a9d99;
+	--ds-green: #1aae39;
+	--ds-orange: #dd5b00;
+	--ds-pink: #ff64c8;
+	--ds-purple: #391c57;
+	--ds-brown: #523410;
 
-	/* Typography (DESIGN.md §3) — web uses system stack; SF Pro on Apple OS */
-	--ds-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica,
-		Arial, sans-serif;
+	/* Typography (DESIGN.md §3) — --font-inter from layout (next/font); Inter fallback */
+	--ds-font-sans: var(--font-inter, Inter), Inter, -apple-system, system-ui, 'Segoe UI', Helvetica, 'Apple Color Emoji',
+		Arial, 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
 	--ds-font-mono: var(--font-mono-technical), ui-monospace, 'SF Mono', Menlo, monospace;
 
+	/* Type scale (dense UI + DESIGN roles) */
+	--ds-text-micro-size: 0.5625rem; /* 9px — compact sidebar labels */
+	--ds-text-micro-leading: 1.2;
+	--ds-text-tight-size: 0.625rem; /* 10px — micro metadata */
+	--ds-text-tight-leading: 1.33;
+	--ds-text-label-size: 0.6875rem; /* 11px — small caps / mono labels */
+	--ds-text-label-leading: 1.43;
+	--ds-text-caption-size: 0.875rem; /* 14px — caption */
+	--ds-text-caption-leading: 1.43;
+	--ds-text-badge-size: 0.75rem; /* 12px — badges */
+	--ds-text-badge-leading: 1.33;
+	--ds-text-badge-tracking: 0.0078125rem; /* 0.125px */
+
 	/* Radius (DESIGN.md §5) */
-	--ds-radius-micro: 5px;
+	--ds-radius-button: 4px;
+	--ds-radius-input: 4px;
+	--ds-radius-subtle: 5px;
 	--ds-radius-8: 8px;
 	--ds-radius-11: 11px;
 	--ds-radius-12: 12px;
-	--ds-radius-pill: 980px;
+	--ds-radius-16: 16px;
+	--ds-radius-pill: 9999px;
 
-	/* Elevation (DESIGN.md §6) — single soft card shadow */
-	--ds-shadow-card: 3px 5px 30px 0 rgba(0, 0, 0, 0.013);
+	/* Elevation (DESIGN.md §6) */
+	--ds-shadow-card:
+		rgba(0, 0, 0, 0.04) 0px 4px 18px, rgba(0, 0, 0, 0.027) 0px 2.025px 7.84688px,
+		rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px, rgba(0, 0, 0, 0.01) 0px 0.175px 1.04062px;
+	--ds-shadow-deep:
+		rgba(0, 0, 0, 0.01) 0px 1px 3px, rgba(0, 0, 0, 0.02) 0px 3px 7px, rgba(0, 0, 0, 0.02) 0px 7px 15px,
+		rgba(0, 0, 0, 0.04) 0px 14px 28px, rgba(0, 0, 0, 0.05) 0px 23px 52px;
 	--ds-shadow-subtle: 0 1px 0 rgba(0, 0, 0, 0.01);
-	--ds-shadow-focus-ring: 0 0 0 2px var(--ds-sk-focus);
+	--ds-shadow-focus-ring: 0 0 0 2px var(--ds-focus-blue);
+	--ds-shadow-level-200: var(--ds-shadow-card);
+
+	/* Fragment DAG active node glow geometry (color from --ds-svc-*-glow) */
+	--ds-fragment-node-active-y: 30px;
+	--ds-fragment-node-active-blur: 72px;
+	--ds-fragment-node-active-spread: -42px;
+
+	/* Bloch / chart fallbacks */
+	--ds-bloch-preview-size: 200px;
+	--ds-chart-indicator-border: 1.5px;
 
 	/* Semantic → shadcn / Tailwind (light) */
 	--font-sans: var(--ds-font-sans);
 	--font-geist-mono: var(--ds-font-mono);
-	--background: var(--ds-light-gray);
+	--background: var(--ds-white);
 	--foreground: var(--ds-near-black);
 	--card: var(--ds-white);
 	--card-foreground: var(--ds-near-black);
 	--popover: var(--ds-white);
 	--popover-foreground: var(--ds-near-black);
-	--primary: var(--ds-apple-blue);
+	--primary: var(--ds-notion-blue);
+	--primary-hover: var(--ds-active-blue);
 	--primary-foreground: var(--ds-white);
-	--secondary: var(--ds-button-default-light);
+	--secondary: var(--ds-secondary-surface);
 	--secondary-foreground: var(--ds-near-black);
-	--muted: color-mix(in srgb, var(--ds-near-black) 6%, var(--ds-light-gray));
-	--muted-foreground: var(--ds-text-on-light-tertiary);
-	--accent: var(--ds-button-default-light);
+	--muted: var(--ds-warm-white);
+	--muted-foreground: var(--ds-warm-gray-500);
+	--accent: var(--ds-secondary-surface);
 	--accent-foreground: var(--ds-near-black);
 	--destructive: #dc2626;
-	--border: rgba(0, 0, 0, 0.08);
-	--input: rgba(0, 0, 0, 0.06);
-	--ring: var(--ds-sk-focus);
+	--border: var(--ds-whisper-border);
+	--input: var(--ds-input-border);
+	--placeholder-foreground: var(--ds-warm-gray-300);
+	--ring: var(--ds-focus-blue);
 
-	/* Chart series: blue + neutrals only (DESIGN.md §9) */
-	--chart-1: var(--ds-apple-blue);
-	--chart-2: var(--ds-bright-blue);
-	--chart-3: var(--ds-link-blue);
-	--chart-4: var(--ds-near-black);
-	--chart-5: var(--ds-text-on-light-tertiary);
+	--chart-1: var(--ds-notion-blue);
+	--chart-2: var(--ds-link-light-blue);
+	--chart-3: var(--ds-active-blue);
+	--chart-4: var(--ds-warm-dark);
+	--chart-5: var(--ds-warm-gray-300);
 
-	--radius: var(--ds-radius-8);
+	--radius: var(--ds-radius-button);
 	--sidebar: var(--ds-white);
-	--sidebar-foreground: var(--ds-text-on-light-secondary);
-	--sidebar-primary: var(--ds-apple-blue);
+	--sidebar-foreground: var(--ds-near-black);
+	--sidebar-primary: var(--ds-notion-blue);
 	--sidebar-primary-foreground: var(--ds-white);
-	--sidebar-accent: color-mix(in srgb, var(--ds-near-black) 5%, var(--ds-white));
+	--sidebar-accent: var(--ds-warm-white);
 	--sidebar-accent-foreground: var(--ds-near-black);
-	--sidebar-border: rgba(0, 0, 0, 0.08);
-	--sidebar-ring: var(--ds-sk-focus);
+	--sidebar-border: var(--ds-whisper-border);
+	--sidebar-ring: var(--ds-focus-blue);
 
 	--primary-glow: color-mix(in srgb, var(--primary) 12%, transparent);
 	--primary-glow-strong: color-mix(in srgb, var(--primary) 18%, transparent);
 
-	/* Fragment DAG node accents (stroke / fill / text / glow) — compose from --ds-* only */
-	--ds-svc-bell-pair-stroke: var(--ds-apple-blue);
-	--ds-svc-bell-pair-fill: color-mix(in srgb, var(--ds-apple-blue) 12%, transparent);
-	--ds-svc-bell-pair-text: var(--ds-apple-blue);
-	--ds-svc-bell-pair-glow: color-mix(in srgb, var(--ds-apple-blue) 20%, transparent);
+	/* Fragment DAG node accents — compose from palette tokens only */
+	--ds-svc-bell-pair-stroke: var(--ds-notion-blue);
+	--ds-svc-bell-pair-fill: color-mix(in srgb, var(--ds-notion-blue) 12%, transparent);
+	--ds-svc-bell-pair-text: var(--ds-notion-blue);
+	--ds-svc-bell-pair-glow: color-mix(in srgb, var(--ds-notion-blue) 20%, transparent);
 
-	--ds-svc-cnot-stroke: var(--ds-link-blue);
-	--ds-svc-cnot-fill: color-mix(in srgb, var(--ds-link-blue) 12%, transparent);
-	--ds-svc-cnot-text: var(--ds-link-blue);
-	--ds-svc-cnot-glow: color-mix(in srgb, var(--ds-link-blue) 18%, transparent);
+	--ds-svc-cnot-stroke: var(--ds-active-blue);
+	--ds-svc-cnot-fill: color-mix(in srgb, var(--ds-active-blue) 12%, transparent);
+	--ds-svc-cnot-text: var(--ds-active-blue);
+	--ds-svc-cnot-glow: color-mix(in srgb, var(--ds-active-blue) 18%, transparent);
 
-	--ds-svc-cz-stroke: var(--ds-bright-blue);
-	--ds-svc-cz-fill: color-mix(in srgb, var(--ds-bright-blue) 12%, transparent);
-	--ds-svc-cz-text: var(--ds-bright-blue);
-	--ds-svc-cz-glow: color-mix(in srgb, var(--ds-bright-blue) 20%, transparent);
+	--ds-svc-cz-stroke: var(--ds-link-light-blue);
+	--ds-svc-cz-fill: color-mix(in srgb, var(--ds-link-light-blue) 12%, transparent);
+	--ds-svc-cz-text: var(--ds-link-light-blue);
+	--ds-svc-cz-glow: color-mix(in srgb, var(--ds-link-light-blue) 20%, transparent);
 
-	--ds-svc-controlled-unitary-stroke: var(--ds-near-black);
-	--ds-svc-controlled-unitary-fill: color-mix(in srgb, var(--ds-near-black) 10%, transparent);
-	--ds-svc-controlled-unitary-text: var(--ds-near-black);
-	--ds-svc-controlled-unitary-glow: color-mix(in srgb, var(--ds-near-black) 16%, transparent);
+	--ds-svc-controlled-unitary-stroke: var(--ds-warm-dark);
+	--ds-svc-controlled-unitary-fill: color-mix(in srgb, var(--ds-warm-dark) 10%, transparent);
+	--ds-svc-controlled-unitary-text: var(--ds-warm-dark);
+	--ds-svc-controlled-unitary-glow: color-mix(in srgb, var(--ds-warm-dark) 16%, transparent);
 
-	--ds-svc-hadamard-stroke: var(--ds-apple-blue);
-	--ds-svc-hadamard-fill: color-mix(in srgb, var(--ds-apple-blue) 8%, transparent);
-	--ds-svc-hadamard-text: var(--ds-apple-blue);
-	--ds-svc-hadamard-glow: color-mix(in srgb, var(--ds-apple-blue) 15%, transparent);
+	--ds-svc-hadamard-stroke: var(--ds-notion-blue);
+	--ds-svc-hadamard-fill: color-mix(in srgb, var(--ds-notion-blue) 8%, transparent);
+	--ds-svc-hadamard-text: var(--ds-notion-blue);
+	--ds-svc-hadamard-glow: color-mix(in srgb, var(--ds-notion-blue) 15%, transparent);
 
-	--ds-svc-programmable-gate-stroke: var(--ds-dark-surface-1);
-	--ds-svc-programmable-gate-fill: color-mix(in srgb, var(--ds-dark-surface-1) 14%, transparent);
-	--ds-svc-programmable-gate-text: var(--ds-dark-surface-1);
-	--ds-svc-programmable-gate-glow: color-mix(in srgb, var(--ds-dark-surface-1) 18%, transparent);
+	--ds-svc-programmable-gate-stroke: var(--ds-deep-navy);
+	--ds-svc-programmable-gate-fill: color-mix(in srgb, var(--ds-deep-navy) 14%, transparent);
+	--ds-svc-programmable-gate-text: var(--ds-deep-navy);
+	--ds-svc-programmable-gate-glow: color-mix(in srgb, var(--ds-deep-navy) 18%, transparent);
 
-	--ds-svc-qft-stroke: var(--ds-link-blue);
-	--ds-svc-qft-fill: color-mix(in srgb, var(--ds-link-blue) 8%, transparent);
-	--ds-svc-qft-text: var(--ds-link-blue);
-	--ds-svc-qft-glow: color-mix(in srgb, var(--ds-link-blue) 14%, transparent);
+	--ds-svc-qft-stroke: var(--ds-active-blue);
+	--ds-svc-qft-fill: color-mix(in srgb, var(--ds-active-blue) 8%, transparent);
+	--ds-svc-qft-text: var(--ds-active-blue);
+	--ds-svc-qft-glow: color-mix(in srgb, var(--ds-active-blue) 14%, transparent);
 
-	--ds-svc-teleportation-stroke: var(--ds-near-black);
-	--ds-svc-teleportation-fill: color-mix(in srgb, var(--ds-near-black) 14%, transparent);
-	--ds-svc-teleportation-text: var(--ds-near-black);
+	--ds-svc-teleportation-stroke: var(--ds-warm-dark);
+	--ds-svc-teleportation-fill: color-mix(in srgb, var(--ds-warm-dark) 14%, transparent);
+	--ds-svc-teleportation-text: var(--ds-warm-dark);
 	--ds-svc-teleportation-glow: color-mix(in srgb, var(--ds-black) 12%, transparent);
 
-	--ds-svc-syndrome-extraction-stroke: var(--ds-dark-surface-4);
-	--ds-svc-syndrome-extraction-fill: color-mix(in srgb, var(--ds-dark-surface-4) 14%, transparent);
-	--ds-svc-syndrome-extraction-text: var(--ds-dark-surface-4);
-	--ds-svc-syndrome-extraction-glow: color-mix(in srgb, var(--ds-dark-surface-4) 18%, transparent);
+	--ds-svc-syndrome-extraction-stroke: var(--ds-warm-gray-500);
+	--ds-svc-syndrome-extraction-fill: color-mix(in srgb, var(--ds-warm-gray-500) 14%, transparent);
+	--ds-svc-syndrome-extraction-text: var(--ds-warm-gray-500);
+	--ds-svc-syndrome-extraction-glow: color-mix(in srgb, var(--ds-warm-gray-500) 18%, transparent);
 
-	--ds-svc-distillation-stroke: var(--ds-dark-surface-2);
-	--ds-svc-distillation-fill: color-mix(in srgb, var(--ds-dark-surface-2) 14%, transparent);
-	--ds-svc-distillation-text: var(--ds-dark-surface-2);
-	--ds-svc-distillation-glow: color-mix(in srgb, var(--ds-dark-surface-2) 18%, transparent);
+	--ds-svc-distillation-stroke: var(--ds-brown);
+	--ds-svc-distillation-fill: color-mix(in srgb, var(--ds-brown) 14%, transparent);
+	--ds-svc-distillation-text: var(--ds-brown);
+	--ds-svc-distillation-glow: color-mix(in srgb, var(--ds-brown) 18%, transparent);
 
-	--ds-svc-measurement-feedforward-stroke: var(--ds-bright-blue);
-	--ds-svc-measurement-feedforward-fill: color-mix(in srgb, var(--ds-bright-blue) 8%, transparent);
-	--ds-svc-measurement-feedforward-text: var(--ds-bright-blue);
-	--ds-svc-measurement-feedforward-glow: color-mix(in srgb, var(--ds-bright-blue) 16%, transparent);
+	--ds-svc-measurement-feedforward-stroke: var(--ds-link-light-blue);
+	--ds-svc-measurement-feedforward-fill: color-mix(in srgb, var(--ds-link-light-blue) 8%, transparent);
+	--ds-svc-measurement-feedforward-text: var(--ds-link-light-blue);
+	--ds-svc-measurement-feedforward-glow: color-mix(in srgb, var(--ds-link-light-blue) 16%, transparent);
 }
 
 .dark {
-	--background: var(--ds-black);
+	--background: var(--ds-warm-dark);
 	--foreground: var(--ds-white);
-	--card: var(--ds-dark-surface-1);
+	--card: color-mix(in srgb, var(--ds-black) 35%, var(--ds-warm-dark));
 	--card-foreground: var(--ds-white);
-	--popover: var(--ds-dark-surface-3);
+	--popover: color-mix(in srgb, var(--ds-black) 28%, var(--ds-warm-dark));
 	--popover-foreground: var(--ds-white);
-	--primary: var(--ds-apple-blue);
+	--primary: var(--ds-notion-blue);
+	--primary-hover: var(--ds-link-light-blue);
 	--primary-foreground: var(--ds-white);
-	--secondary: var(--ds-dark-surface-4);
+	--secondary: rgba(255, 255, 255, 0.08);
 	--secondary-foreground: rgba(255, 255, 255, 0.92);
-	--muted: var(--ds-dark-surface-5);
-	--muted-foreground: rgba(255, 255, 255, 0.48);
-	--accent: var(--ds-dark-surface-3);
+	--muted: rgba(255, 255, 255, 0.06);
+	--muted-foreground: color-mix(in srgb, var(--ds-warm-gray-300) 85%, var(--ds-white));
+	--accent: rgba(255, 255, 255, 0.1);
 	--accent-foreground: var(--ds-white);
 	--destructive: #ef4444;
 	--border: rgba(255, 255, 255, 0.1);
 	--input: rgba(255, 255, 255, 0.12);
-	--ring: var(--ds-bright-blue);
+	--placeholder-foreground: rgba(255, 255, 255, 0.42);
+	--ring: var(--ds-link-light-blue);
 
-	--chart-1: var(--ds-apple-blue);
-	--chart-2: var(--ds-bright-blue);
-	--chart-3: var(--ds-link-blue);
+	--chart-1: var(--ds-notion-blue);
+	--chart-2: var(--ds-link-light-blue);
+	--chart-3: var(--ds-active-blue);
 	--chart-4: rgba(255, 255, 255, 0.85);
 	--chart-5: rgba(255, 255, 255, 0.48);
 
-	--sidebar: var(--ds-dark-surface-5);
+	--sidebar: color-mix(in srgb, var(--ds-black) 40%, var(--ds-warm-dark));
 	--sidebar-foreground: rgba(255, 255, 255, 0.85);
-	--sidebar-primary: var(--ds-apple-blue);
+	--sidebar-primary: var(--ds-notion-blue);
 	--sidebar-primary-foreground: var(--ds-white);
-	--sidebar-accent: var(--ds-dark-surface-3);
+	--sidebar-accent: rgba(255, 255, 255, 0.08);
 	--sidebar-accent-foreground: var(--ds-white);
-	--sidebar-border: rgba(255, 255, 255, 0.08);
-	--sidebar-ring: var(--ds-bright-blue);
+	--sidebar-border: rgba(255, 255, 255, 0.1);
+	--sidebar-ring: var(--ds-link-light-blue);
 
 	--primary-glow: color-mix(in srgb, var(--primary) 14%, transparent);
 	--primary-glow-strong: color-mix(in srgb, var(--primary) 22%, transparent);
 
-	/* Fragment DAG on dark surfaces — higher luminance for neutrals */
 	--ds-svc-controlled-unitary-stroke: var(--ds-white);
 	--ds-svc-controlled-unitary-fill: color-mix(in srgb, var(--ds-white) 10%, transparent);
 	--ds-svc-controlled-unitary-text: var(--ds-white);
@@ -278,13 +318,51 @@
 }
 
 @layer utilities {
-	/* Map Tailwind radius scale to DESIGN.md (8px primary, 12px large) */
+	.text-ds-micro {
+		font-size: var(--ds-text-micro-size);
+		line-height: var(--ds-text-micro-leading);
+	}
+
+	.text-ds-tight {
+		font-size: var(--ds-text-tight-size);
+		line-height: var(--ds-text-tight-leading);
+	}
+
+	.text-ds-label {
+		font-size: var(--ds-text-label-size);
+		line-height: var(--ds-text-label-leading);
+	}
+
+	.text-ds-caption {
+		font-size: var(--ds-text-caption-size);
+		line-height: var(--ds-text-caption-leading);
+	}
+
+	.text-ds-badge {
+		font-size: var(--ds-text-badge-size);
+		line-height: var(--ds-text-badge-leading);
+		letter-spacing: var(--ds-text-badge-tracking);
+		font-weight: 600;
+	}
+
+	.font-ds-display-nums {
+		font-feature-settings: 'lnum' 1, 'locl' 1;
+	}
+
+	.size-ds-bloch-preview {
+		width: var(--ds-bloch-preview-size);
+		height: var(--ds-bloch-preview-size);
+		min-width: var(--ds-bloch-preview-size);
+		min-height: var(--ds-bloch-preview-size);
+	}
+
+	/* Map Tailwind radius scale to DESIGN.md */
 	.rounded-2xl {
-		border-radius: var(--ds-radius-8) !important;
+		border-radius: var(--ds-radius-12) !important;
 	}
 
 	.rounded-3xl {
-		border-radius: var(--ds-radius-12) !important;
+		border-radius: var(--ds-radius-16) !important;
 	}
 
 	.rounded-4xl {
@@ -301,7 +379,7 @@
 
 	.shadow-lg,
 	.shadow-xl {
-		box-shadow: var(--ds-shadow-card) !important;
+		box-shadow: var(--ds-shadow-deep) !important;
 	}
 
 	.shadow-ds-elevated {
@@ -309,6 +387,6 @@
 	}
 
 	.shadow-ds-dialog {
-		box-shadow: var(--ds-shadow-card);
+		box-shadow: var(--ds-shadow-deep);
 	}
 }

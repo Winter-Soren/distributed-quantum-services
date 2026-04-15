@@ -231,7 +231,7 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 
 									<div>
 										<h3 className='mb-2 text-sm font-medium'>Operation IDs</h3>
-										<pre className='max-h-40 overflow-auto rounded-xl border border-border/70 bg-muted/30 p-3 font-mono text-[11px] leading-relaxed'>
+										<pre className='text-ds-label max-h-40 overflow-auto rounded-xl border border-border/70 bg-muted/30 p-3 font-mono leading-relaxed'>
 											{selectedFragment.operationIds.length
 												? selectedFragment.operationIds.join('\n')
 												: '(none)'}
@@ -312,7 +312,7 @@ export function FragmentFlowPageClient({ runId }: FragmentFlowPageClientProps) {
 																	key={candidate.nodeId}
 																	className={isPrimary ? 'bg-muted/50' : undefined}
 																>
-																	<TableCell className='max-w-[140px] font-mono text-[11px] break-all'>
+																	<TableCell className='text-ds-label max-w-[140px] font-mono break-all'>
 																		{shortFragmentId(candidate.nodeId, 10, 4)}
 																		{isPrimary ? (
 																			<span className='ml-1 text-muted-foreground'>•</span>

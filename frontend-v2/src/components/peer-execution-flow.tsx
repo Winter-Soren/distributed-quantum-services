@@ -298,17 +298,17 @@ const PeerFlowNodeComponent = memo(function PeerFlowNodeComponent({
 			/>
 			<div className='flex items-start justify-between gap-3'>
 				<div className='min-w-0 flex-1'>
-					<div className='text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground'>
+					<div className='text-ds-label font-semibold uppercase tracking-[0.24em] text-muted-foreground'>
 						Peer
 					</div>
 					<div className='mt-1 text-base font-semibold tracking-tight'>{data.shortPeerId}</div>
 				</div>
-				<span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium', routeStateClass)}>
+				<span className={cn('text-ds-label rounded-full border px-2.5 py-1 font-medium', routeStateClass)}>
 					{routeStateLabel}
 				</span>
 			</div>
 
-			<div className='mt-2 break-all font-mono text-[11px] leading-relaxed text-muted-foreground'>
+			<div className='text-ds-label mt-2 break-all font-mono leading-relaxed text-muted-foreground'>
 				{data.peerId}
 			</div>
 
@@ -323,7 +323,7 @@ const PeerFlowNodeComponent = memo(function PeerFlowNodeComponent({
 				</div>
 			</div>
 
-			<div className='mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
+			<div className='text-ds-tight mt-3 flex items-center justify-between uppercase tracking-[0.18em] text-muted-foreground'>
 				<span>in {data.incomingHandoffCount}</span>
 				<span>out {data.outgoingHandoffCount}</span>
 				<span>local {data.localHandoffCount}</span>
@@ -630,7 +630,7 @@ export function PeerExecutionFlowSection({
 															? '1 fragment path maps to this peer route.'
 															: `${route.sourcePathCount} fragment paths map to this peer route.`}
 													</p>
-													<p className='mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground'>
+													<p className='text-ds-label mt-1 break-all font-mono leading-relaxed text-muted-foreground'>
 														Fragments:{' '}
 														{route.fragmentIds
 															.map(fragmentId => shortFragmentId(fragmentId, 10, 4))
@@ -696,7 +696,7 @@ export function PeerExecutionFlowSection({
 														{edge.fragmentPairs.map(pair => (
 															<span
 																key={`${edge.id}-${pair.fromFragmentId}-${pair.toFragmentId}`}
-																className='rounded-full border border-border/70 bg-muted/30 px-3 py-1 font-mono text-[11px] text-muted-foreground'
+																className='text-ds-label rounded-full border border-border/70 bg-muted/30 px-3 py-1 font-mono text-muted-foreground'
 															>
 																{shortFragmentId(pair.fromFragmentId, 10, 4)} →{' '}
 																{shortFragmentId(pair.toFragmentId, 10, 4)}

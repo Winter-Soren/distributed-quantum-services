@@ -76,7 +76,9 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 					: 'border-border/80 bg-card/90'
 			)}
 			style={{
-				boxShadow: isActive ? `0 30px 72px -42px ${style.glow}` : undefined
+				boxShadow: isActive
+					? `0 var(--ds-fragment-node-active-y) var(--ds-fragment-node-active-blur) var(--ds-fragment-node-active-spread) ${style.glow}`
+					: undefined
 			}}
 		>
 			<Handle
@@ -91,19 +93,19 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 			/>
 			<div className='flex items-start justify-between gap-3'>
 				<div className='min-w-0 flex-1'>
-					<div className='text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground'>
+					<div className='text-ds-label font-semibold uppercase tracking-[0.24em] text-muted-foreground'>
 						{data.fragmentId}
 					</div>
 					<div className='mt-1 text-base font-semibold tracking-tight'>{data.label}</div>
 				</div>
-				<span className={cn('shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium', statusClass)}>
+				<span className={cn('text-ds-label shrink-0 rounded-full border px-2.5 py-1 font-medium', statusClass)}>
 					{statusLabel}
 				</span>
 			</div>
 
 			<div className='mt-4 flex flex-wrap items-center gap-2'>
 				<span
-					className='rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em]'
+					className='text-ds-tight rounded-full border px-2.5 py-1 font-medium uppercase tracking-[0.18em]'
 					style={{
 						color: style.text,
 						borderColor: style.stroke,
@@ -112,7 +114,7 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 				>
 					{formatFragmentServiceLabel(data.serviceType)}
 				</span>
-				<span className='rounded-full border border-border/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground'>
+				<span className='text-ds-tight rounded-full border border-border/60 px-2.5 py-1 font-medium text-muted-foreground'>
 					q{data.qubits.join(', ')}
 				</span>
 			</div>
@@ -130,7 +132,7 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 				</div>
 			</div>
 
-			<div className='mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
+			<div className='text-ds-tight mt-3 flex items-center justify-between uppercase tracking-[0.18em] text-muted-foreground'>
 				<span>{data.dependencyCount} incoming edges</span>
 				<span>{data.fallbackCount} fallbacks</span>
 			</div>

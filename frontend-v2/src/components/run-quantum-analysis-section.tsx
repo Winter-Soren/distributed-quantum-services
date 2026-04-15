@@ -693,15 +693,7 @@ export function RunQuantumAnalysisSection({
 											>
 												<Suspense
 													fallback={
-														<div
-															className='flex items-center justify-center rounded-2xl border border-border/80 bg-muted/40 text-sm text-muted-foreground dark:bg-muted/25'
-															style={{
-																width: 200,
-																height: 200,
-																minWidth: 200,
-																minHeight: 200
-															}}
-														>
+														<div className='flex size-ds-bloch-preview items-center justify-center rounded-2xl border border-border/80 bg-muted/40 text-sm text-muted-foreground dark:bg-muted/25'>
 															Loading Bloch sphere…
 														</div>
 													}
@@ -709,7 +701,6 @@ export function RunQuantumAnalysisSection({
 													<LazyBlochSphere
 														vector={[qubit.x, qubit.y, qubit.z]}
 														label={qubit.qubit}
-														size={200}
 													/>
 												</Suspense>
 												<div className='w-full space-y-2 rounded-2xl border border-border/80 bg-card/80 p-3 ring-1 ring-foreground/5 dark:ring-foreground/10'>
