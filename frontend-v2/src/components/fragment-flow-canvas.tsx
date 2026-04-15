@@ -62,15 +62,15 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 				: (data.status ?? 'Pending');
 	const statusClass =
 		data.status === 'SUCCESS'
-			? 'border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200'
+			? 'border-primary/40 bg-primary/10 text-primary'
 			: data.status === 'FAILED'
-				? 'border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:bg-rose-400/10 dark:text-rose-200'
-				: 'border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:bg-slate-400/10 dark:text-slate-200';
+				? 'border-destructive/40 bg-destructive/10 text-destructive'
+				: 'border-border/80 bg-muted/40 text-muted-foreground';
 
 	return (
 		<div
 			className={cn(
-				'w-[17.75rem] rounded-[1.85rem] border p-4 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.36)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1',
+				'w-[17.75rem] rounded-2xl border p-4 shadow-ds-elevated backdrop-blur-xl transition-all duration-300 hover:-translate-y-1',
 				isActive
 					? 'border-primary/40 bg-card/95 dark:border-primary/30'
 					: 'border-border/80 bg-card/90'
@@ -213,7 +213,7 @@ function buildDagFlowEdges({
 			type: 'simplebezier',
 			animated: isFocused,
 			style: {
-				stroke: isFocused ? sourceStyle.stroke : 'rgba(71, 85, 105, 0.32)',
+				stroke: isFocused ? sourceStyle.stroke : 'var(--border)',
 				strokeWidth: isFocused ? 2.8 : 1.8,
 				strokeDasharray: isFocused ? undefined : '10 8'
 			}
@@ -340,7 +340,7 @@ export const FragmentFlowCanvas = memo(function FragmentFlowCanvas({
 					<Background
 						gap={isEmbed ? 22 : 26}
 						size={1}
-						color='rgba(148,163,184,0.16)'
+						color='var(--border)'
 					/>
 					<Controls
 						showInteractive={false}

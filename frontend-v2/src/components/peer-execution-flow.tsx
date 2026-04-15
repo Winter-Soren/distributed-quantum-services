@@ -279,13 +279,13 @@ const PeerFlowNodeComponent = memo(function PeerFlowNodeComponent({
 				: 'Mixed';
 	const routeStateClass =
 		data.plannedFragmentCount === 0
-			? 'border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200'
+			? 'border-primary/40 bg-primary/10 text-primary'
 			: data.observedFragmentCount === 0
-				? 'border-amber-300/60 bg-amber-500/10 text-amber-800 dark:border-amber-500/30 dark:bg-amber-400/10 dark:text-amber-100'
-				: 'border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:bg-sky-400/10 dark:text-sky-100';
+				? 'border-chart-5/50 bg-chart-5/10 text-chart-5'
+				: 'border-chart-4/50 bg-chart-4/10 text-chart-4';
 
 	return (
-		<div className='w-[15.5rem] rounded-[1.85rem] border border-border/80 bg-card/95 p-4 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.32)] backdrop-blur-xl'>
+		<div className='w-[15.5rem] rounded-2xl border border-border/80 bg-card/95 p-4 shadow-ds-elevated backdrop-blur-xl'>
 			<Handle
 				type='target'
 				position={Position.Left}
@@ -389,13 +389,13 @@ function buildPeerFlowEdges(model: PeerExecutionFlowModel) {
 		labelBgPadding: [8, 5],
 		labelBgBorderRadius: 999,
 		labelBgStyle: {
-			fill: 'rgba(248, 250, 252, 0.94)',
-			stroke: 'rgba(148, 163, 184, 0.34)',
+			fill: 'var(--card)',
+			stroke: 'var(--border)',
 			strokeWidth: 1
 		},
 		animated: edge.handoffCount > 1,
 		style: {
-			stroke: edge.usesPlannedRouting ? 'rgba(217, 119, 6, 0.82)' : 'rgba(8, 145, 178, 0.82)',
+			stroke: edge.usesPlannedRouting ? 'var(--chart-5)' : 'var(--primary)',
 			strokeWidth: 1.8 + Math.min(edge.handoffCount, 4) * 0.45,
 			strokeDasharray: edge.usesPlannedRouting ? '9 6' : undefined
 		},
@@ -403,7 +403,7 @@ function buildPeerFlowEdges(model: PeerExecutionFlowModel) {
 			type: MarkerType.ArrowClosed,
 			width: 18,
 			height: 18,
-			color: edge.usesPlannedRouting ? 'rgba(217, 119, 6, 0.82)' : 'rgba(8, 145, 178, 0.82)'
+			color: edge.usesPlannedRouting ? 'var(--chart-5)' : 'var(--primary)'
 		}
 	}));
 }
@@ -436,7 +436,7 @@ const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({
 	const edges = useMemo(() => buildPeerFlowEdges(model), [model]);
 
 	return (
-		<div className='relative overflow-hidden rounded-3xl border border-border/80 bg-muted/20'>
+		<div className='relative overflow-hidden rounded-2xl border border-border/80 bg-muted/20'>
 			<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/50 px-4 py-3'>
 				<div>
 					<div className='text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground'>
@@ -475,7 +475,7 @@ const PeerExecutionFlowCanvas = memo(function PeerExecutionFlowCanvas({
 					<Background
 						gap={24}
 						size={1}
-						color='rgba(148,163,184,0.16)'
+						color='var(--border)'
 					/>
 					<Controls
 						showInteractive={false}
@@ -536,10 +536,10 @@ export function PeerExecutionFlowSection({
 
 	return (
 		<TooltipProvider delayDuration={120}>
-			<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
+			<Card className='shadow-ds-elevated ring-1 ring-foreground/5 dark:ring-foreground/10'>
 				<CardHeader className='border-b border-border/80'>
 					<div className='flex items-start gap-3'>
-						<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'>
+						<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
 							<GitBranchIcon className='size-5' />
 						</div>
 						<div className='min-w-0 flex-1 space-y-1'>
