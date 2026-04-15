@@ -1,7 +1,5 @@
 # Future Roadmap Docs Index
 
-Back to [Future Roadmap](../FUTURE_ROADMAP.md) | Back to [Docs Index](../README.md)
-
 This folder contains the detailed breakdown for the long-term roadmap.
 
 Start with [../FUTURE_ROADMAP.md](../FUTURE_ROADMAP.md), then use the pages below:

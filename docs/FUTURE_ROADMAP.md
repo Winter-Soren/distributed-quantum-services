@@ -1,13 +1,5 @@
 # Future Roadmap: From Quantum Coordination POC to Autonomous Scientific Network
 
-Back to [Docs Index](README.md)
-
-## Use this document when
-
-- you need the long-term direction and milestone narrative
-- you want milestone ordering rationale before reading details
-- you are aligning strategy discussions across engineering and product
-
 This document is the long-horizon product and platform roadmap for the project.
 
 It is intentionally different from [tasks.md](tasks.md).

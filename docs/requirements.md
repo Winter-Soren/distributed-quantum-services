@@ -1,13 +1,5 @@
 # Requirements Document: Distributed Quantum Services (Python POC)
 
-Back to [Docs Index](README.md)
-
-## Use this document when
-
-- you need requirement IDs and acceptance criteria
-- you are checking scope (in-scope vs out-of-scope)
-- you are validating definition-of-done expectations
-
 ## 1. Purpose
 
 This project builds a Python proof-of-concept where `py-libp2p` is the coordination layer for distributed quantum operations. Quantum gate capabilities are exposed as remotely invocable services, while the coordinator handles discovery, planning, reservation, execution sequencing, retries, and fallback.

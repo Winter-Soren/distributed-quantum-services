@@ -1,13 +1,5 @@
 # Implementation Plan: Distributed Quantum Services (Python POC)
 
-Back to [Docs Index](README.md)
-
-## Use this document when
-
-- you are planning near-term implementation work
-- you need current checklist status by milestone
-- you are mapping tasks to requirement IDs
-
 This task plan is requirement-driven and optimized for a research POC that can evolve into production architecture.
 
 Long-horizon roadmap note:

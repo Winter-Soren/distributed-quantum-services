@@ -1,13 +1,5 @@
 # Architecture: Distributed Quantum Services Over Libp2p
 
-Back to [Docs Index](README.md)
-
-## Use this document when
-
-- you need the full end-to-end architecture
-- you are mapping API behavior to backend internals
-- you are debugging planning, runtime, registry, or persistence paths
-
 This document explains the system in depth:
 
 - what the coordinator is actually doing
