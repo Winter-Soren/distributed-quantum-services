@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -90,9 +91,11 @@ class Libp2pConfig(BaseModel):
         default="/quantum-coordinator/gate-exec/1.0.0",
         min_length=1,
     )
-    embedded_service_count: int = Field(default=3, ge=1, le=10)
+    embedded_service_count: int = Field(default=12, ge=1, le=64)
     embedded_service_base_port: int = Field(default=9200, ge=1024, le=65535)
     embedded_ad_interval_seconds: float = Field(default=5.0, gt=0.1, le=60.0)
+    embedded_peer_behavior_mode: Literal["uniform", "production_like"] = "production_like"
+    embedded_peer_random_seed: int = Field(default=42, ge=0)
 
 
 class AppConfig(BaseModel):

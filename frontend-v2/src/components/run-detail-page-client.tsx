@@ -21,14 +21,7 @@ import { RunQuantumAnalysisSection } from '@/components/run-quantum-analysis-sec
 import { RunStatusBadge } from '@/components/run-status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle
-} from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import {
 	Pagination,
@@ -53,10 +46,7 @@ type RunDetailPageClientProps = {
 const PLAN_FRAGMENTS_PAGE_SIZE = 10;
 const EXECUTION_RESULTS_PAGE_SIZE = 12;
 
-function buildPaginationPageItems(
-	current: number,
-	total: number
-): Array<number | 'ellipsis'> {
+function buildPaginationPageItems(current: number, total: number): Array<number | 'ellipsis'> {
 	if (total <= 1) {
 		return [1];
 	}
@@ -198,8 +188,7 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 	const [embedFragmentId, setEmbedFragmentId] = useState<string | null>(null);
 
 	const dagModel = useMemo(
-		() =>
-			snapshot?.plan ? buildFragmentDagModel(snapshot.plan, snapshot.run.fragmentResults) : null,
+		() => (snapshot?.plan ? buildFragmentDagModel(snapshot.plan, snapshot.run.fragmentResults) : null),
 		[snapshot]
 	);
 
@@ -222,24 +211,15 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 		executionResultsPage: 1
 	}));
 	const planFragments = planForPagination?.fragments ?? [];
-	const planFragmentsPageCount = Math.max(
-		1,
-		Math.ceil(planFragments.length / PLAN_FRAGMENTS_PAGE_SIZE)
-	);
+	const planFragmentsPageCount = Math.max(1, Math.ceil(planFragments.length / PLAN_FRAGMENTS_PAGE_SIZE));
 	const rawPlanFragmentsPage =
 		paginationState.scopeKey === paginationScopeKey ? paginationState.planFragmentsPage : 1;
 	const planFragmentsPage = Math.min(rawPlanFragmentsPage, planFragmentsPageCount);
 	const planFragmentsStart = (planFragmentsPage - 1) * PLAN_FRAGMENTS_PAGE_SIZE;
-	const visiblePlanFragments = planFragments.slice(
-		planFragmentsStart,
-		planFragmentsStart + PLAN_FRAGMENTS_PAGE_SIZE
-	);
+	const visiblePlanFragments = planFragments.slice(planFragmentsStart, planFragmentsStart + PLAN_FRAGMENTS_PAGE_SIZE);
 
 	const fragmentResults = snapshot?.run.fragmentResults ?? [];
-	const executionResultsPageCount = Math.max(
-		1,
-		Math.ceil(fragmentResults.length / EXECUTION_RESULTS_PAGE_SIZE)
-	);
+	const executionResultsPageCount = Math.max(1, Math.ceil(fragmentResults.length / EXECUTION_RESULTS_PAGE_SIZE));
 	const rawExecutionResultsPage =
 		paginationState.scopeKey === paginationScopeKey ? paginationState.executionResultsPage : 1;
 	const executionResultsPage = Math.min(rawExecutionResultsPage, executionResultsPageCount);
@@ -253,15 +233,13 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 		setPaginationState(current => ({
 			scopeKey: paginationScopeKey,
 			planFragmentsPage: Math.max(1, nextPage),
-			executionResultsPage:
-				current.scopeKey === paginationScopeKey ? current.executionResultsPage : 1
+			executionResultsPage: current.scopeKey === paginationScopeKey ? current.executionResultsPage : 1
 		}));
 
 	const setExecutionResultsPage = (nextPage: number) =>
 		setPaginationState(current => ({
 			scopeKey: paginationScopeKey,
-			planFragmentsPage:
-				current.scopeKey === paginationScopeKey ? current.planFragmentsPage : 1,
+			planFragmentsPage: current.scopeKey === paginationScopeKey ? current.planFragmentsPage : 1,
 			executionResultsPage: Math.max(1, nextPage)
 		}));
 
@@ -310,6 +288,7 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 	const { run, plan, health } = snapshot;
 	const quantum = run.quantumSummary;
 	const isFinancial = run.jobKind === 'financial';
+	const financialHasNativeQuantum = Boolean(snapshot.financialResult?.quantum_execution?.quantum_result);
 	const circuitSourceMissing = !isFinancial && run.circuitText.trim().length === 0;
 	const runHeadline = isFinancial
 		? run.circuitPreview
@@ -452,7 +431,9 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 					<StatCard
 						label={isFinancial ? 'Pipeline fragments' : 'Measured qubits'}
 						value={
-							<span className='break-all font-mono text-base font-normal sm:text-lg'>{measuredDisplay}</span>
+							<span className='break-all font-mono text-base font-normal sm:text-lg'>
+								{measuredDisplay}
+							</span>
 						}
 						hint={isFinancial ? 'Stages in the financial execution plan' : undefined}
 					/>
@@ -546,8 +527,8 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 					<AlertTitle>OpenQASM missing from job payload</AlertTitle>
 					<AlertDescription>
 						This coordinator build omits <code className='font-mono text-sm'>circuit_text</code> on{' '}
-						<code className='font-mono text-sm'>GET /api/v1/jobs/&lt;id&gt;</code>. Upgrade the coordinator so
-						the field is included.
+						<code className='font-mono text-sm'>GET /api/v1/jobs/&lt;id&gt;</code>. Upgrade the coordinator
+						so the field is included.
 					</AlertDescription>
 				</Alert>
 			) : null}
@@ -561,189 +542,197 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 			) : null}
 
 			<div className='flex min-w-0 flex-col gap-6'>
-					{/* Circuit + plan */}
-					<div className='grid gap-6 lg:grid-cols-2'>
-						<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
-							<CardHeader className='border-b border-border/80'>
-								<div className='flex items-start gap-3'>
-									<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground'>
-										<FileCode2Icon className='size-5' />
-									</div>
-									<div className='min-w-0 flex-1 space-y-1'>
-										<CardTitle>{isFinancial ? 'Dataset summary' : 'Submitted circuit'}</CardTitle>
-										<CardDescription>
-											{isFinancial
-												? 'Key facts from the financial coordinator payload (same job id as the plan).'
-												: circuitSourceMissing
-													? 'API did not return stored circuit text.'
-													: 'OpenQASM persisted by the backend.'}
-										</CardDescription>
-									</div>
-								</div>
-							</CardHeader>
-							<CardContent className='pt-6'>
-								<Textarea
-									readOnly
-									value={
-										circuitSourceMissing
-											? '(Not available — coordinator omitted circuit_text.)'
-											: isFinancial && !run.circuitText.trim()
-												? '(Financial analysis in progress — summary will appear when complete.)'
-												: run.circuitText
-									}
-									className='min-h-[260px] resize-y rounded-3xl border-border bg-muted/30 font-mono text-sm leading-relaxed shadow-inner dark:bg-muted/20'
-								/>
-							</CardContent>
-						</Card>
-
-						<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
-							<CardHeader className='border-b border-border/80'>
-								<div className='flex min-w-0 items-start gap-3'>
-									<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
-										<ScrollTextIcon className='size-5' />
-									</div>
-									<div className='min-w-0 space-y-1'>
-										<CardTitle>Execution plan</CardTitle>
-										<CardDescription>
-											{plan
-												? `${plan.fragments.length} fragments · ${plan.fragmentOrder.length} ordered${
-														isFinancial ? ' · linear CSV pipeline' : ''
-													}`
-												: isFinancial
-													? 'Plan materializes when the coordinator returns the analysis result.'
-													: 'Plan not available yet.'}
-										</CardDescription>
-									</div>
-								</div>
-								<CardAction>
-									<Button
-										variant='secondary'
-										size='sm'
-										asChild
-									>
-										<Link href={`/runs/${encodeURIComponent(runId)}/fragment-flow`}>
-											<GitBranchIcon data-icon='inline-start' />
-											{plan ? 'Open graph' : 'Graph (pending)'}
-										</Link>
-									</Button>
-								</CardAction>
-							</CardHeader>
-							<CardContent className='space-y-4 pt-6'>
-								{plan ? (
-									<>
-										<dl className='grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm'>
-											<dt className='text-muted-foreground font-medium'>Plan ID</dt>
-											<dd className='break-all font-mono text-xs'>{plan.planId}</dd>
-											<dt className='text-muted-foreground font-medium'>Quality</dt>
-											<dd className='break-all font-mono text-xs'>
-												{plan.qualitySnapshotId ?? '—'}
-											</dd>
-										</dl>
-										<Separator />
-										{dagModel && dagModel.nodes.length > 0 ? (
-											<>
-												<FragmentFlowCanvas
-													variant='embed'
-													dagModel={dagModel}
-													selectedFragmentId={selectedFragmentId}
-													onSelectFragment={setEmbedFragmentId}
-												/>
-												<Separator />
-											</>
-										) : null}
-										<div className='space-y-2'>
-											{visiblePlanFragments.map(fragment => (
-												<div
-													key={fragment.fragmentId}
-													className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-muted/30'
-												>
-													<div className='flex flex-wrap items-center justify-between gap-2'>
-														<span className='font-mono text-sm font-medium'>
-															{fragment.fragmentId}
-														</span>
-														<RunStatusBadge
-															label={fragment.serviceType}
-															variant='outline'
-														/>
-													</div>
-													<p className='text-muted-foreground mt-1.5 text-xs'>
-														Qubits {fragment.qubitsLabel} · {fragment.operationCount} ops ·{' '}
-														{fragment.dependencyCount} deps
-													</p>
-													<p className='text-muted-foreground mt-0.5 text-xs opacity-90'>
-														Node {fragment.primaryNodeId ?? 'Pending'} · {fragment.candidateCount}{' '}
-														candidates
-													</p>
-												</div>
-											))}
-										</div>
-										<ClientPagination
-											ariaLabel='Execution plan fragment pages'
-											items={planFragmentPaginationItems}
-											page={planFragmentsPage}
-											pageCount={planFragmentsPageCount}
-											onPageChange={setPlanFragmentsPage}
-										/>
-									</>
-								) : (
-									<p className='text-muted-foreground text-sm'>No plan for this run yet.</p>
-								)}
-							</CardContent>
-						</Card>
-					</div>
-
-					<PeerExecutionFlowSection
-						plan={plan}
-						fragmentResults={run.fragmentResults}
-					/>
-
-					{/* Fragments */}
+				{/* Circuit + plan */}
+				<div className='grid gap-6 lg:grid-cols-2'>
 					<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
 						<CardHeader className='border-b border-border/80'>
 							<div className='flex items-start gap-3'>
-								<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-chart-3/15 text-chart-3'>
-									<ActivityIcon className='size-5' />
+								<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground'>
+									<FileCode2Icon className='size-5' />
 								</div>
 								<div className='min-w-0 flex-1 space-y-1'>
-									<CardTitle>Fragment execution</CardTitle>
+									<CardTitle>
+										{isFinancial && !financialHasNativeQuantum
+											? 'Dataset summary'
+											: 'Submitted circuit'}
+									</CardTitle>
 									<CardDescription>
 										{isFinancial
-											? 'Per-stage routing from the financial engine (mirrors circuit fragment results).'
-											: 'Live and completed snapshots from the runtime.'}
+											? financialHasNativeQuantum
+												? 'Finance-derived OpenQASM executed through the distributed quantum runtime.'
+												: 'Key facts from the financial coordinator payload (same job id as the plan).'
+											: circuitSourceMissing
+												? 'API did not return stored circuit text.'
+												: 'OpenQASM persisted by the backend.'}
 									</CardDescription>
 								</div>
 							</div>
 						</CardHeader>
-						<CardContent className='flex min-w-0 flex-col gap-0 p-0 pt-0'>
-							{run.fragmentResults.length ? (
-								<>
-									<div className='max-h-[min(28rem,70vh)] min-h-0 w-full overflow-auto overscroll-contain'>
-										<FragmentExecutionDataTable data={visibleFragmentResults} />
-									</div>
-									<ClientPagination
-										ariaLabel='Fragment execution pages'
-										items={executionPaginationItems}
-										page={executionResultsPage}
-										pageCount={executionResultsPageCount}
-										onPageChange={setExecutionResultsPage}
-									/>
-								</>
-							) : (
-								<p className='text-muted-foreground px-4 py-6 text-sm md:px-6'>
-									No fragment snapshots yet.
-								</p>
-							)}
+						<CardContent className='pt-6'>
+							<Textarea
+								readOnly
+								value={
+									circuitSourceMissing
+										? '(Not available — coordinator omitted circuit_text.)'
+										: isFinancial && !run.circuitText.trim()
+											? '(Financial analysis in progress — summary will appear when complete.)'
+											: run.circuitText
+								}
+								className='min-h-[260px] resize-y rounded-3xl border-border bg-muted/30 font-mono text-sm leading-relaxed shadow-inner dark:bg-muted/20'
+							/>
 						</CardContent>
 					</Card>
 
-					<RunQuantumAnalysisSection
-						planQualitySnapshotId={plan?.qualitySnapshotId ?? null}
-						quantum={quantum}
-						run={run}
-						runId={runId}
-						variant={isFinancial ? 'financial' : 'quantum'}
-						financialResult={snapshot.financialResult ?? null}
-					/>
+					<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
+						<CardHeader className='border-b border-border/80'>
+							<div className='flex min-w-0 items-start gap-3'>
+								<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
+									<ScrollTextIcon className='size-5' />
+								</div>
+								<div className='min-w-0 space-y-1'>
+									<CardTitle>Execution plan</CardTitle>
+									<CardDescription>
+										{plan
+											? `${plan.fragments.length} fragments · ${plan.fragmentOrder.length} ordered${
+													isFinancial && !financialHasNativeQuantum
+														? ' · linear CSV pipeline'
+														: ''
+												}`
+											: isFinancial
+												? 'Plan materializes when the coordinator returns the analysis result.'
+												: 'Plan not available yet.'}
+									</CardDescription>
+								</div>
+							</div>
+							<CardAction>
+								<Button
+									variant='secondary'
+									size='sm'
+									asChild
+								>
+									<Link href={`/runs/${encodeURIComponent(runId)}/fragment-flow`}>
+										<GitBranchIcon data-icon='inline-start' />
+										{plan ? 'Open graph' : 'Graph (pending)'}
+									</Link>
+								</Button>
+							</CardAction>
+						</CardHeader>
+						<CardContent className='space-y-4 pt-6'>
+							{plan ? (
+								<>
+									<dl className='grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm'>
+										<dt className='text-muted-foreground font-medium'>Plan ID</dt>
+										<dd className='break-all font-mono text-xs'>{plan.planId}</dd>
+										<dt className='text-muted-foreground font-medium'>Quality</dt>
+										<dd className='break-all font-mono text-xs'>{plan.qualitySnapshotId ?? '—'}</dd>
+									</dl>
+									<Separator />
+									{dagModel && dagModel.nodes.length > 0 ? (
+										<>
+											<FragmentFlowCanvas
+												variant='embed'
+												dagModel={dagModel}
+												selectedFragmentId={selectedFragmentId}
+												onSelectFragment={setEmbedFragmentId}
+											/>
+											<Separator />
+										</>
+									) : null}
+									<div className='space-y-2'>
+										{visiblePlanFragments.map(fragment => (
+											<div
+												key={fragment.fragmentId}
+												className='rounded-3xl border border-border/80 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-muted/30'
+											>
+												<div className='flex flex-wrap items-center justify-between gap-2'>
+													<span className='font-mono text-sm font-medium'>
+														{fragment.fragmentId}
+													</span>
+													<RunStatusBadge
+														label={fragment.serviceType}
+														variant='outline'
+													/>
+												</div>
+												<p className='text-muted-foreground mt-1.5 text-xs'>
+													Qubits {fragment.qubitsLabel} · {fragment.operationCount} ops ·{' '}
+													{fragment.dependencyCount} deps
+												</p>
+												<p className='text-muted-foreground mt-0.5 text-xs opacity-90'>
+													Node {fragment.primaryNodeId ?? 'Pending'} ·{' '}
+													{fragment.candidateCount} candidates
+												</p>
+											</div>
+										))}
+									</div>
+									<ClientPagination
+										ariaLabel='Execution plan fragment pages'
+										items={planFragmentPaginationItems}
+										page={planFragmentsPage}
+										pageCount={planFragmentsPageCount}
+										onPageChange={setPlanFragmentsPage}
+									/>
+								</>
+							) : (
+								<p className='text-muted-foreground text-sm'>No plan for this run yet.</p>
+							)}
+						</CardContent>
+					</Card>
+				</div>
+
+				<PeerExecutionFlowSection
+					plan={plan}
+					fragmentResults={run.fragmentResults}
+				/>
+
+				{/* Fragments */}
+				<Card className='shadow-md ring-1 ring-foreground/5 dark:ring-foreground/10'>
+					<CardHeader className='border-b border-border/80'>
+						<div className='flex items-start gap-3'>
+							<div className='flex size-10 shrink-0 items-center justify-center rounded-2xl bg-chart-3/15 text-chart-3'>
+								<ActivityIcon className='size-5' />
+							</div>
+							<div className='min-w-0 flex-1 space-y-1'>
+								<CardTitle>Fragment execution</CardTitle>
+								<CardDescription>
+									{isFinancial
+										? financialHasNativeQuantum
+											? 'Runtime fragments from the finance-derived quantum circuit.'
+											: 'Per-stage routing from the financial engine (mirrors circuit fragment results).'
+										: 'Live and completed snapshots from the runtime.'}
+								</CardDescription>
+							</div>
+						</div>
+					</CardHeader>
+					<CardContent className='flex min-w-0 flex-col gap-0 p-0 pt-0'>
+						{run.fragmentResults.length ? (
+							<>
+								<div className='max-h-[min(28rem,70vh)] min-h-0 w-full overflow-auto overscroll-contain'>
+									<FragmentExecutionDataTable data={visibleFragmentResults} />
+								</div>
+								<ClientPagination
+									ariaLabel='Fragment execution pages'
+									items={executionPaginationItems}
+									page={executionResultsPage}
+									pageCount={executionResultsPageCount}
+									onPageChange={setExecutionResultsPage}
+								/>
+							</>
+						) : (
+							<p className='text-muted-foreground px-4 py-6 text-sm md:px-6'>
+								No fragment snapshots yet.
+							</p>
+						)}
+					</CardContent>
+				</Card>
+
+				<RunQuantumAnalysisSection
+					planQualitySnapshotId={plan?.qualitySnapshotId ?? null}
+					quantum={quantum}
+					run={run}
+					runId={runId}
+					variant={isFinancial && !financialHasNativeQuantum ? 'financial' : 'quantum'}
+					financialResult={snapshot.financialResult ?? null}
+				/>
 			</div>
 		</div>
 	);

@@ -121,6 +121,41 @@ class NodeExecutionSegment:
 
 
 @dataclass
+class QuantumFeatureMapping:
+    column: str
+    qubit: int
+    mean_rotation: float
+    volatility_rotation: float
+    momentum_rotation: float
+    anomaly_pressure: float
+    correlation_degree: int
+
+
+@dataclass
+class QuantumSignalSummary:
+    qubit_count: int
+    encoded_columns: list[str]
+    dominant_state: str | None
+    dominant_state_probability: float | None
+    concentration_score: float
+    entanglement_score: float
+    interference_score: float
+    execution_fidelity: float | None
+    column_activation: dict[str, float]
+
+
+@dataclass
+class FinancialQuantumExecution:
+    circuit_text: str
+    encoded_columns: list[str]
+    feature_mapping: list[QuantumFeatureMapping]
+    plan: dict[str, Any]
+    fragment_results: list[dict[str, Any]]
+    quantum_result: dict[str, Any] | None
+    signal_summary: QuantumSignalSummary
+
+
+@dataclass
 class FinancialAnalysisResult:
     job_id: str
     filename: str
@@ -137,6 +172,7 @@ class FinancialAnalysisResult:
     anomalies: list[AnomalyPoint]
     summary_stats: dict[str, Any]
     node_execution: list[NodeExecutionSegment]
+    quantum_execution: FinancialQuantumExecution | None
     analysis_duration_ms: float
     distributed_nodes_used: int
     fragments_executed: int

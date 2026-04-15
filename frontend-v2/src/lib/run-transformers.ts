@@ -283,10 +283,7 @@ function financialProgressSynthetic(status: FinancialJobStatus): RunProgressSumm
 	};
 }
 
-export function toRunSummaryFromFinancialListItem(
-	row: BackendFinancialJobListItem,
-	referenceDate: Date
-): RunSummary {
+export function toRunSummaryFromFinancialListItem(row: BackendFinancialJobListItem, referenceDate: Date): RunSummary {
 	const status = row.status;
 	return {
 		id: row.job_id,
@@ -389,6 +386,35 @@ function buildPlanSummary(plan: BackendPlanResponse | null): RunPlanSummary | nu
 		fragmentOrder: plan.fragment_order,
 		fragments
 	};
+}
+
+function mapFragmentResults(
+	fragmentResults: Array<{
+		fragment_id: string;
+		node_id: string;
+		status: string;
+		attempts: number;
+		observed_fidelity?: number | null;
+		started_at?: string | null;
+		finished_at?: string | null;
+		error?: string | null;
+	}>,
+	referenceDate: Date
+): RunFragmentResultSummary[] {
+	return fragmentResults.map(fragment => ({
+		fragmentId: fragment.fragment_id,
+		nodeId: fragment.node_id,
+		status: fragment.status,
+		attempts: fragment.attempts,
+		observedFidelityRatio: typeof fragment.observed_fidelity === 'number' ? fragment.observed_fidelity : null,
+		observedFidelity:
+			typeof fragment.observed_fidelity === 'number' ? `${(fragment.observed_fidelity * 100).toFixed(2)}%` : null,
+		startedAt: fragment.started_at ?? null,
+		startedAtLabel: formatRelativeTime(fragment.started_at ?? null, referenceDate),
+		finishedAt: fragment.finished_at ?? null,
+		finishedAtLabel: formatRelativeTime(fragment.finished_at ?? null, referenceDate),
+		error: fragment.error ?? null
+	}));
 }
 
 export function buildRunsListSnapshot({
@@ -517,19 +543,15 @@ function buildFinancialQuantumSummary(result: FinancialAnalysisResult): RunQuant
 		probability: Math.min(1, Math.abs(pair.pearson))
 	}));
 
-	const observableExpectations: RunMeasurementBucket[] = result.time_series_insights
-		.slice(0, 24)
-		.map(insight => ({
-			key: truncateLabel(insight.column, 18),
-			value: Math.max(-1, Math.min(1, insight.momentum / 100))
-		}));
+	const observableExpectations: RunMeasurementBucket[] = result.time_series_insights.slice(0, 24).map(insight => ({
+		key: truncateLabel(insight.column, 18),
+		value: Math.max(-1, Math.min(1, insight.momentum / 100))
+	}));
 
-	const entanglementEntropy: RunMeasurementBucket[] = result.time_series_insights
-		.slice(0, 20)
-		.map(insight => ({
-			key: truncateLabel(insight.column, 22),
-			value: Math.min(1, Math.log1p(Math.max(0, insight.volatility)) / 8)
-		}));
+	const entanglementEntropy: RunMeasurementBucket[] = result.time_series_insights.slice(0, 20).map(insight => ({
+		key: truncateLabel(insight.column, 22),
+		value: Math.min(1, Math.log1p(Math.max(0, insight.volatility)) / 8)
+	}));
 
 	const maxDur = Math.max(...result.node_execution.map(s => s.duration_ms), 1);
 	const maxRows = Math.max(...result.node_execution.map(s => s.rows_processed), 1);
@@ -607,10 +629,20 @@ export function buildFinancialRunDetailSnapshot({
 		};
 	}
 
-	const plan = buildFinancialPlanFromResult(result, job.job_id);
-	const fragmentResults = buildFinancialFragmentResults(result, referenceDate);
-	const quantumSummary = buildFinancialQuantumSummary(result);
-	const circuitText = buildFinancialCircuitText(job, result);
+	const quantumExecution = result.quantum_execution ?? null;
+	const plan = quantumExecution
+		? buildPlanSummary(quantumExecution.plan)
+		: buildFinancialPlanFromResult(result, job.job_id);
+	const fragmentResults = quantumExecution
+		? mapFragmentResults(quantumExecution.fragment_results, referenceDate)
+		: buildFinancialFragmentResults(result, referenceDate);
+	const quantumSummary = quantumExecution
+		? buildQuantumSummary(quantumExecution.quantum_result)
+		: buildFinancialQuantumSummary(result);
+	const circuitText =
+		quantumExecution?.circuit_text && quantumExecution.circuit_text.trim()
+			? quantumExecution.circuit_text
+			: buildFinancialCircuitText(job, result);
 
 	return {
 		generatedAt,
@@ -619,7 +651,7 @@ export function buildFinancialRunDetailSnapshot({
 		financialResult: result,
 		run: {
 			...baseSummary,
-			planId: job.job_id,
+			planId: quantumExecution?.plan?.plan_id ?? job.job_id,
 			circuitText,
 			fragmentResults,
 			quantumSummary
@@ -645,23 +677,7 @@ export function buildRunDetailSnapshot({
 		run: {
 			...summary,
 			circuitText: job.circuit_text ?? '',
-			fragmentResults: (job.result?.fragment_results ?? []).map(fragment => ({
-				fragmentId: fragment.fragment_id,
-				nodeId: fragment.node_id,
-				status: fragment.status,
-				attempts: fragment.attempts,
-				observedFidelityRatio:
-					typeof fragment.observed_fidelity === 'number' ? fragment.observed_fidelity : null,
-				observedFidelity:
-					typeof fragment.observed_fidelity === 'number'
-						? `${(fragment.observed_fidelity * 100).toFixed(2)}%`
-						: null,
-				startedAt: fragment.started_at,
-				startedAtLabel: formatRelativeTime(fragment.started_at, referenceDate),
-				finishedAt: fragment.finished_at,
-				finishedAtLabel: formatRelativeTime(fragment.finished_at, referenceDate),
-				error: fragment.error
-			})),
+			fragmentResults: mapFragmentResults(job.result?.fragment_results ?? [], referenceDate),
 			quantumSummary: buildQuantumSummary(job.result?.quantum_result ?? null)
 		},
 		plan: buildPlanSummary(plan)

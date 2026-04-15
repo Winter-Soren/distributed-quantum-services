@@ -41,6 +41,7 @@ from quantum_coordinator.api.models import (
     JobResult,
     JobStatusResponse,
     JobUpdateResponse,
+    NetworkTopologyResponse,
     ServiceResponse,
 )
 from quantum_coordinator.application.job_manager import JobManager
@@ -178,6 +179,8 @@ def create_app(config: AppConfig) -> FastAPI:
             embedded_service_count=config.libp2p.embedded_service_count,
             embedded_service_base_port=config.libp2p.embedded_service_base_port,
             embedded_ad_interval_seconds=config.libp2p.embedded_ad_interval_seconds,
+            embedded_peer_behavior_mode=config.libp2p.embedded_peer_behavior_mode,
+            embedded_peer_random_seed=config.libp2p.embedded_peer_random_seed,
             enable_mdns=config.libp2p.enable_mdns,
             registry=registry,
         )
@@ -198,7 +201,14 @@ def create_app(config: AppConfig) -> FastAPI:
     # Financial analysis infrastructure
     run_financial_migrations(config.database.path)
     financial_store = FinancialJobStore(config.database.path)
-    financial_engine = FinancialAnalysisEngine(registry=registry)
+    financial_engine = FinancialAnalysisEngine(
+        registry=registry,
+        planner=planner,
+        reservation_protocol=reservation,
+        runtime_policy=runtime_policy,
+        runtime_store=runtime_store,
+        gate_adapter=gate_adapter,
+    )
 
     app.state.job_manager = job_manager
     app.state.job_store = job_store
@@ -513,6 +523,47 @@ def create_app(config: AppConfig) -> FastAPI:
         ]
 
     @app.get(
+        "/api/v1/network/topology",
+        response_model=NetworkTopologyResponse,
+        tags=["services"],
+        dependencies=[Depends(enforce_request_policy)],
+    )
+    async def get_network_topology() -> NetworkTopologyResponse:
+        """Return a verbose transport + registry topology snapshot."""
+        if libp2p_fabric is None:
+            return NetworkTopologyResponse(
+                fabric_running=False,
+                topic=SERVICE_AD_TOPIC_DEFAULT,
+                gate_protocol_id=config.libp2p.gate_protocol_id,
+                embedded_service_count_configured=config.libp2p.embedded_service_count,
+                embedded_peer_behavior_mode=config.libp2p.embedded_peer_behavior_mode,
+                embedded_peer_random_seed=config.libp2p.embedded_peer_random_seed,
+                generated_at=datetime.now(timezone.utc),
+                coordinator=None,
+                services=[],
+                directed_edges=[],
+                undirected_edges=[],
+                registry_snapshot=[
+                    {
+                        "node_id": entry.advertisement.node_id,
+                        "service_type": entry.advertisement.service_type.value,
+                        "listen_addrs": list(entry.advertisement.listen_addrs),
+                        "fidelity": entry.advertisement.fidelity,
+                        "qubit_min": entry.advertisement.qubit_min,
+                        "qubit_max": entry.advertisement.qubit_max,
+                        "availability": entry.advertisement.availability,
+                        "updated_at": entry.advertisement.updated_at,
+                        "expires_at": entry.expires_at,
+                    }
+                    for entry in registry.all_entries()
+                ],
+                known_service_addresses={},
+            )
+
+        snapshot = await libp2p_fabric.connectivity_snapshot()
+        return NetworkTopologyResponse.model_validate(snapshot)
+
+    @app.get(
         "/api/v1/metrics/fidelity/{node_id}",
         response_model=FidelityMetricsResponse,
         tags=["metrics"],
@@ -630,9 +681,7 @@ def create_app(config: AppConfig) -> FastAPI:
                 status=FinancialJobStatus.ANALYSING,
                 updated_at=datetime.now(timezone.utc),
             ))
-            result = await anyio.to_thread.run_sync(
-                lambda: engine.analyse(csv_bytes, filename, job_id)
-            )
+            result = await engine.analyse(csv_bytes, filename, job_id)
             result_json = json.dumps(dataclasses.asdict(result), default=str)
             final = dataclasses.replace(
                 existing,

@@ -4,6 +4,8 @@ import { AlertCircleIcon, LoaderIcon, RefreshCcwIcon } from 'lucide-react';
 
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
 import { DataTable } from '@/components/data-table';
+import { DashboardNetwork3D } from '@/components/dashboard-network-3d';
+import { DashboardNetworkStats } from '@/components/dashboard-network-stats';
 import { SectionCards } from '@/components/section-cards';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +106,21 @@ export function DashboardOverview() {
 							</Alert>
 						</div>
 					) : null}
+
+					<div className='grid gap-4 px-4 lg:px-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch'>
+						<DashboardNetwork3D
+							network={snapshot?.network ?? null}
+							isLoading={isLoading}
+							selectedNodeId={selectedNodeId}
+							onSelectNode={handleNodeSelection}
+						/>
+						<DashboardNetworkStats
+							network={snapshot?.network ?? null}
+							health={snapshot?.health ?? null}
+							selectedNodeId={selectedNodeId}
+							isLoading={isLoading}
+						/>
+					</div>
 
 					<SectionCards
 						cards={snapshot?.summaryCards ?? []}

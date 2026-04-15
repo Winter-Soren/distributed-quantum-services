@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import random
 import threading
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 import anyio
 from anyio.from_thread import BlockingPortal, start_blocking_portal
@@ -31,8 +33,23 @@ from quantum_coordinator.service_discovery.registry import ServiceRegistry
 
 
 @dataclass(frozen=True)
+class _EmbeddedPeerBehavior:
+    profile_name: str
+    base_fidelity: float
+    qubit_min: int
+    qubit_max: int
+    supported_gate_types: tuple[GateType, ...]
+    base_availability: bool = True
+    response_delay_seconds: float = 0.0
+    transient_error_rate: float = 0.0
+    availability_flap_period_seconds: float = 0.0
+
+
+@dataclass(frozen=True)
 class _EmbeddedService:
+    index: int
     node: PyLibp2pNode
+    behavior: _EmbeddedPeerBehavior
     advertisements: tuple[ServiceAdvertisement, ...]
 
 
@@ -51,6 +68,8 @@ class PyLibp2pFabric:
         embedded_service_count: int = 3,
         embedded_service_base_port: int = 9200,
         embedded_ad_interval_seconds: float = 5.0,
+        embedded_peer_behavior_mode: Literal["uniform", "production_like"] = "production_like",
+        embedded_peer_random_seed: int = 42,
         enable_mdns: bool = False,
         registry: ServiceRegistry | None = None,
     ) -> None:
@@ -63,8 +82,11 @@ class PyLibp2pFabric:
         self._embedded_service_count = embedded_service_count
         self._embedded_service_base_port = embedded_service_base_port
         self._embedded_ad_interval_seconds = embedded_ad_interval_seconds
+        self._embedded_peer_behavior_mode = embedded_peer_behavior_mode
+        self._embedded_peer_random_seed = embedded_peer_random_seed
         self._enable_mdns = enable_mdns
         self._registry = registry
+        self._rng = random.Random(embedded_peer_random_seed)
 
         self._portal_cm: Any | None = None
         self._portal: BlockingPortal | None = None
@@ -114,6 +136,10 @@ class PyLibp2pFabric:
             payload,
             timeout_seconds,
         )
+
+    async def connectivity_snapshot(self) -> dict[str, Any]:
+        """Return a verbose topology snapshot of the live libp2p fabric."""
+        return await anyio.to_thread.run_sync(self._connectivity_snapshot_sync)
 
     def _start_sync(self) -> None:
         if self._portal is not None:
@@ -219,15 +245,22 @@ class PyLibp2pFabric:
                         f"service node {service_node.peer_id} has no listen addresses"
                     )
 
-                advertisements = self._build_service_advertisements(service_node, idx)
+                behavior = self._build_peer_behavior(idx)
+                advertisements = self._build_service_advertisements(service_node, behavior)
                 service_addrs[service_node.peer_id] = resolved_service_addrs
                 service_node.stream_adapter.set_request_handler(
                     self._gate_protocol_id,
-                    self._build_gate_handler(advertisements),
+                    self._build_gate_handler(
+                        service_index=idx,
+                        behavior=behavior,
+                        advertisements=advertisements,
+                    ),
                 )
                 services.append(
                     _EmbeddedService(
+                        index=idx,
                         node=service_node,
+                        behavior=behavior,
                         advertisements=advertisements,
                     )
                 )
@@ -287,10 +320,15 @@ class PyLibp2pFabric:
 
         now = datetime.now(timezone.utc)
         for service in services:
+            availability = self._is_service_available(service.index, service.behavior)
             for advertisement in service.advertisements:
-                self._registry.upsert(
-                    advertisement.model_copy(update={"updated_at": now}),
+                refreshed = advertisement.model_copy(
+                    update={
+                        "availability": availability,
+                        "updated_at": now,
+                    }
                 )
+                self._registry.upsert(refreshed)
 
     async def _publish_service_advertisements(
         self,
@@ -299,8 +337,14 @@ class PyLibp2pFabric:
     ) -> None:
         now = datetime.now(timezone.utc)
         ads_to_publish = advertisements or service.advertisements
+        availability = self._is_service_available(service.index, service.behavior)
         for advertisement in ads_to_publish:
-            refreshed = advertisement.model_copy(update={"updated_at": now})
+            refreshed = advertisement.model_copy(
+                update={
+                    "availability": availability,
+                    "updated_at": now,
+                }
+            )
             await service.node.pubsub_adapter.publish(
                 self._topic,
                 refreshed.to_wire_bytes(),
@@ -342,6 +386,186 @@ class PyLibp2pFabric:
         if portal is None:
             raise RuntimeError("py-libp2p fabric is not started")
         return portal.call(self._trio_invoke_gate, node_id, payload, timeout_seconds)
+
+    def _connectivity_snapshot_sync(self) -> dict[str, Any]:
+        portal = self._portal
+        if portal is None:
+            return {
+                "fabric_running": False,
+                "topic": self._topic,
+                "gate_protocol_id": self._gate_protocol_id,
+                "embedded_service_count_configured": self._embedded_service_count,
+                "embedded_peer_behavior_mode": self._embedded_peer_behavior_mode,
+                "embedded_peer_random_seed": self._embedded_peer_random_seed,
+                "generated_at": datetime.now(timezone.utc),
+                "coordinator": None,
+                "services": [],
+                "directed_edges": [],
+                "undirected_edges": [],
+                "registry_snapshot": [],
+                "known_service_addresses": {},
+            }
+        return portal.call(self._trio_connectivity_snapshot)
+
+    async def _trio_connectivity_snapshot(self) -> dict[str, Any]:
+        coordinator = self._coordinator
+        services = list(self._services)
+
+        roles_by_peer: dict[str, str] = {}
+        connected_by_peer: dict[str, list[str]] = {}
+        listen_addrs_by_peer: dict[str, list[str]] = {}
+
+        coordinator_payload: dict[str, Any] | None = None
+        if coordinator is not None:
+            coordinator_peer_id = coordinator.peer_id
+            coordinator_connected = sorted(
+                str(peer_id) for peer_id in coordinator.host.get_connected_peers()
+            )
+            coordinator_addrs = list(coordinator.listen_addrs())
+            roles_by_peer[coordinator_peer_id] = "coordinator"
+            connected_by_peer[coordinator_peer_id] = coordinator_connected
+            listen_addrs_by_peer[coordinator_peer_id] = coordinator_addrs
+            coordinator_payload = {
+                "peer_id": coordinator_peer_id,
+                "listen_addrs": coordinator_addrs,
+                "connected_peer_ids": coordinator_connected,
+                "connected_peer_count": len(coordinator_connected),
+            }
+
+        service_payloads: list[dict[str, Any]] = []
+        for service in services:
+            service_peer_id = service.node.peer_id
+            service_connected = sorted(
+                str(peer_id) for peer_id in service.node.host.get_connected_peers()
+            )
+            service_addrs = list(service.node.listen_addrs())
+            roles_by_peer[service_peer_id] = "service"
+            connected_by_peer[service_peer_id] = service_connected
+            listen_addrs_by_peer[service_peer_id] = service_addrs
+            behavior = service.behavior
+            current_availability = self._is_service_available(service.index, behavior)
+            service_payloads.append(
+                {
+                    "index": service.index,
+                    "peer_id": service_peer_id,
+                    "listen_addrs": service_addrs,
+                    "connected_peer_ids": service_connected,
+                    "connected_peer_count": len(service_connected),
+                    "current_availability": current_availability,
+                    "behavior": {
+                        "profile_name": behavior.profile_name,
+                        "base_fidelity": behavior.base_fidelity,
+                        "qubit_min": behavior.qubit_min,
+                        "qubit_max": behavior.qubit_max,
+                        "supported_gate_types": [
+                            gate_type.value for gate_type in behavior.supported_gate_types
+                        ],
+                        "base_availability": behavior.base_availability,
+                        "response_delay_seconds": behavior.response_delay_seconds,
+                        "transient_error_rate": behavior.transient_error_rate,
+                        "availability_flap_period_seconds": behavior.availability_flap_period_seconds,
+                    },
+                    "advertisements": [
+                        {
+                            "node_id": ad.node_id,
+                            "listen_addrs": list(ad.listen_addrs),
+                            "service_type": ad.service_type.value,
+                            "fidelity": ad.fidelity,
+                            "qubit_min": ad.qubit_min,
+                            "qubit_max": ad.qubit_max,
+                            "availability": ad.availability,
+                            "updated_at": ad.updated_at,
+                        }
+                        for ad in service.advertisements
+                    ],
+                }
+            )
+
+        directed_edges: list[dict[str, Any]] = []
+        undirected_edges_by_pair: dict[tuple[str, str], dict[str, Any]] = {}
+
+        for source_peer_id, target_peer_ids in connected_by_peer.items():
+            for target_peer_id in target_peer_ids:
+                directed_edges.append(
+                    {
+                        "source_peer_id": source_peer_id,
+                        "target_peer_id": target_peer_id,
+                        "source_role": roles_by_peer.get(source_peer_id, "unknown"),
+                        "target_role": roles_by_peer.get(target_peer_id, "unknown"),
+                        "source_listen_addrs": listen_addrs_by_peer.get(source_peer_id, []),
+                        "target_listen_addrs": listen_addrs_by_peer.get(
+                            target_peer_id,
+                            list(self._service_addrs.get(target_peer_id, ())),
+                        ),
+                        "is_coordinator_edge": roles_by_peer.get(source_peer_id)
+                        == "coordinator"
+                        or roles_by_peer.get(target_peer_id) == "coordinator",
+                        "observed_direction": f"{source_peer_id}->{target_peer_id}",
+                    }
+                )
+
+                ordered_pair = tuple(sorted((source_peer_id, target_peer_id)))
+                pair_entry = undirected_edges_by_pair.get(ordered_pair)
+                if pair_entry is None:
+                    pair_entry = {
+                        "peer_a": ordered_pair[0],
+                        "peer_b": ordered_pair[1],
+                        "peer_a_role": roles_by_peer.get(ordered_pair[0], "unknown"),
+                        "peer_b_role": roles_by_peer.get(ordered_pair[1], "unknown"),
+                        "peer_a_listen_addrs": listen_addrs_by_peer.get(ordered_pair[0], []),
+                        "peer_b_listen_addrs": listen_addrs_by_peer.get(
+                            ordered_pair[1],
+                            list(self._service_addrs.get(ordered_pair[1], ())),
+                        ),
+                        "a_observes_b": False,
+                        "b_observes_a": False,
+                        "mutual": False,
+                    }
+                    undirected_edges_by_pair[ordered_pair] = pair_entry
+
+                if source_peer_id == ordered_pair[0]:
+                    pair_entry["a_observes_b"] = True
+                elif source_peer_id == ordered_pair[1]:
+                    pair_entry["b_observes_a"] = True
+
+                pair_entry["mutual"] = bool(
+                    pair_entry["a_observes_b"] and pair_entry["b_observes_a"]
+                )
+
+        registry_snapshot: list[dict[str, Any]] = []
+        if self._registry is not None:
+            registry_snapshot = [
+                {
+                    "node_id": entry.advertisement.node_id,
+                    "service_type": entry.advertisement.service_type.value,
+                    "listen_addrs": list(entry.advertisement.listen_addrs),
+                    "fidelity": entry.advertisement.fidelity,
+                    "qubit_min": entry.advertisement.qubit_min,
+                    "qubit_max": entry.advertisement.qubit_max,
+                    "availability": entry.advertisement.availability,
+                    "updated_at": entry.advertisement.updated_at,
+                    "expires_at": entry.expires_at,
+                }
+                for entry in self._registry.all_entries()
+            ]
+
+        return {
+            "fabric_running": coordinator is not None,
+            "topic": self._topic,
+            "gate_protocol_id": self._gate_protocol_id,
+            "embedded_service_count_configured": self._embedded_service_count,
+            "embedded_peer_behavior_mode": self._embedded_peer_behavior_mode,
+            "embedded_peer_random_seed": self._embedded_peer_random_seed,
+            "generated_at": datetime.now(timezone.utc),
+            "coordinator": coordinator_payload,
+            "services": service_payloads,
+            "directed_edges": directed_edges,
+            "undirected_edges": list(undirected_edges_by_pair.values()),
+            "registry_snapshot": registry_snapshot,
+            "known_service_addresses": {
+                peer_id: list(addrs) for peer_id, addrs in self._service_addrs.items()
+            },
+        }
 
     async def _trio_invoke_gate(
         self,
@@ -397,26 +621,29 @@ class PyLibp2pFabric:
     def _build_service_advertisements(
         self,
         node: PyLibp2pNode,
-        index: int,
+        behavior: _EmbeddedPeerBehavior,
     ) -> tuple[ServiceAdvertisement, ...]:
-        fidelity = max(0.80, 0.97 - (index * 0.01))
         updated_at = datetime.now(timezone.utc)
+        supported = behavior.supported_gate_types or tuple(GateType)
         return tuple(
             ServiceAdvertisement(
                 node_id=node.peer_id,
                 listen_addrs=node.listen_addrs(),
                 service_type=gate_type,
-                fidelity=fidelity,
-                qubit_min=1,
-                qubit_max=32,
-                availability=True,
+                fidelity=behavior.base_fidelity,
+                qubit_min=behavior.qubit_min,
+                qubit_max=behavior.qubit_max,
+                availability=behavior.base_availability,
                 updated_at=updated_at,
             )
-            for gate_type in GateType
+            for gate_type in supported
         )
 
     def _build_gate_handler(
         self,
+        *,
+        service_index: int,
+        behavior: _EmbeddedPeerBehavior,
         advertisements: tuple[ServiceAdvertisement, ...],
     ) -> Callable[[bytes], Awaitable[bytes]]:
         supported = {ad.service_type: ad for ad in advertisements}
@@ -433,11 +660,27 @@ class PyLibp2pFabric:
                 )
 
             ad = supported.get(service_type)
-            if ad is None or not ad.availability:
+            is_available = self._is_service_available(service_index, behavior)
+            if ad is None or not is_available:
                 return _encode_gate_response(
                     success=False,
                     observed_fidelity=0.0,
                     error="unsupported_service",
+                )
+
+            if behavior.response_delay_seconds > 0.0:
+                import trio
+
+                await trio.sleep(behavior.response_delay_seconds)
+
+            if (
+                behavior.transient_error_rate > 0.0
+                and self._rng.random() < behavior.transient_error_rate
+            ):
+                return _encode_gate_response(
+                    success=False,
+                    observed_fidelity=ad.fidelity,
+                    error="transient_peer_failure",
                 )
 
             min_fidelity = float(payload.get("min_fidelity", 0.0))
@@ -455,6 +698,99 @@ class PyLibp2pFabric:
             )
 
         return handler
+
+    def _build_peer_behavior(self, index: int) -> _EmbeddedPeerBehavior:
+        if self._embedded_peer_behavior_mode == "uniform":
+            return _EmbeddedPeerBehavior(
+                profile_name="uniform",
+                base_fidelity=max(0.80, 0.97 - (index * 0.01)),
+                qubit_min=1,
+                qubit_max=32,
+                supported_gate_types=tuple(GateType),
+            )
+        return self._build_production_like_behavior(index)
+
+    def _build_production_like_behavior(self, index: int) -> _EmbeddedPeerBehavior:
+        profiles = (
+            _EmbeddedPeerBehavior(
+                profile_name="stable-premium",
+                base_fidelity=0.985,
+                qubit_min=1,
+                qubit_max=64,
+                supported_gate_types=tuple(GateType),
+            ),
+            _EmbeddedPeerBehavior(
+                profile_name="high-throughput",
+                base_fidelity=0.955,
+                qubit_min=1,
+                qubit_max=128,
+                supported_gate_types=tuple(GateType),
+                response_delay_seconds=0.01,
+            ),
+            _EmbeddedPeerBehavior(
+                profile_name="specialized-qec",
+                base_fidelity=0.94,
+                qubit_min=2,
+                qubit_max=48,
+                supported_gate_types=(
+                    GateType.SYNDROME_EXTRACTION,
+                    GateType.DISTILLATION,
+                    GateType.MEASUREMENT_FEEDFORWARD,
+                    GateType.CNOT,
+                    GateType.CZ,
+                ),
+                response_delay_seconds=0.025,
+            ),
+            _EmbeddedPeerBehavior(
+                profile_name="legacy-latent",
+                base_fidelity=0.91,
+                qubit_min=1,
+                qubit_max=24,
+                supported_gate_types=tuple(GateType),
+                response_delay_seconds=0.08,
+            ),
+            _EmbeddedPeerBehavior(
+                profile_name="flaky-edge",
+                base_fidelity=0.89,
+                qubit_min=1,
+                qubit_max=16,
+                supported_gate_types=(
+                    GateType.HADAMARD,
+                    GateType.CNOT,
+                    GateType.CZ,
+                    GateType.BELL_PAIR,
+                    GateType.TELEPORTATION,
+                ),
+                transient_error_rate=0.2,
+                availability_flap_period_seconds=20.0,
+            ),
+            _EmbeddedPeerBehavior(
+                profile_name="noisy-lab",
+                base_fidelity=0.84,
+                qubit_min=1,
+                qubit_max=8,
+                supported_gate_types=(
+                    GateType.HADAMARD,
+                    GateType.CNOT,
+                    GateType.PROGRAMMABLE_GATE,
+                ),
+                transient_error_rate=0.1,
+            ),
+        )
+        return profiles[index % len(profiles)]
+
+    def _is_service_available(
+        self,
+        service_index: int,
+        behavior: _EmbeddedPeerBehavior,
+    ) -> bool:
+        if not behavior.base_availability:
+            return False
+        period = behavior.availability_flap_period_seconds
+        if period <= 0:
+            return True
+        bucket = int((time.time() + service_index) / period)
+        return bucket % 3 != 0
 
 
 def _encode_gate_response(

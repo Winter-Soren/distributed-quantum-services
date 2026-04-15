@@ -6,7 +6,11 @@ import anyio
 import pytest
 
 from quantum_coordinator.domain.models import GateType
-from quantum_coordinator.infra.libp2p.fabric import PyLibp2pFabric, _EmbeddedService
+from quantum_coordinator.infra.libp2p.fabric import (
+    PyLibp2pFabric,
+    _EmbeddedPeerBehavior,
+    _EmbeddedService,
+)
 from quantum_coordinator.service_discovery.advertisement import ServiceAdvertisement
 
 
@@ -50,7 +54,15 @@ async def test_advertise_loop_rotates_one_capability_per_interval() -> None:
     )
     fabric._services = [
         _EmbeddedService(
+            index=0,
             node=_FakeNode(pubsub_adapter=pubsub),  # type: ignore[arg-type]
+            behavior=_EmbeddedPeerBehavior(
+                profile_name="test",
+                base_fidelity=0.99,
+                qubit_min=1,
+                qubit_max=32,
+                supported_gate_types=tuple(GateType),
+            ),
             advertisements=(
                 _build_advertisement(GateType.HADAMARD),
                 _build_advertisement(GateType.CNOT),

@@ -1,3 +1,5 @@
+import type { BackendJobFragmentResult, BackendJobQuantumResult, BackendPlanResponse } from '@/types/backend';
+
 export type FinancialJobStatus = 'QUEUED' | 'INGESTING' | 'ANALYSING' | 'COMPLETED' | 'FAILED';
 
 export interface ColumnProfile {
@@ -83,6 +85,38 @@ export interface NodeExecutionSegment {
 	fidelity_score: number;
 }
 
+export interface QuantumFeatureMapping {
+	column: string;
+	qubit: number;
+	mean_rotation: number;
+	volatility_rotation: number;
+	momentum_rotation: number;
+	anomaly_pressure: number;
+	correlation_degree: number;
+}
+
+export interface QuantumSignalSummary {
+	qubit_count: number;
+	encoded_columns: string[];
+	dominant_state?: string | null;
+	dominant_state_probability?: number | null;
+	concentration_score: number;
+	entanglement_score: number;
+	interference_score: number;
+	execution_fidelity?: number | null;
+	column_activation: Record<string, number>;
+}
+
+export interface FinancialQuantumExecution {
+	circuit_text: string;
+	encoded_columns: string[];
+	feature_mapping: QuantumFeatureMapping[];
+	plan: BackendPlanResponse;
+	fragment_results: BackendJobFragmentResult[];
+	quantum_result: BackendJobQuantumResult | null;
+	signal_summary: QuantumSignalSummary;
+}
+
 export interface FinancialAnalysisResult {
 	job_id: string;
 	filename: string;
@@ -99,6 +133,7 @@ export interface FinancialAnalysisResult {
 	anomalies: AnomalyPoint[];
 	summary_stats: Record<string, unknown>;
 	node_execution: NodeExecutionSegment[];
+	quantum_execution?: FinancialQuantumExecution | null;
 	analysis_duration_ms: number;
 	distributed_nodes_used: number;
 	fragments_executed: number;
