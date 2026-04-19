@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,3 +77,15 @@ class TopologyResponse(BaseModel):
     total_peers: int = Field(ge=0)
     active_peers: int = Field(ge=0)
     stale_peers: int = Field(ge=0)
+
+
+class NetworkTopologyResponse(BaseModel):
+    """Network topology response compatible with old backend API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fabric_running: bool
+    generated_at: datetime
+    services: list[dict[str, Any]] = Field(default_factory=list)
+    registry_snapshot: list[dict[str, Any]] = Field(default_factory=list)
+

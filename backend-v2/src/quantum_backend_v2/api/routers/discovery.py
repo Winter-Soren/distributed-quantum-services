@@ -5,12 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, status
 
 from quantum_backend_v2.api.models.discovery import (
+    NetworkTopologyResponse,
     PeerDetail,
     PeerListResponse,
     PeerSummary,
     TopologyEntry,
     TopologyResponse,
 )
+from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
 from quantum_backend_v2.discovery.registry import PeerRegistry, PeerRegistryEntry
 from quantum_backend_v2.discovery.service import DiscoveryService
 
@@ -18,6 +20,7 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
     """Build the discovery router, capturing the service via closure."""
     router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
+    quality_tracker = ServiceQualityTracker()
 
     def _registry() -> PeerRegistry:
         return discovery_service.registry
@@ -26,7 +29,10 @@ def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
     async def list_peers(
         include_stale: bool = Query(
             default=False,
-            description="Include peers whose last heartbeat or advertisement exceeded the stale TTL.",
+            description=(
+                "Include peers whose last heartbeat or advertisement exceeded "
+                "the stale TTL."
+            ),
         ),
     ) -> PeerListResponse:
         """List all peers known to the local discovery registry."""
@@ -78,7 +84,50 @@ def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
             stale_peers=len(stale),
         )
 
+    @router.get("/network/topology", response_model=NetworkTopologyResponse)
+    async def network_topology() -> NetworkTopologyResponse:
+        """Return network topology compatible with old backend API."""
+        registry = _registry()
+        all_entries = registry.list_peers(include_stale=True)
+        
+        # Build service list
+        services = []
+        for peer in all_entries:
+            for service_id in peer.service_ids:
+                services.append({
+                    "node_id": peer.peer_id,
+                    "service_type": service_id,
+                    "listen_addrs": list(peer.network_addresses),
+                    "fidelity": quality_tracker.get_service_fidelity(
+                        service_id, peer_id=peer.peer_id
+                    ),
+                    "availability": peer.health_status == "healthy",
+                    "updated_at": peer.last_seen_at,
+                })
+        
+        return NetworkTopologyResponse(
+            fabric_running=True,
+            generated_at=_utc_now(),
+            services=services,
+            registry_snapshot=[
+                {
+                    "peer_id": e.peer_id,
+                    "trust_tier": e.trust_tier.value,
+                    "health_status": e.health_status,
+                    "service_ids": list(e.service_ids),
+                    "network_addresses": list(e.network_addresses),
+                    "last_seen_at": e.last_seen_at,
+                }
+                for e in all_entries
+            ],
+        )
+
     return router
+
+
+def _utc_now():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc)
 
 
 def _to_summary(entry: PeerRegistryEntry, is_stale: bool) -> PeerSummary:

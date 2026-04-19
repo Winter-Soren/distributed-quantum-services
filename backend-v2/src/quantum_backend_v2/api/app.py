@@ -12,8 +12,12 @@ from quantum_backend_v2 import __version__
 from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
+from quantum_backend_v2.api.routers.circuits import build_circuits_router
 from quantum_backend_v2.api.routers.enrollment import build_enrollment_router
+from quantum_backend_v2.api.routers.financial import build_financial_router
+from quantum_backend_v2.api.routers.plans import build_plans_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
+from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
 from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
@@ -74,6 +78,18 @@ def create_app(
     )
     app.include_router(
         build_workflows_router(session_factory=persistence_runtime.postgres_session_factory)
+    )
+    app.include_router(
+        build_circuits_router(session_factory=persistence_runtime.postgres_session_factory)
+    )
+    app.include_router(
+        build_services_router(discovery_service=discovery_service)
+    )
+    app.include_router(
+        build_plans_router(session_factory=persistence_runtime.postgres_session_factory)
+    )
+    app.include_router(
+        build_financial_router(session_factory=persistence_runtime.postgres_session_factory)
     )
 
     if reservation_service is not None:
