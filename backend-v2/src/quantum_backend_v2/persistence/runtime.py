@@ -70,6 +70,16 @@ class PersistenceRuntime:
         if self.mongodb is not None:
             await self.mongodb.client.close()
 
+    @property
+    def postgres_session_factory(self) -> object:
+        """Return the async session factory for injection into routers and services.
+
+        Returns ``None`` if Postgres is not configured, so callers must guard.
+        """
+        if self.postgres is None:
+            return None
+        return self.postgres.session_factory
+
     async def probe(self) -> PersistenceReadiness:
         """Run lightweight readiness checks for configured durable stores."""
         postgres_ready = await _probe_database_runtime(

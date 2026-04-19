@@ -6,7 +6,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, MetaData, String, Text, func, text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -89,6 +100,81 @@ class PeerEnrollmentRecord(TimestampedRecordMixin, PostgresBase):
     published_service_count: Mapped[int] = mapped_column(default=0, nullable=False)
     capability_summary: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WorkflowRunRecord(TimestampedRecordMixin, PostgresBase):
+    """Durable header for a workflow execution run."""
+
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_definition_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    owner_user_id: Mapped[str] = mapped_column(
+        ForeignKey("platform_users.id"), nullable=False, index=True
+    )
+    project_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    workflow_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="submitted")
+    input_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    output_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    fragment_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    completed_fragments: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failed_fragments: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    artifact_bundle_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    benchmark_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ReservationEventRecord(PostgresBase):
+    """Append-only reservation event log — never updated, only inserted.
+
+    Transition path: REQUESTED → ACCEPTED → COMMITTED → CANCELLED | EXPIRED | REJECTED
+    """
+
+    __tablename__ = "reservation_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    reservation_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    workflow_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    fragment_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    transition: Mapped[str] = mapped_column(String(32), nullable=False)
+    requesting_peer_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    accepting_peer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    service_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ExecutionEventRecord(PostgresBase):
+    """Append-only execution event log — never updated, only inserted.
+
+    Transition path: DISPATCHED → RUNNING → CHECKPOINTED* → COMPLETED | FAILED | RETRYING
+    """
+
+    __tablename__ = "execution_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    execution_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    reservation_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    workflow_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    fragment_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    transition: Mapped[str] = mapped_column(String(32), nullable=False)
+    executing_peer_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    service_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    retry_attempt: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    fidelity_score: Mapped[float | None] = mapped_column(nullable=True)
+    latency_ms: Mapped[float | None] = mapped_column(nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 @dataclass(frozen=True)

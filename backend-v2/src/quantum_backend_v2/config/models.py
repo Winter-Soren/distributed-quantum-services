@@ -155,6 +155,13 @@ class AppSettings(BaseModel):
     service_name: str = Field(default="quantum-backend-v2", min_length=1)
     api_host: str = Field(default="0.0.0.0", min_length=1)
     api_port: int = Field(default=8081, ge=1, le=65535)
+    auth_required: bool = Field(
+        default=True,
+        description=(
+            "When False (QB2_AUTH_REQUIRED=false) all requests bypass authentication "
+            "and are treated as a local dev-admin user. Never disable in production."
+        ),
+    )
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     persistence: PersistenceSettings = Field(default_factory=PersistenceSettings)
     libp2p: Libp2pSettings = Field(default_factory=Libp2pSettings)
@@ -167,6 +174,7 @@ class AppSettings(BaseModel):
             service_name=env.get("QB2_SERVICE_NAME", "quantum-backend-v2"),
             api_host=env.get("QB2_API_HOST", "0.0.0.0"),
             api_port=int(env.get("QB2_API_PORT", "8081")),
+            auth_required=_parse_bool(env.get("QB2_AUTH_REQUIRED", "true")),
             logging=LoggingSettings(
                 level=env.get("QB2_LOG_LEVEL", "INFO"),
                 json_logs=_parse_bool(env.get("QB2_JSON_LOGS", "true")),
