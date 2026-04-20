@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { BackendClientError, getBackendBaseUrl } from '@/lib/backend-client';
+import { BackendClientError, getBackendBaseUrl, readBackendErrorDetails } from '@/lib/backend-client';
+import { normalizeFinancialJobList, normalizeFinancialJobStatus } from '@/lib/backend-normalizers';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,21 +43,18 @@ export async function POST(request: NextRequest) {
 		}
 
 		if (!res.ok) {
-			let detail: string | undefined;
-			try {
-				const body = (await res.json()) as { detail?: string };
-				detail = body.detail;
-			} catch {
-				detail = res.statusText;
-			}
+			const detail = await readBackendErrorDetails(res);
 			return NextResponse.json(
 				{ error: 'Coordinator rejected the upload.', details: detail },
 				{ status: res.status }
 			);
 		}
 
-		const payload = (await res.json()) as { job_id: string; status: string };
-		return NextResponse.json(payload);
+		const payload = (await res.json()) as { job_id?: unknown; status?: unknown };
+		return NextResponse.json({
+			job_id: typeof payload.job_id === 'string' ? payload.job_id : 'fin-unknown',
+			status: normalizeFinancialJobStatus(payload.status)
+		});
 	} catch (error) {
 		const status = error instanceof BackendClientError ? error.status : 500;
 		return NextResponse.json(
@@ -79,10 +77,11 @@ export async function GET() {
 			cache: 'no-store'
 		});
 		if (!res.ok) {
-			return NextResponse.json({ error: 'Could not load financial jobs.' }, { status: res.status });
+			const details = await readBackendErrorDetails(res);
+			return NextResponse.json({ error: 'Could not load financial jobs.', details }, { status: res.status });
 		}
 		const data = await res.json();
-		return NextResponse.json(data);
+		return NextResponse.json(normalizeFinancialJobList(data));
 	} catch (err) {
 		return NextResponse.json(
 			{ error: 'Coordinator unreachable.', details: err instanceof Error ? err.message : 'Unknown' },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { BackendClientError, fetchBackendJson, getBackendBaseUrl } from '@/lib/backend-client';
+import { normalizeFinancialJobList } from '@/lib/backend-normalizers';
 import { buildRunsListSnapshot } from '@/lib/run-transformers';
 import type {
 	BackendCircuitSubmitRequest,
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 		const [healthResult, jobsResult, financeResult] = await Promise.allSettled([
 			fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
 			fetchBackendJson<BackendJobListItemResponse[]>(`/api/v1/jobs?${jobsPath.toString()}`),
-			fetchBackendJson<BackendFinancialJobListItem[]>(`/api/v1/finance?limit=${limit}`)
+			fetchBackendJson<unknown[]>(`/api/v1/finance?limit=${limit}`)
 		]);
 
 		let jobs: BackendJobListItemResponse[] = [];
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		if (financeResult.status === 'fulfilled') {
-			financialJobs = financeResult.value;
+			financialJobs = normalizeFinancialJobList(financeResult.value);
 		} else if (financeResult.status === 'rejected') {
 			const reason = financeResult.reason;
 			if (reason instanceof BackendClientError && reason.status === 404) {

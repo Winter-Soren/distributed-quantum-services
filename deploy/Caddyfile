@@ -13,5 +13,5 @@
 {$CADDY_API_SITE_ADDRESS:http://localhost:8080} {
 	encode zstd gzip
 
-	reverse_proxy backend:8080
+	reverse_proxy backend-v2:8080
 }

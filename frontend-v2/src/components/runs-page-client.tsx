@@ -203,7 +203,7 @@ export function RunsPageClient() {
 										</code>{' '}
 										points at it (default{' '}
 										<code className='rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs'>
-											http://127.0.0.1:8080
+											http://127.0.0.1:8081
 										</code>
 										). The jobs route must be{' '}
 										<code className='rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs'>

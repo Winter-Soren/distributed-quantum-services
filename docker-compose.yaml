@@ -1,17 +1,34 @@
 services:
-  backend:
+  backend-v2:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend-v2/Dockerfile
     environment:
-      QC_API__ENABLE_AUTH: "${QC_API__ENABLE_AUTH:-false}"
-      QC_API__API_KEY: "${QUANTUM_BACKEND_API_KEY:-null}"
-      QC_API__ENABLE_CORS: "${QC_API__ENABLE_CORS:-true}"
-      QC_API__CORS_ORIGINS: '${QC_API__CORS_ORIGINS:-["https://distributed-quantum.com","https://v0.distributed-quantum.com","http://localhost:3000","http://localhost:3003"]}'
-      QC_DATABASE__PATH: "${QC_DATABASE__PATH:-/workspace/backend/data/quantum_coordinator.db}"
-      QC_LIBP2P__ENABLED: "${QC_LIBP2P__ENABLED:-true}"
-      QC_LIBP2P__ENABLE_MDNS: "false"
+      QB2_API_HOST: "${QB2_API_HOST:-0.0.0.0}"
+      QB2_API_PORT: "${QB2_API_PORT:-8080}"
+      QB2_ENVIRONMENT: "${QB2_ENVIRONMENT:-development}"
+      QB2_SERVICE_NAME: "${QB2_SERVICE_NAME:-quantum-backend-v2}"
+      QB2_JSON_LOGS: "${QB2_JSON_LOGS:-true}"
+      QB2_LOG_LEVEL: "${QB2_LOG_LEVEL:-INFO}"
+      QB2_AUTH_REQUIRED: "${QB2_AUTH_REQUIRED:-false}"
+      QB2_POSTGRES_TARGET: "${QB2_POSTGRES_TARGET:-neon}"
+      QB2_POSTGRES_NEON_POOLED_DSN: "${QB2_POSTGRES_NEON_POOLED_DSN:-}"
+      QB2_POSTGRES_NEON_DIRECT_DSN: "${QB2_POSTGRES_NEON_DIRECT_DSN:-}"
+      QB2_POSTGRES_DATABASE: "${QB2_POSTGRES_DATABASE:-neondb}"
+      QB2_MONGODB_TARGET: "${QB2_MONGODB_TARGET:-remote}"
+      QB2_MONGODB_REMOTE_URI: "${QB2_MONGODB_REMOTE_URI:-}"
+      QB2_MONGODB_DATABASE: "${QB2_MONGODB_DATABASE:-qds}"
+      QB2_PEER_LOG_DIR: "${QB2_PEER_LOG_DIR:-/workspace/backend-v2/quantum-backend-v2/peer-logs}"
+      QB2_PEER_ID: "${QB2_PEER_ID:-qb2-local-peer}"
+      QB2_LIBP2P_ENABLED: "${QB2_LIBP2P_ENABLED:-true}"
+      QB2_LIBP2P_PEER_ID: "${QB2_LIBP2P_PEER_ID:-qb2-local-peer}"
+      QB2_LIBP2P_LISTEN_MULTIADDRS: "${QB2_LIBP2P_LISTEN_MULTIADDRS:-/ip4/0.0.0.0/tcp/4011}"
+      QB2_LIBP2P_PEERSTORE_PATH: "${QB2_LIBP2P_PEERSTORE_PATH:-/workspace/backend-v2/quantum-backend-v2/libp2p/peerstore.sqlite3}"
+      QB2_LIBP2P_ACTIVATE_LISTENERS: "${QB2_LIBP2P_ACTIVATE_LISTENERS:-false}"
+      QB2_LIBP2P_DEV_SERVICE_PEER_COUNT: "${QB2_LIBP2P_DEV_SERVICE_PEER_COUNT:-0}"
+      QB2_LIBP2P_DEV_SERVICE_BASE_PORT: "${QB2_LIBP2P_DEV_SERVICE_BASE_PORT:-4021}"
     volumes:
-      - backend_data:/workspace/backend/data
+      - backend_v2_runtime:/workspace/backend-v2/quantum-backend-v2
     healthcheck:
       test:
         [
@@ -30,13 +47,13 @@ services:
     build:
       context: ./frontend-v2
     depends_on:
-      backend:
+      backend-v2:
         condition: service_healthy
     environment:
       HOSTNAME: "0.0.0.0"
       PORT: "3000"
       QUANTUM_BACKEND_API_KEY: "${QUANTUM_BACKEND_API_KEY:-}"
-      QUANTUM_BACKEND_URL: "http://backend:8080"
+      QUANTUM_BACKEND_URL: "http://backend-v2:8080"
     healthcheck:
       test:
         [
@@ -56,7 +73,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      backend:
+      backend-v2:
         condition: service_healthy
       frontend-v2:
         condition: service_healthy
@@ -76,6 +93,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  backend_data:
+  backend_v2_runtime:
   caddy_data:
   caddy_config:

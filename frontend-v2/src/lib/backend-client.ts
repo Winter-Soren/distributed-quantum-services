@@ -2,7 +2,14 @@ import 'server-only';
 
 type FetchBackendJsonOptions = Omit<RequestInit, 'cache'>;
 
-const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8080';
+const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8081';
+
+type BackendErrorPayload = {
+	detail?: unknown;
+	message?: unknown;
+	error?: unknown;
+	details?: unknown;
+};
 
 export class BackendClientError extends Error {
 	constructor(
@@ -17,6 +24,62 @@ export class BackendClientError extends Error {
 
 export function getBackendBaseUrl() {
 	return (process.env.QUANTUM_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, '');
+}
+
+function normalizeBackendErrorDetails(payload: BackendErrorPayload | null) {
+	if (!payload) {
+		return undefined;
+	}
+
+	if (typeof payload.detail === 'string' && payload.detail.trim()) {
+		return payload.detail.trim();
+	}
+
+	if (Array.isArray(payload.detail)) {
+		const joined = payload.detail
+			.map(item => (item && typeof item === 'object' && 'msg' in item ? item.msg : item))
+			.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+			.join(' ');
+
+		if (joined) {
+			return joined;
+		}
+	}
+
+	const details =
+		Array.isArray(payload.details)
+			? payload.details
+					.map(item =>
+						item && typeof item === 'object' && 'message' in item && typeof item.message === 'string'
+							? item.message
+							: null
+					)
+					.filter((item): item is string => item !== null && item.trim().length > 0)
+					.join(' ')
+			: undefined;
+
+	if (details) {
+		return details;
+	}
+
+	if (typeof payload.message === 'string' && payload.message.trim()) {
+		return payload.message.trim();
+	}
+
+	if (typeof payload.error === 'string' && payload.error.trim()) {
+		return payload.error.trim();
+	}
+
+	return undefined;
+}
+
+export async function readBackendErrorDetails(response: Response) {
+	try {
+		const payload = (await response.json()) as BackendErrorPayload | null;
+		return normalizeBackendErrorDetails(payload) ?? (response.statusText || undefined);
+	} catch {
+		return response.statusText || undefined;
+	}
 }
 
 export async function fetchBackendJson<T>(pathname: string, init: FetchBackendJsonOptions = {}): Promise<T> {
@@ -47,14 +110,7 @@ export async function fetchBackendJson<T>(pathname: string, init: FetchBackendJs
 	}
 
 	if (!response.ok) {
-		let details: string | undefined;
-
-		try {
-			const body = (await response.json()) as { detail?: string } | null;
-			details = body?.detail;
-		} catch {
-			details = response.statusText || undefined;
-		}
+		const details = await readBackendErrorDetails(response);
 
 		throw new BackendClientError(`Backend request failed for ${pathname}.`, response.status, details);
 	}
