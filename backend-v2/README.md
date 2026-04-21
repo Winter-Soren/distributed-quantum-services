@@ -23,7 +23,18 @@ Use [uv](https://docs.astral.sh/uv/) from this directory so the virtualenv inclu
 cd backend-v2
 uv sync
 uv run pytest
+make run
 ```
+
+`make run` is the normal local startup path. `make run-clean` removes the local
+libp2p peerstore and peer-log files first, then starts the backend with a clean
+embedded dev swarm.
+
+These `make` targets are set up for both macOS and Windows. On macOS they use
+`bash` from your `PATH`. On Windows they default to Git Bash at
+`C:/Program Files/Git/bin/bash.exe`. If one machine uses a different Bash
+location, override it per command, for example
+`make BASH=/custom/path/to/bash run`.
 
 With pip instead of uv:
 

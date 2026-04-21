@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
-import logging
-from pathlib import Path
+from dataclasses import dataclass
 
 from libp2p import (
     __version__ as py_libp2p_version,
+)
+from libp2p import (
     create_new_ed25519_key_pair,
     new_host,
 )
@@ -18,11 +18,9 @@ from multiaddr import Multiaddr
 from quantum_backend_v2.config import Libp2pSettings
 from quantum_backend_v2.libp2p.addressing import resolve_advertised_network_addresses
 from quantum_backend_v2.libp2p.models import Libp2pBootstrapPlan, Libp2pRuntimeSummary
-from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
 from quantum_backend_v2.libp2p.peerstore import create_compatible_sync_sqlite_peerstore
+from quantum_backend_v2.libp2p.protocol_ids import build_execution_protocol_ids
 from quantum_backend_v2.protocols import ProtocolDescriptor, ProtocolVersion
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -113,7 +111,6 @@ def create_libp2p_bootstrap_plan(settings: Libp2pSettings) -> Libp2pBootstrapPla
 def create_real_libp2p_runtime(settings: Libp2pSettings) -> Libp2pRuntime:
     """Create a real py-libp2p host and peerstore for backend-v2."""
     settings.peerstore_path.parent.mkdir(parents=True, exist_ok=True)
-    _reset_dev_peerstore_if_needed(settings)
     peerstore = create_compatible_sync_sqlite_peerstore(settings.peerstore_path)
     key_pair = create_new_ed25519_key_pair(seed=_derive_seed(settings.peer_id))
     plan = create_libp2p_bootstrap_plan(settings)
@@ -142,28 +139,3 @@ def _parse_listen_addrs(settings: Libp2pSettings) -> list[Multiaddr] | None:
     if not settings.listen_multiaddrs:
         return None
     return [Multiaddr(addr) for addr in settings.listen_multiaddrs]
-
-
-def _reset_dev_peerstore_if_needed(settings: Libp2pSettings) -> None:
-    if settings.dev_service_peer_count <= 0:
-        return
-
-    removed_paths = []
-    for path in _sqlite_artifact_paths(settings.peerstore_path):
-        if path.exists():
-            path.unlink()
-            removed_paths.append(path.name)
-
-    if removed_paths:
-        logger.info(
-            "reset local libp2p peerstore state for embedded dev swarm (%s)",
-            ", ".join(sorted(removed_paths)),
-        )
-
-
-def _sqlite_artifact_paths(path: Path) -> tuple[Path, ...]:
-    return (
-        path,
-        Path(f"{path}-shm"),
-        Path(f"{path}-wal"),
-    )

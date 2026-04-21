@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Demo startup script for backend-v2
+# Local startup script for backend-v2
 #
 # Ensures key ports are free and optionally clears local runtime files.
-# Run from project root: ./scripts/demo-start.sh [--clean]
+# Invoked by `make run` and `make run-clean`.
 
 set -e
 
@@ -10,10 +10,34 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-API_PORT="${QB2_API_PORT:-8081}"
-LIBP2P_PORT=4011
-PEERSTORE_PATH="${QB2_LIBP2P_PEERSTORE_PATH:-./quantum-backend-v2/libp2p/peerstore.sqlite3}"
-PEER_LOG_DIR="${QB2_PEER_LOG_DIR:-./quantum-backend-v2/peer-logs}"
+ENV_FILE="$PROJECT_ROOT/.env"
+
+read_env_value() {
+  local key="$1"
+  if [ ! -f "$ENV_FILE" ]; then
+    return 0
+  fi
+
+  grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d'=' -f2- | tr -d '\r'
+}
+
+extract_tcp_port() {
+  local listen_multiaddrs="$1"
+  printf '%s' "$listen_multiaddrs" | sed -n 's#.*\/tcp\/\([0-9][0-9]*\).*#\1#p' | head -n 1
+}
+
+API_PORT="${QB2_API_PORT:-$(read_env_value QB2_API_PORT)}"
+API_PORT="${API_PORT:-8081}"
+
+LISTEN_MULTIADDRS="${QB2_LIBP2P_LISTEN_MULTIADDRS:-$(read_env_value QB2_LIBP2P_LISTEN_MULTIADDRS)}"
+LIBP2P_PORT="$(extract_tcp_port "$LISTEN_MULTIADDRS")"
+LIBP2P_PORT="${LIBP2P_PORT:-4011}"
+
+PEERSTORE_PATH="${QB2_LIBP2P_PEERSTORE_PATH:-$(read_env_value QB2_LIBP2P_PEERSTORE_PATH)}"
+PEERSTORE_PATH="${PEERSTORE_PATH:-./quantum-backend-v2/libp2p/peerstore.sqlite3}"
+
+PEER_LOG_DIR="${QB2_PEER_LOG_DIR:-$(read_env_value QB2_PEER_LOG_DIR)}"
+PEER_LOG_DIR="${PEER_LOG_DIR:-./quantum-backend-v2/peer-logs}"
 
 CLEAN_RUN=false
 for arg in "$@"; do
@@ -22,7 +46,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "=== Quantum Backend V2 Demo Startup ==="
+echo "=== Quantum Backend V2 Startup ==="
 
 echo ""
 echo "Checking ports $API_PORT and $LIBP2P_PORT..."
