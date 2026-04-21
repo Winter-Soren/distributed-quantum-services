@@ -95,7 +95,13 @@ class ExecutionState(BaseModel):
         allowed = _ALLOWED_TRANSITIONS.get(self.current_transition, frozenset())
         return next_transition in allowed
 
-    def apply(self, transition: ExecutionTransition, **kwargs: Any) -> "ExecutionState":
+    def apply(
+        self,
+        transition: ExecutionTransition,
+        *,
+        occurred_at: datetime | None = None,
+        **kwargs: Any,
+    ) -> "ExecutionState":
         if not self.can_transition_to(transition):
             raise ValueError(
                 f"Invalid transition {self.current_transition!r} → {transition!r} "
@@ -103,7 +109,7 @@ class ExecutionState(BaseModel):
             )
         update: dict[str, Any] = {
             "current_transition": transition,
-            "last_event_at": _utc_now(),
+            "last_event_at": occurred_at or _utc_now(),
         }
         update.update(kwargs)
         return self.model_copy(update=update)

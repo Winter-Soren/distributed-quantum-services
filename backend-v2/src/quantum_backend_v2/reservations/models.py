@@ -84,13 +84,22 @@ class ReservationState(BaseModel):
         allowed = _ALLOWED_TRANSITIONS.get(self.current_transition, frozenset())
         return next_transition in allowed
 
-    def apply(self, transition: ReservationTransition, **kwargs: Any) -> "ReservationState":
+    def apply(
+        self,
+        transition: ReservationTransition,
+        *,
+        occurred_at: datetime | None = None,
+        **kwargs: Any,
+    ) -> "ReservationState":
         if not self.can_transition_to(transition):
             raise ValueError(
                 f"Invalid transition {self.current_transition!r} → {transition!r} "
                 f"for reservation {self.reservation_id!r}"
             )
-        update: dict[str, Any] = {"current_transition": transition, "last_event_at": _utc_now()}
+        update: dict[str, Any] = {
+            "current_transition": transition,
+            "last_event_at": occurred_at or _utc_now(),
+        }
         update.update(kwargs)
         return self.model_copy(update=update)
 

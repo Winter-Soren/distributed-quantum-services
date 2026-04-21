@@ -1,5 +1,5 @@
 import type { BackendJobStatus } from '@/types/backend';
-import type { FinancialAnalysisResult } from '@/types/financial';
+import type { FinancialAnalysisResult, FinancialProblemType } from '@/types/financial';
 
 /** Financial job statuses from the coordinator (distinct from circuit jobs). */
 export type FinancialJobStatus = 'QUEUED' | 'INGESTING' | 'ANALYSING' | 'COMPLETED' | 'FAILED';
@@ -7,6 +7,7 @@ export type FinancialJobStatus = 'QUEUED' | 'INGESTING' | 'ANALYSING' | 'COMPLET
 /** List row from `GET /api/v1/finance`. */
 export type BackendFinancialJobListItem = {
 	job_id: string;
+	problem_type?: FinancialProblemType | null;
 	status: FinancialJobStatus;
 	filename: string;
 	row_count: number | null;

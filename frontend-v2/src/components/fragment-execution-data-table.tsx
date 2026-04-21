@@ -23,7 +23,7 @@ function fragmentStatusLabel(status: string): string {
 
 function fragmentStatusBadgeVariant(status: string): RunBadgeVariant {
 	const u = status.trim().toUpperCase();
-	if (u === 'SUCCESS') {
+	if (u === 'SUCCESS' || u === 'COMPLETED') {
 		return 'outline';
 	}
 	if (u === 'FAILED') {
@@ -113,6 +113,7 @@ const columns: ColumnDef<RunFragmentResultSummary>[] = [
 ];
 
 export function FragmentExecutionDataTable({ data }: { data: RunFragmentResultSummary[] }) {
+	// eslint-disable-next-line react-hooks/incompatible-library
 	const table = useReactTable({
 		data,
 		columns,

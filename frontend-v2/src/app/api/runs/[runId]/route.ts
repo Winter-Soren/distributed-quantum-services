@@ -19,7 +19,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		if (runId.startsWith('fin-')) {
 			const [healthResult, financeResult] = await Promise.allSettled([
 				fetchBackendJson<BackendHealthResponse>('/api/v1/health'),
-				fetchBackendJson<unknown>(`/api/v1/finance/${encodeURIComponent(runId)}`)
+				fetchBackendJson<unknown>(
+					`/api/v1/finance/${encodeURIComponent(runId)}?result_detail=${resultDetail}`
+				)
 			]);
 
 			if (financeResult.status === 'rejected') {

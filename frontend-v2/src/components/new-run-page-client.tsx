@@ -645,15 +645,3 @@ function MetricTile({ label, value }: { label: string; value: string }) {
 		</div>
 	);
 }
-
-function ContractRow({ label, value, description }: { label: string; value: string; description: string }) {
-	return (
-		<div className='rounded-3xl border border-border/80 bg-muted/20 p-4'>
-			<div className='flex flex-wrap items-center justify-between gap-2'>
-				<p className='text-sm font-medium'>{label}</p>
-				<Badge variant='outline'>{value}</Badge>
-			</div>
-			<p className='mt-2 text-sm leading-6 text-muted-foreground'>{description}</p>
-		</div>
-	);
-}

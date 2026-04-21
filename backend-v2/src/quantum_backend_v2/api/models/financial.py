@@ -23,6 +23,7 @@ class FinancialSubmitResponse(BaseModel):
 
     job_id: str
     status: str
+    problem_type: str
 
 
 class FinancialJobSummary(BaseModel):
@@ -30,6 +31,7 @@ class FinancialJobSummary(BaseModel):
 
     job_id: str
     filename: str
+    problem_type: str | None
     status: str
     row_count: int | None
     col_count: int | None
@@ -43,6 +45,7 @@ class FinancialJobResponse(BaseModel):
 
     job_id: str
     filename: str
+    problem_type: str | None
     status: str
     row_count: int | None
     col_count: int | None

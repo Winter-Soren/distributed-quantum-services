@@ -112,6 +112,7 @@ class TestRuntimeRecovery:
         e.fidelity_score = fidelity_score  # type: ignore[attr-defined]
         e.latency_ms = latency_ms  # type: ignore[attr-defined]
         e.error_detail = error_detail  # type: ignore[attr-defined]
+        e.retry_attempt = 0  # type: ignore[attr-defined]
         e.payload = payload or {}  # type: ignore[attr-defined]
         e.occurred_at = datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(  # type: ignore[attr-defined]
             seconds=occurred_offset_seconds
@@ -135,6 +136,32 @@ class TestRuntimeRecovery:
         states = _replay_execution_states(events)  # type: ignore[arg-type]
         assert states["exec-001"].current_transition == ExecutionTransition.COMPLETED
         assert states["exec-001"].fidelity_score == pytest.approx(0.95)
+        assert states["exec-001"].last_event_at == events[-1].occurred_at
+
+    def test_replay_preserves_retry_attempt(self) -> None:
+        events = [
+            self._make_exec_record("exec-002", "dispatched", occurred_offset_seconds=0),
+            self._make_exec_record("exec-002", "running", occurred_offset_seconds=1),
+            self._make_exec_record(
+                "exec-002",
+                "failed",
+                error_detail="node timeout",
+                occurred_offset_seconds=2,
+            ),
+            self._make_exec_record(
+                "exec-002",
+                "retrying",
+                payload={"fallback_peer_id": "peer-b"},
+                occurred_offset_seconds=3,
+            ),
+        ]
+        events[-1].retry_attempt = 1  # type: ignore[attr-defined]
+
+        states = _replay_execution_states(events)  # type: ignore[arg-type]
+
+        assert states["exec-002"].current_transition == ExecutionTransition.RETRYING
+        assert states["exec-002"].retry_attempt == 1
+        assert states["exec-002"].last_event_at == events[-1].occurred_at
 
     def test_replay_multiple_executions(self) -> None:
         events = [

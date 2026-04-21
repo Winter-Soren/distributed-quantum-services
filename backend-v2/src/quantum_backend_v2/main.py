@@ -14,6 +14,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Quantum Backend V2 API")
     parser.add_argument("--host", default=None, help="Override API host")
     parser.add_argument("--port", type=int, default=None, help="Override API port")
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable uvicorn auto-reload for local source editing.",
+    )
     args = parser.parse_args()
 
     settings = load_settings()
@@ -24,6 +29,6 @@ def main() -> None:
         factory=True,
         host=host,
         port=port,
-        reload=True,
-        reload_dirs=["src"],
+        reload=args.reload,
+        reload_dirs=["src"] if args.reload else None,
     )

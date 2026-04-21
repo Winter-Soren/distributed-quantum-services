@@ -17,6 +17,7 @@ import {
 import { FragmentExecutionDataTable } from '@/components/fragment-execution-data-table';
 import { FragmentFlowCanvas } from '@/components/fragment-flow-canvas';
 import { PeerExecutionFlowSection } from '@/components/peer-execution-flow';
+import { PortfolioBenchmarkAnalysisSection } from '@/components/portfolio-benchmark-analysis-section';
 import { RunQuantumAnalysisSection } from '@/components/run-quantum-analysis-section';
 import { RunStatusBadge } from '@/components/run-status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -560,7 +561,7 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 										{isFinancial
 											? financialHasNativeQuantum
 												? 'Finance-derived OpenQASM executed through the distributed quantum runtime.'
-												: 'Key facts from the financial coordinator payload (same job id as the plan).'
+												: 'Track B finance summary generated for this workflow run.'
 											: circuitSourceMissing
 												? 'API did not return stored circuit text.'
 												: 'OpenQASM persisted by the backend.'}
@@ -697,7 +698,7 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 									{isFinancial
 										? financialHasNativeQuantum
 											? 'Runtime fragments from the finance-derived quantum circuit.'
-											: 'Per-stage routing from the financial engine (mirrors circuit fragment results).'
+											: 'Stage-by-stage execution metadata emitted by the Track B finance workflow.'
 										: 'Live and completed snapshots from the runtime.'}
 								</CardDescription>
 							</div>
@@ -725,14 +726,21 @@ export function RunDetailPageClient({ runId }: RunDetailPageClientProps) {
 					</CardContent>
 				</Card>
 
-				<RunQuantumAnalysisSection
-					planQualitySnapshotId={plan?.qualitySnapshotId ?? null}
-					quantum={quantum}
-					run={run}
-					runId={runId}
-					variant={isFinancial && !financialHasNativeQuantum ? 'financial' : 'quantum'}
-					financialResult={snapshot.financialResult ?? null}
-				/>
+				{isFinancial && snapshot.financialResult ? (
+					<PortfolioBenchmarkAnalysisSection
+						run={run}
+						result={snapshot.financialResult}
+					/>
+				) : (
+					<RunQuantumAnalysisSection
+						planQualitySnapshotId={plan?.qualitySnapshotId ?? null}
+						quantum={quantum}
+						run={run}
+						runId={runId}
+						variant='quantum'
+						financialResult={null}
+					/>
+				)}
 			</div>
 		</div>
 	);

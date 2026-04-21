@@ -23,7 +23,9 @@ class PeerCapabilityDocument(Document):
     peer_id: str
     capabilities: list[str] = Field(default_factory=list)
     published_service_ids: list[str] = Field(default_factory=list)
+    network_addresses: list[str] = Field(default_factory=list)
     protocol_versions: dict[str, str] = Field(default_factory=dict)
+    last_advertised_at: datetime | None = None
     updated_at: datetime = Field(default_factory=_utc_now)
 
     class Settings:
@@ -37,6 +39,9 @@ class TopologyProjectionDocument(Document):
     connected_peers: list[str] = Field(default_factory=list)
     trust_tier: str
     health_status: str
+    active_reservations: int = 0
+    active_executions: int = 0
+    peer_log_position: int = 0
     observed_at: datetime = Field(default_factory=_utc_now)
 
     class Settings:
@@ -47,12 +52,15 @@ class BenchmarkResultDocument(Document):
     """Publishable benchmark projection for quantum-vs-classical comparisons."""
 
     benchmark_id: str
+    owner_user_id: str
     workflow_id: str
+    benchmark_family: str
     quantum_service_id: str
     classical_service_id: str | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
     evidence_refs: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
 
     class Settings:
         name = "benchmark_results"

@@ -44,4 +44,4 @@ RUN mkdir -p /workspace/backend-v2/quantum-backend-v2/peer-logs \
 
 EXPOSE 8080
 
-CMD ["make", "demo-clean-docker"]
+CMD ["quantum-backend-v2", "--host", "0.0.0.0", "--port", "8080"]

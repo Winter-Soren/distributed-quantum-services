@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { BinaryIcon, CpuIcon, GaugeIcon, OrbitIcon, RefreshCcwIcon, SparklesIcon } from 'lucide-react';
 
@@ -336,19 +336,23 @@ export function RunQuantumAnalysisSection({
 	const measuredProbabilityPageCount = getPageCount(measuredProbabilityData.length, ANALYSIS_CHART_PAGE_SIZE);
 	const blochPageCount = getPageCount(blochData.length, BLOCH_PAGE_SIZE);
 	const entropyPageCount = getPageCount(entropyData.length, ENTROPY_PAGE_SIZE);
-
-	const visibleCountsData = getPageSlice(countsData, countsPage, ANALYSIS_CHART_PAGE_SIZE);
+	const safeCountsPage = Math.min(countsPage, countsPageCount);
+	const safeMeasuredProbabilityPage = Math.min(measuredProbabilityPage, measuredProbabilityPageCount);
+	const safeBlochPage = Math.min(blochPage, blochPageCount);
+	const safeEntropyPage = Math.min(entropyPage, entropyPageCount);
+	const visibleCountsData = getPageSlice(countsData, safeCountsPage, ANALYSIS_CHART_PAGE_SIZE);
 	const visibleMeasuredProbabilityData = getPageSlice(
 		measuredProbabilityData,
-		measuredProbabilityPage,
+		safeMeasuredProbabilityPage,
 		ANALYSIS_CHART_PAGE_SIZE
 	);
-	const visibleBlochData = getPageSlice(blochData, blochPage, BLOCH_PAGE_SIZE);
-	const visibleEntropyData = getPageSlice(entropyData, entropyPage, ENTROPY_PAGE_SIZE);
+	const visibleBlochData = getPageSlice(blochData, safeBlochPage, BLOCH_PAGE_SIZE);
+	const visibleEntropyData = getPageSlice(entropyData, safeEntropyPage, ENTROPY_PAGE_SIZE);
 
-	const statevectorValues = deepData?.statevector ?? [];
+	const statevectorValues = useMemo(() => deepData?.statevector ?? [], [deepData?.statevector]);
 	const statevectorPageCount = getPageCount(statevectorValues.length, STATEVECTOR_PAGE_SIZE);
-	const statevectorStartIndex = (statevectorPage - 1) * STATEVECTOR_PAGE_SIZE;
+	const safeStatevectorPage = Math.min(statevectorPage, statevectorPageCount);
+	const statevectorStartIndex = (safeStatevectorPage - 1) * STATEVECTOR_PAGE_SIZE;
 	const statevectorRows = useMemo(() => {
 		if (!statevectorValues.length) {
 			return [];
@@ -367,26 +371,12 @@ export function RunQuantumAnalysisSection({
 		[deepData?.reducedDensityMatrices]
 	);
 	const densityMatrixPageCount = getPageCount(densityMatrixEntries.length, DENSITY_MATRIX_PAGE_SIZE);
-	const visibleDensityMatrixEntries = getPageSlice(densityMatrixEntries, densityMatrixPage, DENSITY_MATRIX_PAGE_SIZE);
-
-	useEffect(() => {
-		setCountsPage(p => Math.min(p, countsPageCount));
-	}, [countsPageCount]);
-	useEffect(() => {
-		setMeasuredProbabilityPage(p => Math.min(p, measuredProbabilityPageCount));
-	}, [measuredProbabilityPageCount]);
-	useEffect(() => {
-		setBlochPage(p => Math.min(p, blochPageCount));
-	}, [blochPageCount]);
-	useEffect(() => {
-		setEntropyPage(p => Math.min(p, entropyPageCount));
-	}, [entropyPageCount]);
-	useEffect(() => {
-		setStatevectorPage(p => Math.min(p, statevectorPageCount));
-	}, [statevectorPageCount]);
-	useEffect(() => {
-		setDensityMatrixPage(p => Math.min(p, densityMatrixPageCount));
-	}, [densityMatrixPageCount]);
+	const safeDensityMatrixPage = Math.min(densityMatrixPage, densityMatrixPageCount);
+	const visibleDensityMatrixEntries = getPageSlice(
+		densityMatrixEntries,
+		safeDensityMatrixPage,
+		DENSITY_MATRIX_PAGE_SIZE
+	);
 
 	const fidelityRecord = quantum?.fidelity ?? null;
 
@@ -484,11 +474,11 @@ export function RunQuantumAnalysisSection({
 										valueFormatter={value => `${value}`}
 									/>
 									<SectionPagination
-										page={countsPage}
+										page={safeCountsPage}
 										pageCount={countsPageCount}
 										totalItems={countsData.length}
 										itemLabel='count rows'
-										onPageChange={setCountsPage}
+										onPageChange={page => setCountsPage(Math.min(page, countsPageCount))}
 									/>
 								</div>
 								<div className='space-y-3'>
@@ -515,11 +505,13 @@ export function RunQuantumAnalysisSection({
 										valueFormatter={value => `${value}%`}
 									/>
 									<SectionPagination
-										page={measuredProbabilityPage}
+										page={safeMeasuredProbabilityPage}
 										pageCount={measuredProbabilityPageCount}
 										totalItems={measuredProbabilityData.length}
 										itemLabel='probability rows'
-										onPageChange={setMeasuredProbabilityPage}
+										onPageChange={page =>
+											setMeasuredProbabilityPage(Math.min(page, measuredProbabilityPageCount))
+										}
 									/>
 								</div>
 							</div>
@@ -736,11 +728,11 @@ export function RunQuantumAnalysisSection({
 										) : null}
 									</div>
 									<SectionPagination
-										page={blochPage}
+										page={safeBlochPage}
 										pageCount={blochPageCount}
 										totalItems={blochData.length}
 										itemLabel={isFinancial ? 'fragments' : 'qubits'}
-										onPageChange={setBlochPage}
+										onPageChange={page => setBlochPage(Math.min(page, blochPageCount))}
 									/>
 								</div>
 
@@ -798,11 +790,11 @@ export function RunQuantumAnalysisSection({
 										) : null}
 									</div>
 									<SectionPagination
-										page={entropyPage}
+										page={safeEntropyPage}
 										pageCount={entropyPageCount}
 										totalItems={entropyData.length}
 										itemLabel='entropy rows'
-										onPageChange={setEntropyPage}
+										onPageChange={page => setEntropyPage(Math.min(page, entropyPageCount))}
 									/>
 								</div>
 							</div>
@@ -922,7 +914,7 @@ export function RunQuantumAnalysisSection({
 														</TableRow>
 													</TableHeader>
 													<TableBody>
-														{financialResult.column_profiles
+														{(financialResult.column_profiles ?? [])
 															.filter(p => p.dtype === 'numeric')
 															.slice(0, 48)
 															.map(p => (
@@ -1000,11 +992,11 @@ export function RunQuantumAnalysisSection({
 														) : null}
 													</div>
 													<SectionPagination
-														page={statevectorPage}
+														page={safeStatevectorPage}
 														pageCount={statevectorPageCount}
 														totalItems={statevectorValues.length}
 														itemLabel='statevector amplitudes'
-														onPageChange={setStatevectorPage}
+														onPageChange={page => setStatevectorPage(Math.min(page, statevectorPageCount))}
 													/>
 												</>
 											)}
@@ -1038,7 +1030,7 @@ export function RunQuantumAnalysisSection({
 														</TableRow>
 													</TableHeader>
 													<TableBody>
-														{financialResult.top_correlations
+														{(financialResult.top_correlations ?? [])
 															.slice(0, 40)
 															.map((pair, idx) => (
 																<TableRow key={`${pair.col_a}-${pair.col_b}-${idx}`}>
@@ -1133,11 +1125,13 @@ export function RunQuantumAnalysisSection({
 														) : null}
 													</div>
 													<SectionPagination
-														page={densityMatrixPage}
+														page={safeDensityMatrixPage}
 														pageCount={densityMatrixPageCount}
 														totalItems={densityMatrixEntries.length}
 														itemLabel='density matrices'
-														onPageChange={setDensityMatrixPage}
+														onPageChange={page =>
+															setDensityMatrixPage(Math.min(page, densityMatrixPageCount))
+														}
 													/>
 												</>
 											)}

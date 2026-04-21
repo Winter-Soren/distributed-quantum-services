@@ -107,7 +107,7 @@ export function placeFromPalette(
 	if (columnIndex < 0 || columnIndex >= next.columns.length) return state;
 	if (qubitIndex < 0 || qubitIndex >= n) return state;
 
-	let col = next.columns[columnIndex]!.map(c => ({ ...c })) as CircuitCell[];
+	const col = next.columns[columnIndex]!.map(c => ({ ...c })) as CircuitCell[];
 
 	const clearQubit = (q: number) => {
 		const prev = col[q];

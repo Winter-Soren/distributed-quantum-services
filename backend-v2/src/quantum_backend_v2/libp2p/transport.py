@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 _STOP_POLL_INTERVAL = 0.5  # seconds
 _BOOTSTRAP_CONNECT_RETRIES = 20
 _BOOTSTRAP_CONNECT_RETRY_DELAY_SECONDS = 0.5
+_ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS = 5
 
 
 class LibP2pNetworkThread:
@@ -187,6 +188,7 @@ class LibP2pNetworkThread:
         """Publish a PeerHeartbeat on a fixed interval."""
         host = self._runtime.host
         settings = self._settings
+        heartbeat_count = 0
 
         while True:
             heartbeat = PeerHeartbeat(
@@ -204,10 +206,18 @@ class LibP2pNetworkThread:
                 logger.debug("heartbeat published for peer %s", heartbeat.peer_id)
             except Exception:
                 logger.exception("failed to publish heartbeat")
+            heartbeat_count += 1
+            if heartbeat_count % _ADVERTISEMENT_REFRESH_EVERY_HEARTBEATS == 0:
+                await self._publish_advertisement(pubsub, reason="periodic")
             await trio.sleep(settings.heartbeat_interval_seconds)
 
-    async def _publish_advertisement(self, pubsub: object) -> None:
-        """Publish the initial PeerAdvertisement on startup."""
+    async def _publish_advertisement(
+        self,
+        pubsub: object,
+        *,
+        reason: str = "initial",
+    ) -> None:
+        """Publish a PeerAdvertisement for startup and periodic refresh."""
         host = self._runtime.host
         settings = self._settings
 
@@ -232,12 +242,13 @@ class LibP2pNetworkThread:
                 advertisement.model_dump_json().encode(),
             )
             logger.info(
-                "initial advertisement published (peer_id=%s, addrs=%d)",
+                "%s advertisement published (peer_id=%s, addrs=%d)",
+                reason,
                 advertisement.peer_id,
                 len(advertisement.network_addresses),
             )
         except Exception:
-            logger.exception("failed to publish initial advertisement")
+            logger.exception("failed to publish %s advertisement", reason)
 
     async def _connect_bootstrap_peers(self, host: object) -> None:
         if not self._settings.bootstrap_peers:

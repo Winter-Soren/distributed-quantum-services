@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from quantum_backend_v2.reservations.models import (
@@ -101,6 +103,18 @@ class TestReservationStateTransitions:
         assert accepted.workflow_run_id == state.workflow_run_id
         assert accepted.fragment_id == state.fragment_id
         assert accepted.service_id == state.service_id
+
+    def test_apply_can_preserve_replayed_timestamp(self) -> None:
+        state = self._initial_state()
+        replayed_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+        accepted = state.apply(
+            ReservationTransition.ACCEPTED,
+            accepting_peer_id="peer-worker-01",
+            occurred_at=replayed_at,
+        )
+
+        assert accepted.last_event_at == replayed_at
 
 
 class TestReservationConflictState:

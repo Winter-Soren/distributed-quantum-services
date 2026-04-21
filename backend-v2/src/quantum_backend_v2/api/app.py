@@ -26,6 +26,7 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
 from quantum_backend_v2.persistence import PersistenceRuntime
 from quantum_backend_v2.reservations.service import ReservationService
+from quantum_backend_v2.runtime.recovery import RuntimeRecoveryService
 
 
 def create_app(
@@ -38,15 +39,33 @@ def create_app(
     circuit_job_service: CircuitJobService | None,
     financial_job_service: FinancialJobService | None,
     reservation_service: ReservationService | None = None,
+    runtime_recovery_service: RuntimeRecoveryService | None = None,
 ) -> FastAPI:
     """Create the backend-v2 FastAPI application."""
-    configure_auth(enabled=settings.auth_required)
+    configure_auth(
+        enabled=settings.auth_required,
+        allow_dev_bearer_tokens=settings.allow_dev_bearer_tokens,
+    )
     started_monotonic = time.monotonic()
+    postgres_session_factory = persistence_runtime.postgres_session_factory
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> Any:
+    async def lifespan(app: FastAPI) -> Any:
         await persistence_runtime.startup()
-        discovery_service.start()
+        if runtime_recovery_service is not None:
+            open_reservations = await runtime_recovery_service.recover_open_reservations()
+            in_flight_executions = await runtime_recovery_service.recover_in_flight_executions()
+            app.state.runtime_recovery = {
+                "open_reservations": open_reservations,
+                "in_flight_executions": in_flight_executions,
+            }
+        else:
+            app.state.runtime_recovery = {
+                "open_reservations": [],
+                "in_flight_executions": [],
+            }
+
+        await discovery_service.start()
         try:
             yield
         finally:
@@ -83,12 +102,16 @@ def create_app(
         )
     )
     app.include_router(discovery_router(discovery_service=discovery_service))
-    app.include_router(
-        build_enrollment_router(session_factory=persistence_runtime.postgres_session_factory)
-    )
-    app.include_router(
-        build_workflows_router(session_factory=persistence_runtime.postgres_session_factory)
-    )
+    if postgres_session_factory is not None:
+        app.include_router(
+            build_enrollment_router(session_factory=postgres_session_factory)
+        )
+        app.include_router(
+            build_workflows_router(
+                session_factory=postgres_session_factory,
+                mongo_runtime=persistence_runtime.mongodb,
+            )
+        )
     if circuit_job_service is not None:
         app.include_router(build_circuits_router(job_service=circuit_job_service))
     app.include_router(build_services_router(discovery_service=discovery_service))
@@ -97,7 +120,12 @@ def create_app(
     if financial_job_service is not None:
         app.include_router(build_financial_router(financial_job_service=financial_job_service))
 
-    if reservation_service is not None:
-        app.include_router(build_reservations_router(reservation_service=reservation_service))
+    if reservation_service is not None and postgres_session_factory is not None:
+        app.include_router(
+            build_reservations_router(
+                reservation_service=reservation_service,
+                session_factory=postgres_session_factory,
+            )
+        )
 
     return app

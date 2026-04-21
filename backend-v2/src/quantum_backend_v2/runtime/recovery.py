@@ -127,6 +127,7 @@ def _replay_execution_states(
             fragment_id=first.fragment_id,
             service_id=first.service_id,
             executing_peer_id=first.executing_peer_id,
+            retry_attempt=first.retry_attempt,
             last_event_at=first.occurred_at,
         )
         for evt in sorted_evts[1:]:
@@ -139,7 +140,8 @@ def _replay_execution_states(
                     kwargs["latency_ms"] = evt.latency_ms
                 if evt.error_detail is not None:
                     kwargs["error_detail"] = evt.error_detail
-                state = state.apply(transition, **kwargs)
+                kwargs["retry_attempt"] = evt.retry_attempt
+                state = state.apply(transition, occurred_at=evt.occurred_at, **kwargs)
             except ValueError:
                 logger.warning(
                     "recovery: skipping invalid transition %s for execution %s",
@@ -177,7 +179,7 @@ def _replay_reservation_states(
                 kwargs: dict[str, Any] = {}
                 if evt.accepting_peer_id:
                     kwargs["accepting_peer_id"] = evt.accepting_peer_id
-                state = state.apply(transition, **kwargs)
+                state = state.apply(transition, occurred_at=evt.occurred_at, **kwargs)
             except ValueError:
                 logger.warning(
                     "recovery: skipping invalid transition %s for reservation %s",

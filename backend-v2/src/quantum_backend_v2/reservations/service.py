@@ -48,6 +48,11 @@ class ReservationService:
         """Append a REQUESTED event and return the initial state."""
         idem_key = idempotency_key or uuid.uuid4().hex
         async with self._session_factory() as session:
+            existing_by_idempotency = await _load_state_by_idempotency_key(session, idem_key)
+            if existing_by_idempotency is not None:
+                logger.info("reservation idempotency hit for key %s", idem_key)
+                return existing_by_idempotency
+
             existing = await _load_state(session, reservation_id)
             if existing is not None:
                 logger.info("reservation %s already exists — skipping", reservation_id)
@@ -230,9 +235,24 @@ async def _load_state(
         kwargs: dict[str, Any] = {}
         if event.accepting_peer_id:
             kwargs["accepting_peer_id"] = event.accepting_peer_id
-        state = state.apply(transition, **kwargs)
+        state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
 
     return state
+
+
+async def _load_state_by_idempotency_key(
+    session: AsyncSession,
+    idempotency_key: str,
+) -> ReservationState | None:
+    result = await session.execute(
+        select(ReservationEventRecord).where(
+            ReservationEventRecord.idempotency_key == idempotency_key
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    return await _load_state(session, record.reservation_id)
 
 
 async def _require_state(

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from quantum_backend_v2.api.deps.auth import CurrentUser, require_admin
+from quantum_backend_v2.api.deps.auth import AdminUser, CurrentUser
 from quantum_backend_v2.api.deps.pagination import PageParams, PagedResponse
 from quantum_backend_v2.api.errors.models import not_found
 from quantum_backend_v2.api.models.enrollment import (
@@ -50,6 +50,8 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
                     session=session,
                     peer_id=body.peer_id,
                     owner_user_id=current_user.user_id,
+                    actor_user_id=current_user.user_id,
+                    actor_can_manage_foreign=current_user.is_admin(),
                     trust_tier=body.trust_tier,
                     capability_summary=body.capability_summary,
                 )
@@ -74,18 +76,16 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
                 stmt = stmt.where(PeerEnrollmentRecord.enrollment_status == status_filter)
             if not current_user.is_admin():
                 stmt = stmt.where(PeerEnrollmentRecord.owner_user_id == current_user.user_id)
+
             result = await session.execute(
                 stmt.offset(pagination.offset).limit(pagination.limit)
             )
             records = result.scalars().all()
-            count_result = await session.execute(
-                select(PeerEnrollmentRecord).where(
-                    PeerEnrollmentRecord.owner_user_id == current_user.user_id
-                    if not current_user.is_admin()
-                    else PeerEnrollmentRecord.id.isnot(None)
-                )
+
+            total_result = await session.execute(
+                select(func.count()).select_from(stmt.subquery())
             )
-            total = len(count_result.scalars().all())
+            total = int(total_result.scalar_one())
 
         return EnrollmentListResponse(
             enrollments=[_to_response(r) for r in records],
@@ -123,7 +123,7 @@ def build_enrollment_router(*, session_factory: object) -> APIRouter:
     async def enrollment_action(
         peer_id: str,
         body: EnrollmentActionRequest,
-        _admin: CurrentUser = require_admin,  # type: ignore[assignment]
+        _admin: AdminUser,
     ) -> EnrollmentResponse:
         async with _session() as session:  # type: ignore[attr-defined]
             async with session.begin():

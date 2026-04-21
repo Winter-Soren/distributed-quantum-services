@@ -49,7 +49,11 @@ def build_circuits_router(*, job_service: CircuitJobService) -> APIRouter:
         limit: int = Query(default=50, ge=1, le=200),
         status: list[str] | None = Query(default=None),
     ) -> list[JobListItemResponse]:
-        runs = await job_service.list_jobs(limit=limit, statuses=status)
+        runs = await job_service.list_jobs(
+            current_user=current_user,
+            limit=limit,
+            statuses=status,
+        )
         return [
             JobListItemResponse(
                 job_id=run.id,
@@ -77,7 +81,7 @@ def build_circuits_router(*, job_service: CircuitJobService) -> APIRouter:
         current_user: CurrentUser,
         result_detail: str = Query(default="full", pattern="^(full|summary)$"),
     ) -> JobStatusResponse:
-        run = await job_service.get_job(job_id)
+        run = await job_service.get_job(job_id, current_user=current_user)
         if run is None:
             raise not_found("Job", job_id)
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from quantum_backend_v2.api.deps.auth import require_authenticated
 from quantum_backend_v2.api.models.discovery import (
     NetworkTopologyResponse,
     PeerDetail,
@@ -19,7 +20,11 @@ from quantum_backend_v2.discovery.service import DiscoveryService
 
 def build_discovery_router(*, discovery_service: DiscoveryService) -> APIRouter:
     """Build the discovery router, capturing the service via closure."""
-    router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
+    router = APIRouter(
+        prefix="/api/v1/discovery",
+        tags=["discovery"],
+        dependencies=[Depends(require_authenticated)],
+    )
     quality_tracker = ServiceQualityTracker()
 
     def _registry() -> PeerRegistry:

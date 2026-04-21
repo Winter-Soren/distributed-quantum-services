@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.anyio
 
+from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.routers.discovery import build_discovery_router
 from quantum_backend_v2.config.models import Libp2pSettings
 from quantum_backend_v2.discovery.registry import PeerRegistry, PeerRegistryEntry
@@ -80,6 +81,13 @@ def app_with_two_peers():
     app = FastAPI()
     app.include_router(router)
     return app
+
+
+@pytest.fixture(autouse=True)
+def auth_disabled():
+    configure_auth(enabled=False)
+    yield
+    configure_auth(enabled=True)
 
 
 class TestListPeersEndpoint:

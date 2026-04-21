@@ -22,7 +22,7 @@ def build_plans_router(*, job_service: CircuitJobService) -> APIRouter:
         plan_id: str,
         current_user: CurrentUser,
     ) -> ExecutionPlanResponse:
-        plan_record = await job_service.get_plan(plan_id)
+        plan_record = await job_service.get_plan(plan_id, current_user=current_user)
         if plan_record is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

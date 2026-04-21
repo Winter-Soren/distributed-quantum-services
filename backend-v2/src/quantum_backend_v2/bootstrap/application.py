@@ -13,6 +13,8 @@ from quantum_backend_v2.config import load_settings
 from quantum_backend_v2.bootstrap.persistence import create_persistence_runtime
 from quantum_backend_v2.discovery.service import build_discovery_service
 from quantum_backend_v2.observability import configure_logging
+from quantum_backend_v2.reservations.service import ReservationService
+from quantum_backend_v2.runtime.recovery import RuntimeRecoveryService
 
 
 def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
@@ -26,10 +28,14 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         settings=settings.libp2p,
         libp2p_runtime=libp2p_runtime,
         mongo_runtime=persistence_runtime.mongodb,
+        session_factory=persistence_runtime.postgres_session_factory,
+        enforce_enrollment=settings.auth_required,
     )
     session_factory = persistence_runtime.postgres_session_factory
     circuit_job_service = None
     financial_job_service = None
+    reservation_service = None
+    runtime_recovery_service = None
     if session_factory is not None:
         circuit_job_service = CircuitJobService(
             session_factory=session_factory,
@@ -38,7 +44,11 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         )
         financial_job_service = FinancialJobService(
             session_factory=session_factory,
+            discovery_service=discovery_service,
+            libp2p_runtime=libp2p_runtime,
         )
+        reservation_service = ReservationService(session_factory=session_factory)
+        runtime_recovery_service = RuntimeRecoveryService(session_factory=session_factory)
     return create_app(
         settings,
         persistence_runtime=persistence_runtime,
@@ -47,4 +57,6 @@ def create_application(env: Mapping[str, str] | None = None) -> FastAPI:
         discovery_service=discovery_service,
         circuit_job_service=circuit_job_service,
         financial_job_service=financial_job_service,
+        reservation_service=reservation_service,
+        runtime_recovery_service=runtime_recovery_service,
     )

@@ -151,7 +151,7 @@ const panelData: Record<string, { group: string; items: string[] }[]> = {
 	],
 	analytics: [
 		{ group: 'Analytics', items: ['Measurements', 'Geometry', 'Deep State', 'Comparisons'] },
-		{ group: 'Insights', items: ['Trend Explorer', 'Anomalies', 'Forecasts'] }
+		{ group: 'Insights', items: ['Efficient Frontier', 'State Ranking', 'Solver Diagnostics'] }
 	],
 	docs: [
 		{ group: 'Documentation', items: ['System Docs', 'Roadmap', 'API Reference'] },
@@ -176,12 +176,10 @@ const runsProjectsItemHref: Record<string, string> = {
 /** Financial submenu under Runs → Projects (hash matches analytics tabs). */
 const FINANCIAL_SUBMENU_LINKS: { label: string; href: string }[] = [
 	{ label: 'Upload & Analyse', href: '/finance' },
-	{ label: 'Column Profiles', href: '/finance#profiles' },
-	{ label: 'Correlations', href: '/finance#correlations' },
-	{ label: 'Trends', href: '/finance#trends' },
-	{ label: 'DCF Valuation', href: '/finance#dcf' },
-	{ label: 'Anomalies', href: '/finance#anomalies' },
-	{ label: 'Execution', href: '/finance#execution' }
+	{ label: 'Benchmark', href: '/finance#benchmark' },
+	{ label: 'Frontier', href: '/finance#frontier' },
+	{ label: 'Execution', href: '/finance#execution' },
+	{ label: 'Top States', href: '/finance#states' }
 ];
 
 function financialSubLinkIsActive(href: string, pathname: string, hash: string): boolean {
@@ -194,7 +192,7 @@ function financialSubLinkIsActive(href: string, pathname: string, hash: string):
 const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
 	'Upload & Analyse': FlameIcon,
 	'Recent Jobs': ClipboardListIcon,
-	'DCF Valuation': BarChart3Icon,
+	Benchmark: BarChart3Icon,
 	Scenarios: BoxIcon,
 	Correlations: ActivityIcon,
 	Overview: LayoutDashboardIcon,
@@ -223,9 +221,11 @@ const SIDEBAR_ITEM_ICONS: Record<string, LucideIcon> = {
 	Geometry: BoxIcon,
 	'Deep State': BrainIcon,
 	Comparisons: BarChart3Icon,
-	'Trend Explorer': LineChartIcon,
-	Anomalies: AlertTriangleIcon,
-	Forecasts: LineChartIcon,
+	'Efficient Frontier': LineChartIcon,
+	'State Ranking': ActivityIcon,
+	'Solver Diagnostics': AlertTriangleIcon,
+	Frontier: LineChartIcon,
+	'Top States': ActivityIcon,
 	'System Docs': BookOpenIcon,
 	Roadmap: MapIcon,
 	'API Reference': FileCodeIcon,

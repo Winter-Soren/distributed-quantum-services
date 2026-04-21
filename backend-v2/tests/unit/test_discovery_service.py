@@ -66,7 +66,7 @@ class TestDiscoveryServiceLifecycle:
             libp2p_runtime=mock_runtime,
             mongo_runtime=None,
         )
-        service.start()
+        await service.start()
 
         # Registry is accessible after start
         assert service.registry is not None
@@ -81,9 +81,9 @@ class TestDiscoveryServiceLifecycle:
             libp2p_runtime=mock_runtime,
             mongo_runtime=None,
         )
-        service.start()
+        await service.start()
         first_registry = service.registry
-        service.start()  # second call is a no-op
+        await service.start()  # second call is a no-op
         assert service.registry is first_registry
         await service.stop()
 
@@ -117,7 +117,7 @@ class TestDiscoveryServiceDrainLoop:
             libp2p_runtime=mock_runtime,
             mongo_runtime=None,
         )
-        service.start()
+        await service.start()
 
         # Manually inject an event into the shared queue (bypassing the thread)
         event = _make_hb_event("remote-peer-x")
@@ -139,7 +139,7 @@ class TestDiscoveryServiceDrainLoop:
             libp2p_runtime=mock_runtime,
             mongo_runtime=None,
         )
-        service.start()
+        await service.start()
 
         for i in range(5):
             service._event_queue.put_nowait(_make_hb_event(f"peer-{i}"))
@@ -229,6 +229,7 @@ class TestLibp2pSettingsDefaults:
             "QB2_LIBP2P_ACTIVATE_LISTENERS": "false",
             "QB2_LIBP2P_DEV_SERVICE_PEER_COUNT": "4",
             "QB2_LIBP2P_DEV_SERVICE_BASE_PORT": "4121",
+            "QB2_ALLOW_DEV_BEARER_TOKENS": "true",
         }
         settings = AppSettings.from_env(env)
         assert settings.libp2p.heartbeat_interval_seconds == 120
@@ -236,3 +237,4 @@ class TestLibp2pSettingsDefaults:
         assert settings.libp2p.activate_listeners is False
         assert settings.libp2p.dev_service_peer_count == 4
         assert settings.libp2p.dev_service_base_port == 4121
+        assert settings.allow_dev_bearer_tokens is True

@@ -54,12 +54,17 @@ const DagFragmentNodeComponent = memo(function DagFragmentNodeComponent({
 }: NodeProps<DagFragmentFlowNode>) {
 	const style = FRAGMENT_SERVICE_STYLES[data.serviceType] ?? FRAGMENT_SERVICE_STYLES.bell_pair;
 	const isActive = selected || data.isFocused;
+	const status = data.status?.toUpperCase() ?? null;
 	const statusLabel =
-		data.status === 'SUCCESS' ? 'Completed' : data.status === 'FAILED' ? 'Failed' : (data.status ?? 'Pending');
+		status === 'SUCCESS' || status === 'COMPLETED'
+			? 'Completed'
+			: status === 'FAILED'
+				? 'Failed'
+				: (data.status ?? 'Pending');
 	const statusClass =
-		data.status === 'SUCCESS'
+		status === 'SUCCESS' || status === 'COMPLETED'
 			? 'border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-400/10 dark:text-emerald-200'
-			: data.status === 'FAILED'
+			: status === 'FAILED'
 				? 'border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:bg-rose-400/10 dark:text-rose-200'
 				: 'border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:bg-slate-400/10 dark:text-slate-200';
 

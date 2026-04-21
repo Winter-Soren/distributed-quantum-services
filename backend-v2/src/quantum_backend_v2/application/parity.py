@@ -1,27 +1,21 @@
-"""Parity-focused services for backend-v2 circuit and finance endpoints.
-
-These services replace the placeholder in-memory router state with durable
-Postgres-backed records while backend-v2 finishes its native execution stack.
-"""
+"""Durable parity services for circuit and finance endpoints."""
 
 from __future__ import annotations
 
-import csv
-import io
-import statistics
-import sys
+import copy
+import time
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
-from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 
-from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
-from quantum_backend_v2.discovery.service import DiscoveryService
-from quantum_backend_v2.libp2p import Libp2pRuntime
+from quantum_backend_v2.application.financial_portfolio import (
+    PortfolioOptimizationConfig,
+    build_portfolio_optimization_artifacts,
+)
+from quantum_backend_v2.application.quantum_bridge import QuantumExecutionBridge
+from quantum_backend_v2.identity.models import UserTokenClaims
 from quantum_backend_v2.persistence.postgres import (
     ExecutionPlanRecord,
     FinancialJobRecord,
@@ -44,73 +38,11 @@ _FIN_STATUS_ANALYZING = "analyzing"
 _FIN_STATUS_COMPLETED = "completed"
 _FIN_STATUS_FAILED = "failed"
 _TERMINAL_FINANCIAL_STATUSES = {_FIN_STATUS_COMPLETED, _FIN_STATUS_FAILED}
+_FINANCIAL_PROBLEM_TYPE = "portfolio_optimization"
 
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
-
-
-def _load_backend_bridge() -> dict[str, Any]:
-    backend_src = _repo_root() / "backend" / "src"
-    backend_src_str = str(backend_src)
-    if backend_src_str not in sys.path:
-        sys.path.insert(0, backend_src_str)
-
-    from quantum_coordinator.planning.dag import build_operation_dependencies, topological_order
-    from quantum_coordinator.planning.fragments import build_fragments
-    from quantum_coordinator.planning.models import (
-        CandidateScore,
-        ExecutionPlan,
-        FragmentAssignment,
-    )
-    from quantum_coordinator.planning.parser import (
-        CircuitNormalizationError,
-        normalize_circuit_input,
-    )
-    from quantum_coordinator.runtime.models import (
-        FragmentExecutionResult,
-        FragmentExecutionStatus,
-    )
-    from quantum_coordinator.runtime.qiskit_results import build_quantum_result
-
-    return {
-        "CandidateScore": CandidateScore,
-        "CircuitNormalizationError": CircuitNormalizationError,
-        "ExecutionPlan": ExecutionPlan,
-        "FragmentAssignment": FragmentAssignment,
-        "FragmentExecutionResult": FragmentExecutionResult,
-        "FragmentExecutionStatus": FragmentExecutionStatus,
-        "build_fragments": build_fragments,
-        "build_operation_dependencies": build_operation_dependencies,
-        "build_quantum_result": build_quantum_result,
-        "normalize_circuit_input": normalize_circuit_input,
-        "topological_order": topological_order,
-    }
-
-
-def sanitize_json(value: Any) -> Any:
-    """Convert runtime values into JSON-friendly payloads."""
-    if isinstance(value, dict):
-        return {str(key): sanitize_json(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [sanitize_json(item) for item in value]
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, complex):
-        return {"real": value.real, "imag": value.imag}
-    return value
-
-
-@dataclass(frozen=True)
-class ServiceCandidate:
-    node_id: str
-    fidelity: float
 
 
 class CircuitJobService:
@@ -120,16 +52,16 @@ class CircuitJobService:
         self,
         *,
         session_factory: Any,
-        discovery_service: DiscoveryService,
-        libp2p_runtime: Libp2pRuntime,
+        discovery_service: Any,
+        libp2p_runtime: Any,
     ) -> None:
         if session_factory is None:
             raise RuntimeError("CircuitJobService requires a configured Postgres session factory")
         self._session_factory = session_factory
-        self._discovery_service = discovery_service
-        self._libp2p_runtime = libp2p_runtime
-        self._quality = ServiceQualityTracker()
-        self._bridge = _load_backend_bridge()
+        self._quantum_bridge = QuantumExecutionBridge(
+            discovery_service=discovery_service,
+            libp2p_runtime=libp2p_runtime,
+        )
 
     async def submit(
         self,
@@ -140,7 +72,7 @@ class CircuitJobService:
         job_id = f"job-{uuid.uuid4()}"
         now = _utc_now()
         async with self._session_factory() as session:
-            await self._ensure_platform_user(session, owner_user_id)
+            await _ensure_platform_user(session, owner_user_id)
             record = WorkflowRunRecord(
                 id=job_id,
                 workflow_definition_id=_CIRCUIT_WORKFLOW_DEFINITION_ID,
@@ -175,9 +107,11 @@ class CircuitJobService:
             await session.refresh(record)
 
         partial_results: list[dict[str, Any]] = []
+        runtime_fragment_results: list[Any] = []
         try:
-            plan = self._compile_plan(record.input_snapshot.get("circuit", ""))
-            plan_payload = self.serialize_plan(plan)
+            circuit_text = str(record.input_snapshot.get("circuit", ""))
+            plan = self._quantum_bridge.compile_plan(circuit_text)
+            plan_payload = self._quantum_bridge.serialize_plan(plan)
 
             async with self._session_factory() as session:
                 plan_record = ExecutionPlanRecord(
@@ -197,31 +131,13 @@ class CircuitJobService:
                 record.output_snapshot = {}
                 await session.commit()
 
-            fragment_result_type = self._bridge["FragmentExecutionResult"]
-            fragment_status_type = self._bridge["FragmentExecutionStatus"]
-
-            runtime_fragment_results = []
-            for index, fragment_id in enumerate(plan.fragment_order, start=1):
-                fragment = plan.fragments[fragment_id]
-                assignment = plan.assignments[fragment_id]
-                started_at = _utc_now()
-                finished_at = _utc_now()
-                fidelity = self._quality.get_service_fidelity(
-                    fragment.service_type.value,
-                    peer_id=assignment.primary_node_id,
-                )
-                fragment_result = fragment_result_type(
-                    fragment_id=fragment.fragment_id,
-                    node_id=assignment.primary_node_id,
-                    status=fragment_status_type.SUCCESS,
-                    attempts=1,
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    observed_fidelity=fidelity,
-                    error=None,
-                )
+            for index, fragment_result in enumerate(
+                self._quantum_bridge.iter_fragment_results(plan),
+                start=1,
+            ):
                 runtime_fragment_results.append(fragment_result)
-                partial_results.append(self.serialize_fragment_result(fragment_result))
+                serialized_result = self._quantum_bridge.serialize_fragment_result(fragment_result)
+                partial_results.append(serialized_result)
 
                 async with self._session_factory() as session:
                     record = await session.get(WorkflowRunRecord, job_id)
@@ -230,15 +146,13 @@ class CircuitJobService:
                     record.completed_fragments = index
                     record.output_snapshot = {
                         "fragment_results": partial_results,
-                        "latest_event_at": finished_at.isoformat(),
+                        "latest_event_at": serialized_result["finished_at"],
                     }
                     await session.commit()
 
-            quantum_result = sanitize_json(
-                self._bridge["build_quantum_result"](
-                    plan,
-                    fragment_results=tuple(runtime_fragment_results),
-                )
+            quantum_result = self._quantum_bridge.build_quantum_result(
+                plan=plan,
+                fragment_results=tuple(runtime_fragment_results),
             )
 
             async with self._session_factory() as session:
@@ -275,6 +189,7 @@ class CircuitJobService:
     async def list_jobs(
         self,
         *,
+        current_user: UserTokenClaims,
         limit: int,
         statuses: list[str] | None = None,
     ) -> list[WorkflowRunRecord]:
@@ -290,16 +205,43 @@ class CircuitJobService:
             )
             if statuses:
                 stmt = stmt.where(WorkflowRunRecord.status.in_(statuses))
+            if not current_user.is_admin():
+                stmt = stmt.where(WorkflowRunRecord.owner_user_id == current_user.user_id)
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
-    async def get_job(self, job_id: str) -> WorkflowRunRecord | None:
+    async def get_job(
+        self,
+        job_id: str,
+        *,
+        current_user: UserTokenClaims,
+    ) -> WorkflowRunRecord | None:
         async with self._session_factory() as session:
-            return await session.get(WorkflowRunRecord, job_id)
+            stmt = select(WorkflowRunRecord).where(WorkflowRunRecord.id == job_id)
+            if not current_user.is_admin():
+                stmt = stmt.where(WorkflowRunRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
 
-    async def get_plan(self, plan_id: str) -> ExecutionPlanRecord | None:
+    async def get_plan(
+        self,
+        plan_id: str,
+        *,
+        current_user: UserTokenClaims,
+    ) -> ExecutionPlanRecord | None:
         async with self._session_factory() as session:
-            return await session.get(ExecutionPlanRecord, plan_id)
+            stmt = select(ExecutionPlanRecord).where(ExecutionPlanRecord.id == plan_id)
+            result = await session.execute(stmt)
+            plan_record = result.scalar_one_or_none()
+            if plan_record is None:
+                return None
+
+            run = await session.get(WorkflowRunRecord, plan_record.workflow_run_id)
+            if run is None:
+                return None
+            if current_user.is_admin() or run.owner_user_id == current_user.user_id:
+                return plan_record
+            return None
 
     def get_error(self, record: WorkflowRunRecord) -> str | None:
         raw = record.output_snapshot.get("error")
@@ -332,180 +274,39 @@ class CircuitJobService:
             "finalizing": record.status == _STATUS_EXECUTING and completed >= total > 0,
         }
 
-    def serialize_plan(self, plan: Any) -> dict[str, Any]:
-        return {
-            "plan_id": plan.plan_id,
-            "fragment_order": list(plan.fragment_order),
-            "fragments": {
-                fragment_id: {
-                    "fragment_id": fragment.fragment_id,
-                    "service_type": fragment.service_type.value,
-                    "qubits": list(fragment.qubits),
-                    "operation_ids": list(fragment.operation_ids),
-                    "dependencies": list(fragment.dependencies),
-                }
-                for fragment_id, fragment in plan.fragments.items()
-            },
-            "assignments": {
-                fragment_id: {
-                    "fragment_id": assignment.fragment_id,
-                    "primary_node_id": assignment.primary_node_id,
-                    "fallback_node_ids": list(assignment.fallback_node_ids),
-                    "candidates": [
-                        {
-                            "node_id": candidate.node_id,
-                            "total_cost": candidate.total_cost,
-                            "latency_cost": candidate.latency_cost,
-                            "failure_risk_cost": candidate.failure_risk_cost,
-                            "entanglement_cost": candidate.entanglement_cost,
-                            "load_cost": candidate.load_cost,
-                            "fidelity": candidate.fidelity,
-                        }
-                        for candidate in assignment.candidates
-                    ],
-                }
-                for fragment_id, assignment in plan.assignments.items()
-            },
-            "quality_snapshot_id": plan.quality_snapshot_id,
-        }
-
-    def serialize_fragment_result(self, fragment_result: Any) -> dict[str, Any]:
-        return {
-            "fragment_id": fragment_result.fragment_id,
-            "node_id": fragment_result.node_id,
-            "status": fragment_result.status.value,
-            "started_at": fragment_result.started_at.isoformat(),
-            "finished_at": fragment_result.finished_at.isoformat(),
-            "attempts": fragment_result.attempts,
-            "error": fragment_result.error,
-            "observed_fidelity": fragment_result.observed_fidelity,
-        }
-
-    def _compile_plan(self, circuit_text: str) -> Any:
-        normalize_circuit_input = self._bridge["normalize_circuit_input"]
-        build_operation_dependencies = self._bridge["build_operation_dependencies"]
-        build_fragments = self._bridge["build_fragments"]
-        topological_order = self._bridge["topological_order"]
-        candidate_score_type = self._bridge["CandidateScore"]
-        assignment_type = self._bridge["FragmentAssignment"]
-        execution_plan_type = self._bridge["ExecutionPlan"]
-
-        circuit = normalize_circuit_input(circuit_text)
-        dependencies = build_operation_dependencies(circuit)
-        fragments = build_fragments(circuit, dependencies)
-        fragment_order = topological_order(
-            {
-                fragment_id: fragment.dependencies
-                for fragment_id, fragment in fragments.items()
-            }
-        )
-
-        assignments = {}
-        for fragment_id in fragment_order:
-            fragment = fragments[fragment_id]
-            candidates = self._candidates_for_service(fragment.service_type.value)
-            if not candidates:
-                raise RuntimeError(
-                    "No available service provider for "
-                    f"{fragment.fragment_id} ({fragment.service_type.value})"
-                )
-
-            scored_candidates = tuple(
-                candidate_score_type(
-                    node_id=candidate.node_id,
-                    total_cost=round(1.0 - candidate.fidelity, 6),
-                    latency_cost=0.0,
-                    failure_risk_cost=round(1.0 - candidate.fidelity, 6),
-                    entanglement_cost=0.0,
-                    load_cost=0.0,
-                    fidelity=candidate.fidelity,
-                )
-                for candidate in candidates
-            )
-            primary = scored_candidates[0]
-            fallbacks = tuple(
-                candidate.node_id for candidate in scored_candidates[1:3]
-            )
-            assignments[fragment_id] = assignment_type(
-                fragment_id=fragment.fragment_id,
-                primary_node_id=primary.node_id,
-                fallback_node_ids=fallbacks,
-                candidates=scored_candidates,
-            )
-
-        return execution_plan_type(
-            plan_id=f"plan-{uuid.uuid4()}",
-            fragment_order=fragment_order,
-            fragments=fragments,
-            assignments=assignments,
-            quality_snapshot_id=f"quality-{_utc_now().isoformat()}",
-        )
-
-    def _candidates_for_service(self, service_type: str) -> list[ServiceCandidate]:
-        candidates: list[ServiceCandidate] = []
-        registry = self._discovery_service.registry
-        for peer in registry.list_peers(include_stale=False):
-            if peer.health_status != "healthy":
-                continue
-            if service_type not in peer.service_ids:
-                continue
-            candidates.append(
-                ServiceCandidate(
-                    node_id=peer.peer_id,
-                    fidelity=self._quality.get_service_fidelity(
-                        service_type, peer_id=peer.peer_id
-                    ),
-                )
-            )
-
-        if not candidates:
-            local_peer_id = str(self._libp2p_runtime.host.get_id())
-            candidates.append(
-                ServiceCandidate(
-                    node_id=local_peer_id,
-                    fidelity=self._quality.get_service_fidelity(
-                        service_type,
-                        peer_id=local_peer_id,
-                    ),
-                )
-            )
-
-        return sorted(candidates, key=lambda candidate: (-candidate.fidelity, candidate.node_id))
-
-    async def _ensure_platform_user(self, session: Any, user_id: str) -> None:
-        existing = await session.get(PlatformUserRecord, user_id)
-        if existing is not None:
-            return
-        session.add(
-            PlatformUserRecord(
-                id=user_id,
-                external_subject=f"local|{user_id}",
-                email=f"{user_id}@local.dev",
-                display_name=user_id,
-                is_active=True,
-            )
-        )
-        await session.flush()
-
 
 class FinancialJobService:
-    """Durable CSV analysis job service."""
+    """Durable Track B finance workflow service."""
 
-    def __init__(self, *, session_factory: Any) -> None:
+    def __init__(
+        self,
+        *,
+        session_factory: Any,
+        discovery_service: Any,
+        libp2p_runtime: Any,
+    ) -> None:
         if session_factory is None:
             raise RuntimeError("FinancialJobService requires a configured Postgres session factory")
         self._session_factory = session_factory
+        self._quantum_bridge = QuantumExecutionBridge(
+            discovery_service=discovery_service,
+            libp2p_runtime=libp2p_runtime,
+        )
 
     async def submit(
         self,
         *,
         filename: str,
-        owner_user_id: str | None,
+        owner_user_id: str,
+        problem_type: str,
+        config: PortfolioOptimizationConfig,
     ) -> FinancialJobRecord:
+        if problem_type != _FINANCIAL_PROBLEM_TYPE:
+            raise ValueError(f"Unsupported financial problem type '{problem_type}'.")
+
         job_id = f"fin-{uuid.uuid4()}"
         async with self._session_factory() as session:
-            if owner_user_id is not None:
-                await self._ensure_platform_user(session, owner_user_id)
+            await _ensure_platform_user(session, owner_user_id)
             record = FinancialJobRecord(
                 id=job_id,
                 owner_user_id=owner_user_id,
@@ -514,7 +315,10 @@ class FinancialJobService:
                 row_count=None,
                 col_count=None,
                 error=None,
-                result_payload=None,
+                result_payload={
+                    "problem_type": problem_type,
+                    "request": _submission_request_snapshot(config),
+                },
             )
             session.add(record)
             await session.commit()
@@ -522,6 +326,7 @@ class FinancialJobService:
             return record
 
     async def process(self, *, job_id: str, csv_bytes: bytes) -> None:
+        process_started_at = time.perf_counter()
         async with self._session_factory() as session:
             record = await session.get(FinancialJobRecord, job_id)
             if record is None or record.status in _TERMINAL_FINANCIAL_STATUSES:
@@ -530,7 +335,51 @@ class FinancialJobService:
             await session.commit()
 
         try:
-            result_payload = self._analyse_csv(csv_bytes)
+            async with self._session_factory() as session:
+                record = await session.get(FinancialJobRecord, job_id)
+                if record is None:
+                    return
+                config = _config_from_record(record)
+                filename = record.filename
+
+            artifacts = build_portfolio_optimization_artifacts(
+                csv_bytes=csv_bytes,
+                job_id=job_id,
+                filename=filename,
+                config=config,
+            )
+            plan = self._quantum_bridge.compile_plan(artifacts.circuit_qasm)
+            runtime_fragment_results = list(self._quantum_bridge.iter_fragment_results(plan))
+            serialized_fragment_results = [
+                self._quantum_bridge.serialize_fragment_result(fragment_result)
+                for fragment_result in runtime_fragment_results
+            ]
+            quantum_result = self._quantum_bridge.build_quantum_result(
+                plan=plan,
+                fragment_results=tuple(runtime_fragment_results),
+            )
+
+            result_payload = copy.deepcopy(artifacts.payload)
+            quantum_execution = result_payload.get("quantum_execution")
+            if not isinstance(quantum_execution, dict):
+                raise RuntimeError("Portfolio optimization payload did not include quantum execution details.")
+
+            quantum_execution.update(
+                {
+                    "plan": self._quantum_bridge.serialize_plan(plan),
+                    "fragment_results": serialized_fragment_results,
+                    "quantum_result": quantum_result,
+                }
+            )
+            result_payload["analysis_duration_ms"] = int(
+                (time.perf_counter() - process_started_at) * 1000
+            )
+            result_payload["distributed_nodes_used"] = len(
+                {row["node_id"] for row in serialized_fragment_results}
+            )
+            result_payload["fragments_executed"] = len(serialized_fragment_results)
+            result_payload["generated_at"] = _utc_now().isoformat()
+
             async with self._session_factory() as session:
                 record = await session.get(FinancialJobRecord, job_id)
                 if record is None:
@@ -550,94 +399,128 @@ class FinancialJobService:
                 record.error = str(exc)
                 await session.commit()
 
-    async def get_job(self, job_id: str) -> FinancialJobRecord | None:
+    async def get_job(
+        self,
+        job_id: str,
+        *,
+        current_user: UserTokenClaims,
+    ) -> FinancialJobRecord | None:
         async with self._session_factory() as session:
-            return await session.get(FinancialJobRecord, job_id)
+            stmt = select(FinancialJobRecord).where(FinancialJobRecord.id == job_id)
+            if not current_user.is_admin():
+                stmt = stmt.where(FinancialJobRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
 
-    async def list_jobs(self, *, limit: int) -> list[FinancialJobRecord]:
+    async def list_jobs(
+        self,
+        *,
+        current_user: UserTokenClaims,
+        limit: int,
+    ) -> list[FinancialJobRecord]:
         async with self._session_factory() as session:
             stmt = (
                 select(FinancialJobRecord)
                 .order_by(FinancialJobRecord.created_at.desc())
                 .limit(limit)
             )
+            if not current_user.is_admin():
+                stmt = stmt.where(FinancialJobRecord.owner_user_id == current_user.user_id)
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
-    def _analyse_csv(self, csv_bytes: bytes) -> dict[str, Any]:
-        text = csv_bytes.decode("utf-8-sig", errors="replace")
-        reader = csv.DictReader(io.StringIO(text))
-        headers = reader.fieldnames or []
-        rows = [dict(row) for row in reader]
+    def get_problem_type(self, record: FinancialJobRecord) -> str | None:
+        payload = record.result_payload or {}
+        raw_problem_type = payload.get("problem_type")
+        return str(raw_problem_type) if isinstance(raw_problem_type, str) else None
 
-        numeric_columns: list[str] = []
-        categorical_columns: list[str] = []
-        column_profiles: dict[str, dict[str, Any]] = {}
+    def get_result_payload(
+        self,
+        record: FinancialJobRecord,
+        *,
+        detail: str = "full",
+    ) -> dict[str, Any] | None:
+        if record.status != _FIN_STATUS_COMPLETED or record.result_payload is None:
+            return None
 
-        for header in headers:
-            values = [row.get(header, "") for row in rows]
-            numeric_values = [_coerce_number(value) for value in values if str(value).strip()]
-            parsed_numeric_values = [value for value in numeric_values if value is not None]
-            is_numeric = bool(parsed_numeric_values) and len(parsed_numeric_values) >= max(
-                1, len([value for value in values if str(value).strip()]) // 2
-            )
+        if detail == "summary":
+            return _build_financial_summary_payload(record.result_payload)
+        return copy.deepcopy(record.result_payload)
 
-            if is_numeric:
-                numeric_columns.append(header)
-                column_profiles[header] = {
-                    "kind": "numeric",
-                    "count": len(parsed_numeric_values),
-                    "min": min(parsed_numeric_values),
-                    "max": max(parsed_numeric_values),
-                    "mean": statistics.fmean(parsed_numeric_values),
-                }
-            else:
-                categorical_columns.append(header)
-                unique_values = sorted(
-                    {str(value).strip() for value in values if str(value).strip()}
-                )
-                column_profiles[header] = {
-                    "kind": "categorical",
-                    "count": len(unique_values),
-                    "sample_values": unique_values[:5],
-                }
 
-        row_count = len(rows)
-        col_count = len(headers)
+def _submission_request_snapshot(config: PortfolioOptimizationConfig) -> dict[str, Any]:
+    return {
+        "problem_type": _FINANCIAL_PROBLEM_TYPE,
+        "budget": config.budget,
+        "risk_aversion": config.risk_aversion,
+        "max_assets_considered": config.max_assets_considered,
+        "date_column": config.date_column,
+        "ticker_column": config.ticker_column,
+        "value_column": config.value_column,
+        "value_mode": config.value_mode,
+        "qaoa_reps": config.qaoa_reps,
+        "parameter_search_steps": config.parameter_search_steps,
+    }
 
-        return {
-            "summary": f"Processed {row_count} rows across {col_count} columns.",
-            "row_count": row_count,
-            "col_count": col_count,
-            "numeric_columns": numeric_columns,
-            "categorical_columns": categorical_columns,
-            "column_profiles": column_profiles,
-            "quantum_advantage_detected": False,
+
+def _build_financial_summary_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Trim heavyweight quantum result blobs without deep-copying the full finance payload."""
+    summary_payload = dict(payload)
+    quantum_execution = payload.get("quantum_execution")
+    if not isinstance(quantum_execution, dict):
+        return summary_payload
+
+    summary_quantum_execution = dict(quantum_execution)
+    quantum_result = quantum_execution.get("quantum_result")
+    if isinstance(quantum_result, dict):
+        summary_quantum_execution["quantum_result"] = {
+            key: value
+            for key, value in quantum_result.items()
+            if key not in {"probabilities", "statevector", "reduced_density_matrices"}
         }
+        summary_quantum_execution["quantum_result"]["probabilities"] = None
+        summary_quantum_execution["quantum_result"]["statevector"] = None
+        summary_quantum_execution["quantum_result"]["reduced_density_matrices"] = None
 
-    async def _ensure_platform_user(self, session: Any, user_id: str) -> None:
-        existing = await session.get(PlatformUserRecord, user_id)
-        if existing is not None:
-            return
-        session.add(
-            PlatformUserRecord(
-                id=user_id,
-                external_subject=f"local|{user_id}",
-                email=f"{user_id}@local.dev",
-                display_name=user_id,
-                is_active=True,
-            )
+    summary_payload["quantum_execution"] = summary_quantum_execution
+    return summary_payload
+
+
+def _config_from_record(record: FinancialJobRecord) -> PortfolioOptimizationConfig:
+    payload = record.result_payload or {}
+    request = payload.get("request")
+    if not isinstance(request, dict):
+        return PortfolioOptimizationConfig()
+
+    budget = request.get("budget")
+    return PortfolioOptimizationConfig(
+        budget=int(budget) if isinstance(budget, int) else None,
+        risk_aversion=float(request.get("risk_aversion", 0.5)),
+        max_assets_considered=int(request.get("max_assets_considered", 6)),
+        date_column=_to_optional_string(request.get("date_column")),
+        ticker_column=_to_optional_string(request.get("ticker_column")),
+        value_column=_to_optional_string(request.get("value_column")),
+        value_mode=str(request.get("value_mode", "auto")),
+        qaoa_reps=int(request.get("qaoa_reps", 1)),
+        parameter_search_steps=int(request.get("parameter_search_steps", 9)),
+    )
+
+
+def _to_optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+async def _ensure_platform_user(session: Any, user_id: str) -> None:
+    existing = await session.get(PlatformUserRecord, user_id)
+    if existing is not None:
+        return
+    session.add(
+        PlatformUserRecord(
+            id=user_id,
+            external_subject=f"local|{user_id}",
+            email=f"{user_id}@local.dev",
+            display_name=user_id,
+            is_active=True,
         )
-        await session.flush()
-
-
-def _coerce_number(value: str | None) -> float | None:
-    if value is None:
-        return None
-    normalized = value.replace(",", "").replace("$", "").replace("%", "").strip()
-    if not normalized:
-        return None
-    try:
-        return float(normalized)
-    except ValueError:
-        return None
+    )
+    await session.flush()

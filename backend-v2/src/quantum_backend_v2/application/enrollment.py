@@ -6,6 +6,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from quantum_backend_v2.api.errors.models import forbidden
 from quantum_backend_v2.identity.models import PeerTrustTier
 from quantum_backend_v2.persistence.postgres import (
     AsyncSession,
@@ -27,6 +28,8 @@ async def enroll_peer(
     session: AsyncSession,
     peer_id: str,
     owner_user_id: str | None,
+    actor_user_id: str,
+    actor_can_manage_foreign: bool = False,
     trust_tier: PeerTrustTier,
     capability_summary: dict[str, object],
 ) -> PeerEnrollmentRecord:
@@ -42,8 +45,17 @@ async def enroll_peer(
     existing = result.scalar_one_or_none()
 
     if existing is not None:
+        if (
+            existing.owner_user_id is not None
+            and existing.owner_user_id != actor_user_id
+            and not actor_can_manage_foreign
+        ):
+            raise forbidden(
+                f"Peer '{peer_id}' is already owned by another user and cannot be updated."
+            )
         existing.trust_tier = trust_tier.value
-        existing.owner_user_id = owner_user_id
+        if existing.owner_user_id is None:
+            existing.owner_user_id = owner_user_id
         existing.capability_summary = capability_summary
         existing.last_seen_at = datetime.now(timezone.utc)
         await session.flush()

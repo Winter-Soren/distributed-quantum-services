@@ -4,18 +4,20 @@ import type {
 	BackendPlanResponse
 } from '@/types/backend';
 import type {
-	ColumnProfile,
-	CorrelationPair,
-	DCFOutput,
 	FinancialAnalysisResult,
 	FinancialJobResponse,
 	FinancialJobStatus,
 	FinancialQuantumExecution,
-	NodeExecutionSegment,
-	QuantumFeatureMapping,
-	QuantumSignalSummary,
-	ScenarioOutput,
-	TimeSeriesInsight
+	PortfolioAssetMetrics,
+	PortfolioBenchmarkSummary,
+	PortfolioCircuitSummary,
+	PortfolioDatasetSummary,
+	PortfolioFrontierSummary,
+	PortfolioHamiltonianSummary,
+	PortfolioQaoaParameters,
+	PortfolioQuantumState,
+	PortfolioRequestSummary,
+	PortfolioSolverDiagnostics
 } from '@/types/financial';
 import type { BackendFinancialJobListItem } from '@/types/runs';
 
@@ -37,32 +39,12 @@ function asStringArray(value: unknown) {
 	return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-function asScalarArray(value: unknown) {
-	return Array.isArray(value)
-		? value.filter((item): item is string | number => typeof item === 'string' || typeof item === 'number')
-		: [];
-}
-
 function asObjectArray(value: unknown) {
 	return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
 function normalizeIsoDate(value: unknown, fallback: string) {
 	return asString(value)?.trim() || fallback;
-}
-
-function normalizeColumnType(value: unknown): ColumnProfile['dtype'] {
-	const normalized = asString(value)?.trim().toLowerCase();
-
-	if (normalized === 'datetime' || normalized === 'date' || normalized === 'time') {
-		return 'datetime';
-	}
-
-	if (normalized === 'numeric' || normalized === 'number') {
-		return 'numeric';
-	}
-
-	return 'categorical';
 }
 
 const FINANCIAL_STATUS_MAP: Record<string, FinancialJobStatus> = {
@@ -79,176 +61,221 @@ export function normalizeFinancialJobStatus(value: unknown): FinancialJobStatus 
 	return FINANCIAL_STATUS_MAP[normalized] ?? 'QUEUED';
 }
 
-function normalizeColumnProfileFromRecord(record: UnknownRecord, fallbackName: string): ColumnProfile {
-	const dtype = normalizeColumnType(record.dtype ?? record.kind);
-	const sampleValues = asScalarArray(record.sample_values);
-	const count = asNumber(record.count);
-	const nonNullCount = asNumber(record.non_null_count) ?? count ?? 0;
-	const uniqueCount = asNumber(record.unique_count) ?? (dtype === 'numeric' ? 0 : count ?? sampleValues.length);
-
-	return {
-		name: asString(record.name) ?? fallbackName,
-		dtype,
-		non_null_count: nonNullCount,
-		null_count: asNumber(record.null_count) ?? 0,
-		null_pct: asNumber(record.null_pct) ?? 0,
-		unique_count: uniqueCount,
-		sample_values: sampleValues,
-		mean: asNumber(record.mean) ?? undefined,
-		median: asNumber(record.median) ?? undefined,
-		std: asNumber(record.std) ?? undefined,
-		min: asNumber(record.min) ?? undefined,
-		max: asNumber(record.max) ?? undefined,
-		q1: asNumber(record.q1) ?? undefined,
-		q3: asNumber(record.q3) ?? undefined,
-		iqr: asNumber(record.iqr) ?? undefined,
-		skewness: asNumber(record.skewness) ?? undefined,
-		kurtosis: asNumber(record.kurtosis) ?? undefined,
-		cv: asNumber(record.cv) ?? undefined,
-		outlier_count: asNumber(record.outlier_count) ?? undefined,
-		outlier_pct: asNumber(record.outlier_pct) ?? undefined
-	};
-}
-
-function normalizeColumnProfiles(value: unknown) {
-	if (Array.isArray(value)) {
-		return asObjectArray(value).map((item, index) => normalizeColumnProfileFromRecord(item, `column_${index + 1}`));
+function normalizePortfolioDatasetSummary(
+	value: unknown,
+	{
+		rowCount,
+		colCount
+	}: {
+		rowCount: number;
+		colCount: number;
 	}
-
-	if (!isRecord(value)) {
-		return [];
-	}
-
-	return Object.entries(value).map(([name, profile]) =>
-		normalizeColumnProfileFromRecord(isRecord(profile) ? profile : {}, name)
-	);
-}
-
-function normalizeCorrelationPair(value: UnknownRecord): CorrelationPair {
-	const pearson = asNumber(value.pearson) ?? 0;
-	const direction = pearson >= 0 ? 'positive' : 'negative';
-	const strength =
-		asString(value.strength) === 'strong' || asString(value.strength) === 'moderate' || asString(value.strength) === 'weak'
-			? (value.strength as CorrelationPair['strength'])
-			: Math.abs(pearson) >= 0.7
-				? 'strong'
-				: Math.abs(pearson) >= 0.4
-					? 'moderate'
-					: 'weak';
-
-	return {
-		col_a: asString(value.col_a) ?? 'unknown_a',
-		col_b: asString(value.col_b) ?? 'unknown_b',
-		pearson,
-		strength,
-		direction:
-			asString(value.direction) === 'negative'
-				? 'negative'
-				: direction
-	};
-}
-
-function normalizeTimeSeriesInsight(value: UnknownRecord): TimeSeriesInsight {
-	return {
-		column: asString(value.column) ?? 'unknown',
-		trend:
-			asString(value.trend) === 'upward' ||
-			asString(value.trend) === 'downward' ||
-			asString(value.trend) === 'volatile'
-				? (value.trend as TimeSeriesInsight['trend'])
-				: 'flat',
-		trend_slope: asNumber(value.trend_slope) ?? 0,
-		volatility: asNumber(value.volatility) ?? 0,
-		period_avg: asNumber(value.period_avg) ?? 0,
-		period_high: asNumber(value.period_high) ?? 0,
-		period_low: asNumber(value.period_low) ?? 0,
-		momentum: asNumber(value.momentum) ?? 0,
-		cagr: asNumber(value.cagr) ?? undefined
-	};
-}
-
-function normalizeNodeExecutionSegment(value: UnknownRecord): NodeExecutionSegment {
-	return {
-		node_id: asString(value.node_id) ?? 'unknown-node',
-		task: asString(value.task) ?? 'unknown_task',
-		rows_processed: asNumber(value.rows_processed) ?? 0,
-		duration_ms: asNumber(value.duration_ms) ?? 0,
-		fidelity_score: asNumber(value.fidelity_score) ?? 0
-	};
-}
-
-function normalizeQuantumFeatureMapping(value: UnknownRecord, qubit: number): QuantumFeatureMapping {
-	return {
-		column: asString(value.column) ?? `q${qubit}`,
-		qubit: asNumber(value.qubit) ?? qubit,
-		mean_rotation: asNumber(value.mean_rotation) ?? 0,
-		volatility_rotation: asNumber(value.volatility_rotation) ?? 0,
-		momentum_rotation: asNumber(value.momentum_rotation) ?? 0,
-		anomaly_pressure: asNumber(value.anomaly_pressure) ?? 0,
-		correlation_degree: asNumber(value.correlation_degree) ?? 0
-	};
-}
-
-function normalizeQuantumSignalSummary(value: unknown, encodedColumns: string[]): QuantumSignalSummary {
-	const record = isRecord(value) ? value : {};
-	const columnActivation: Record<string, number> = isRecord(record.column_activation)
-		? Object.entries(record.column_activation).reduce<Record<string, number>>((acc, [column, activation]) => {
-				if (typeof activation === 'number' && Number.isFinite(activation)) {
-					acc[column] = activation;
-				}
-
-				return acc;
-			}, {})
-		: encodedColumns.reduce<Record<string, number>>((acc, column) => {
-				acc[column] = 0;
-				return acc;
-			}, {});
-
-	return {
-		qubit_count: asNumber(record.qubit_count) ?? encodedColumns.length,
-		encoded_columns: encodedColumns,
-		dominant_state: asString(record.dominant_state) ?? null,
-		dominant_state_probability: asNumber(record.dominant_state_probability),
-		concentration_score: asNumber(record.concentration_score) ?? 0,
-		entanglement_score: asNumber(record.entanglement_score) ?? 0,
-		interference_score: asNumber(record.interference_score) ?? 0,
-		execution_fidelity: asNumber(record.execution_fidelity),
-		column_activation: columnActivation
-	};
-}
-
-function normalizeScenarioOutput(value: unknown, label: string): ScenarioOutput {
+): PortfolioDatasetSummary {
 	const record = isRecord(value) ? value : {};
 	return {
-		label: asString(record.label) ?? label,
-		revenue_projection: asNumber(record.revenue_projection) ?? 0,
-		margin_projection: asNumber(record.margin_projection) ?? 0,
-		valuation_estimate: asNumber(record.valuation_estimate) ?? 0,
-		growth_rate: asNumber(record.growth_rate) ?? 0,
-		discount_rate: asNumber(record.discount_rate) ?? 0,
-		terminal_value: asNumber(record.terminal_value) ?? 0
+		input_layout: asString(record.input_layout) === 'wide' ? 'wide' : 'long',
+		row_count: asNumber(record.row_count) ?? rowCount,
+		col_count: asNumber(record.col_count) ?? colCount,
+		period_count: asNumber(record.period_count) ?? 0,
+		raw_asset_count: asNumber(record.raw_asset_count) ?? 0,
+		asset_count: asNumber(record.asset_count) ?? 0,
+		start_date: normalizeIsoDate(record.start_date, new Date(0).toISOString()),
+		end_date: normalizeIsoDate(record.end_date, new Date(0).toISOString()),
+		inferred_frequency:
+			asString(record.inferred_frequency) === 'daily' ||
+			asString(record.inferred_frequency) === 'weekly' ||
+			asString(record.inferred_frequency) === 'monthly' ||
+			asString(record.inferred_frequency) === 'quarterly' ||
+			asString(record.inferred_frequency) === 'yearly'
+				? (record.inferred_frequency as PortfolioDatasetSummary['inferred_frequency'])
+				: 'unknown',
+		return_method:
+			asString(record.return_method) === 'provided_returns' ? 'provided_returns' : 'simple_returns',
+		date_column: asString(record.date_column) ?? 'date',
+		ticker_column: asString(record.ticker_column),
+		value_column: asString(record.value_column),
+		dropped_records: asNumber(record.dropped_records) ?? 0,
+		selected_tickers: asStringArray(record.selected_tickers)
 	};
 }
 
-function normalizeDcfOutput(value: unknown): DCFOutput | undefined {
+function normalizePortfolioRequestSummary(value: unknown): PortfolioRequestSummary {
+	const record = isRecord(value) ? value : {};
+	const valueMode =
+		asString(record.value_mode) === 'prices' || asString(record.value_mode) === 'returns'
+			? (record.value_mode as PortfolioRequestSummary['value_mode'])
+			: 'auto';
+	const resolvedValueMode =
+		asString(record.resolved_value_mode) === 'returns' ? 'returns' : 'prices';
+
+	return {
+		problem_type: 'portfolio_optimization',
+		budget: asNumber(record.budget) ?? 0,
+		risk_aversion: asNumber(record.risk_aversion) ?? 0,
+		penalty: asNumber(record.penalty) ?? 0,
+		max_assets_considered: asNumber(record.max_assets_considered) ?? 0,
+		value_mode: valueMode,
+		resolved_value_mode: resolvedValueMode,
+		qaoa_reps: asNumber(record.qaoa_reps) ?? 1,
+		parameter_search_steps: asNumber(record.parameter_search_steps) ?? 0,
+		date_column: asString(record.date_column),
+		ticker_column: asString(record.ticker_column),
+		value_column: asString(record.value_column)
+	};
+}
+
+function normalizePortfolioAssetMetrics(value: UnknownRecord): PortfolioAssetMetrics {
+	return {
+		ticker: asString(value.ticker) ?? 'UNKNOWN',
+		periods: asNumber(value.periods) ?? 0,
+		mean_return: asNumber(value.mean_return) ?? 0,
+		annualized_return: asNumber(value.annualized_return) ?? 0,
+		annualized_variance: asNumber(value.annualized_variance) ?? 0,
+		annualized_volatility: asNumber(value.annualized_volatility) ?? 0,
+		sharpe_like: asNumber(value.sharpe_like) ?? 0,
+		selected_classical: value.selected_classical === true,
+		selected_quantum: value.selected_quantum === true,
+		selection_probability: asNumber(value.selection_probability) ?? 0
+	};
+}
+
+function normalizePortfolioSelectionSummary(value: unknown): PortfolioQuantumState {
+	const record = isRecord(value) ? value : {};
+	return {
+		bitstring: asString(record.bitstring) ?? '',
+		selected_assets: asStringArray(record.selected_assets),
+		selected_asset_count: asNumber(record.selected_asset_count) ?? 0,
+		feasible: record.feasible === true,
+		budget_gap: asNumber(record.budget_gap) ?? 0,
+		objective: asNumber(record.objective) ?? 0,
+		expected_return: asNumber(record.expected_return) ?? 0,
+		variance: asNumber(record.variance) ?? 0,
+		volatility: asNumber(record.volatility) ?? 0,
+		probability: asNumber(record.probability),
+		rank: asNumber(record.rank) ?? undefined
+	};
+}
+
+function normalizePortfolioFrontierSummary(value: unknown): PortfolioFrontierSummary {
+	const record = isRecord(value) ? value : {};
+	return {
+		feasible_portfolio_count: asNumber(record.feasible_portfolio_count) ?? 0,
+		efficient_frontier: asObjectArray(record.efficient_frontier).map(normalizePortfolioSelectionSummary),
+		quantum_rank: asNumber(record.quantum_rank),
+		quantum_percentile: asNumber(record.quantum_percentile),
+		quantum_on_frontier: record.quantum_on_frontier === true
+	};
+}
+
+function normalizePortfolioSolverDiagnostics(value: unknown): PortfolioSolverDiagnostics {
+	const record = isRecord(value) ? value : {};
+	const classicalSolver = isRecord(record.classical_solver) ? record.classical_solver : {};
+	const quantumSolver = isRecord(record.quantum_solver) ? record.quantum_solver : {};
+
+	return {
+		allocation_model: asString(record.allocation_model) ?? 'equal_weight_binary_selection',
+		screened_asset_count: asNumber(record.screened_asset_count) ?? 0,
+		budget: asNumber(record.budget) ?? 0,
+		total_binary_states: asNumber(record.total_binary_states) ?? 0,
+		feasible_portfolio_count: asNumber(record.feasible_portfolio_count) ?? 0,
+		classical_solver: {
+			strategy: asString(classicalSolver.strategy) ?? 'unknown',
+			evaluated_portfolios: asNumber(classicalSolver.evaluated_portfolios) ?? 0
+		},
+		quantum_solver: {
+			ansatz: asString(quantumSolver.ansatz) ?? 'QAOA',
+			reps: asNumber(quantumSolver.reps) ?? 0,
+			strategy: asString(quantumSolver.strategy) ?? 'unknown',
+			parameter_evaluations: asNumber(quantumSolver.parameter_evaluations) ?? 0,
+			coarse_grid_steps: asNumber(quantumSolver.coarse_grid_steps) ?? 0,
+			local_refinement_rounds: asNumber(quantumSolver.local_refinement_rounds) ?? 0,
+			local_refinement_points: asNumber(quantumSolver.local_refinement_points) ?? 0
+		}
+	};
+}
+
+function normalizePortfolioBenchmarkSummary(value: unknown): PortfolioBenchmarkSummary {
+	const record = isRecord(value) ? value : {};
+	const comparison = isRecord(record.comparison) ? record.comparison : {};
+	const timings = isRecord(record.timings) ? record.timings : {};
+
+	return {
+		objective_label: asString(record.objective_label) ?? 'objective',
+		allocation_model: asString(record.allocation_model) ?? undefined,
+		classical: normalizePortfolioSelectionSummary(record.classical),
+		quantum: normalizePortfolioSelectionSummary(record.quantum),
+		comparison: {
+			objective_gap: asNumber(comparison.objective_gap) ?? 0,
+			objective_ratio: asNumber(comparison.objective_ratio),
+			return_gap: asNumber(comparison.return_gap) ?? 0,
+			variance_gap: asNumber(comparison.variance_gap) ?? 0,
+			overlap_count: asNumber(comparison.overlap_count) ?? 0,
+			overlap_ratio: asNumber(comparison.overlap_ratio) ?? 0,
+			feasible_probability_mass: asNumber(comparison.feasible_probability_mass) ?? 0,
+			optimum_probability: asNumber(comparison.optimum_probability),
+			quantum_advantage_detected: comparison.quantum_advantage_detected === true
+		},
+		frontier: normalizePortfolioFrontierSummary(record.frontier),
+		timings: {
+			classical_duration_ms: asNumber(timings.classical_duration_ms) ?? 0,
+			quantum_duration_ms: asNumber(timings.quantum_duration_ms) ?? 0
+		}
+	};
+}
+
+function normalizePortfolioQaoaParameters(value: unknown): PortfolioQaoaParameters | undefined {
 	if (!isRecord(value)) {
 		return undefined;
 	}
 
 	return {
-		wacc: asNumber(value.wacc) ?? 0,
-		terminal_growth: asNumber(value.terminal_growth) ?? 0,
-		projection_years: asNumber(value.projection_years) ?? 0,
-		yearly_cashflows: Array.isArray(value.yearly_cashflows)
-			? value.yearly_cashflows.filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
-			: [],
-		terminal_value: asNumber(value.terminal_value) ?? 0,
-		enterprise_value: asNumber(value.enterprise_value) ?? 0,
-		equity_value: asNumber(value.equity_value) ?? 0,
-		per_share_value: asNumber(value.per_share_value) ?? undefined,
-		bull: normalizeScenarioOutput(value.bull, 'Bull'),
-		base: normalizeScenarioOutput(value.base, 'Base'),
-		bear: normalizeScenarioOutput(value.bear, 'Bear')
+		reps: asNumber(value.reps) ?? 1,
+		beta: asNumber(value.beta) ?? 0,
+		gamma: asNumber(value.gamma) ?? 0,
+		parameter_search_steps: asNumber(value.parameter_search_steps) ?? 0
+	};
+}
+
+function normalizePortfolioCircuitSummary(value: unknown): PortfolioCircuitSummary | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const gateCounts = isRecord(value.gate_counts)
+		? Object.entries(value.gate_counts).reduce<Record<string, number>>((acc, [name, count]) => {
+				if (typeof count === 'number' && Number.isFinite(count)) {
+					acc[name] = count;
+				}
+				return acc;
+			}, {})
+		: {};
+
+	return {
+		qubit_count: asNumber(value.qubit_count) ?? 0,
+		depth: asNumber(value.depth) ?? 0,
+		size: asNumber(value.size) ?? 0,
+		parameter_count: asNumber(value.parameter_count) ?? 0,
+		gate_counts: gateCounts
+	};
+}
+
+function normalizePortfolioHamiltonianSummary(value: unknown): PortfolioHamiltonianSummary | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	return {
+		offset: asNumber(value.offset) ?? 0,
+		linear_fields: asObjectArray(value.linear_fields).map(item => ({
+			asset: asNumber(item.asset) ?? 0,
+			coefficient: asNumber(item.coefficient) ?? 0
+		})),
+		couplings: asObjectArray(value.couplings).map(item => ({
+			asset_i: asNumber(item.asset_i) ?? 0,
+			asset_j: asNumber(item.asset_j) ?? 0,
+			coefficient: asNumber(item.coefficient) ?? 0
+		})),
+		penalty_strategy: asString(value.penalty_strategy) ?? 'unknown'
 	};
 }
 
@@ -257,40 +284,29 @@ function normalizeFinancialQuantumExecution(value: unknown): FinancialQuantumExe
 		return null;
 	}
 
-	const encodedColumns = asStringArray(value.encoded_columns);
-	const featureMapping = asObjectArray(value.feature_mapping).map((item, index) =>
-		normalizeQuantumFeatureMapping(item, index)
-	);
-
 	return {
 		circuit_text: asString(value.circuit_text) ?? '',
-		encoded_columns: encodedColumns,
-		feature_mapping: featureMapping,
-		plan: (isRecord(value.plan) ? value.plan : {
-			plan_id: '',
-			fragment_order: [],
-			fragments: {},
-			assignments: {},
-			quality_snapshot_id: null
-		}) as BackendPlanResponse,
-		fragment_results: (Array.isArray(value.fragment_results) ? value.fragment_results : []) as BackendJobFragmentResult[],
-		quantum_result: (isRecord(value.quantum_result) ? value.quantum_result : null) as BackendJobQuantumResult | null,
-		signal_summary: normalizeQuantumSignalSummary(value.signal_summary, encodedColumns)
+		encoded_assets: asStringArray(value.encoded_assets),
+		encoded_columns: asStringArray(value.encoded_columns),
+		qaoa_parameters: normalizePortfolioQaoaParameters(value.qaoa_parameters),
+		circuit_summary: normalizePortfolioCircuitSummary(value.circuit_summary),
+		top_states: asObjectArray(value.top_states).map(normalizePortfolioSelectionSummary),
+		hamiltonian: normalizePortfolioHamiltonianSummary(value.hamiltonian),
+		feature_mapping: [],
+		plan: (isRecord(value.plan)
+			? value.plan
+			: {
+					plan_id: '',
+					fragment_order: [],
+					fragments: {},
+					assignments: {},
+					quality_snapshot_id: null
+				}) as BackendPlanResponse,
+		fragment_results: (Array.isArray(value.fragment_results)
+			? value.fragment_results
+			: []) as BackendJobFragmentResult[],
+		quantum_result: (isRecord(value.quantum_result) ? value.quantum_result : null) as BackendJobQuantumResult | null
 	};
-}
-
-function buildSummaryStats(raw: UnknownRecord) {
-	if (isRecord(raw.summary_stats)) {
-		return raw.summary_stats;
-	}
-
-	if (typeof raw.summary === 'string' && raw.summary.trim()) {
-		return {
-			summary: raw.summary.trim()
-		};
-	}
-
-	return {};
 }
 
 export function normalizeFinancialAnalysisResult(
@@ -309,60 +325,37 @@ export function normalizeFinancialAnalysisResult(
 		return undefined;
 	}
 
-	const columnProfiles = normalizeColumnProfiles(value.column_profiles);
-	const derivedNumericColumns = columnProfiles.filter(profile => profile.dtype === 'numeric').map(profile => profile.name);
-	const derivedCategoricalColumns = columnProfiles
-		.filter(profile => profile.dtype === 'categorical')
-		.map(profile => profile.name);
-	const derivedDatetimeColumns = columnProfiles.filter(profile => profile.dtype === 'datetime').map(profile => profile.name);
-	const correlations = asObjectArray(value.correlations).map(normalizeCorrelationPair);
-	const topCorrelations =
-		asObjectArray(value.top_correlations).map(normalizeCorrelationPair).length > 0
-			? asObjectArray(value.top_correlations).map(normalizeCorrelationPair)
-			: [...correlations].sort((left, right) => Math.abs(right.pearson) - Math.abs(left.pearson)).slice(0, 10);
-	const timeSeriesInsights = asObjectArray(value.time_series_insights).map(normalizeTimeSeriesInsight);
-	const nodeExecution = asObjectArray(value.node_execution).map(normalizeNodeExecutionSegment);
-	const quantumExecution = normalizeFinancialQuantumExecution(value.quantum_execution);
-	const distributedNodesUsed =
-		asNumber(value.distributed_nodes_used) ??
-		new Set(nodeExecution.map(segment => segment.node_id)).size;
-	const fragmentsExecuted =
-		asNumber(value.fragments_executed) ??
-		(nodeExecution.length > 0 ? nodeExecution.length : (quantumExecution?.fragment_results.length ?? 0));
+	const rowCount = asNumber(value.row_count) ?? 0;
+	const colCount = asNumber(value.col_count) ?? 0;
 
 	return {
 		job_id: asString(value.job_id) ?? jobId,
 		filename: asString(value.filename) ?? filename,
-		row_count: asNumber(value.row_count) ?? 0,
-		col_count: asNumber(value.col_count) ?? 0,
-		numeric_columns: asStringArray(value.numeric_columns).length
-			? asStringArray(value.numeric_columns)
-			: derivedNumericColumns,
-		categorical_columns: asStringArray(value.categorical_columns).length
-			? asStringArray(value.categorical_columns)
-			: derivedCategoricalColumns,
-		datetime_columns: asStringArray(value.datetime_columns).length
-			? asStringArray(value.datetime_columns)
-			: derivedDatetimeColumns,
-		column_profiles: columnProfiles,
-		correlations,
-		top_correlations: topCorrelations,
-		time_series_insights: timeSeriesInsights,
-		dcf: normalizeDcfOutput(value.dcf),
-		anomalies: asObjectArray(value.anomalies).map(item => ({
-			row_index: asNumber(item.row_index) ?? 0,
-			column: asString(item.column) ?? 'unknown',
-			value: asNumber(item.value) ?? 0,
-			z_score: asNumber(item.z_score) ?? 0,
-			label: asString(item.label) === 'extreme_high' ? 'extreme_high' : 'extreme_low'
-		})),
-		summary_stats: buildSummaryStats(value),
-		node_execution: nodeExecution,
-		quantum_execution: quantumExecution,
+		problem_type: 'portfolio_optimization',
+		summary: asString(value.summary) ?? 'Portfolio optimization analysis completed.',
+		row_count: rowCount,
+		col_count: colCount,
+		dataset: normalizePortfolioDatasetSummary(value.dataset, { rowCount, colCount }),
+		request: normalizePortfolioRequestSummary(value.request),
+		asset_universe: asObjectArray(value.asset_universe).map(normalizePortfolioAssetMetrics),
+		benchmark: normalizePortfolioBenchmarkSummary(value.benchmark),
+		solver_diagnostics: normalizePortfolioSolverDiagnostics(value.solver_diagnostics),
+		warnings: asStringArray(value.warnings),
+		quantum_execution: normalizeFinancialQuantumExecution(value.quantum_execution),
 		analysis_duration_ms: asNumber(value.analysis_duration_ms) ?? 0,
-		distributed_nodes_used: distributedNodesUsed,
-		fragments_executed: fragmentsExecuted,
-		generated_at: normalizeIsoDate(value.generated_at, generatedAt)
+		distributed_nodes_used: asNumber(value.distributed_nodes_used) ?? 0,
+		fragments_executed: asNumber(value.fragments_executed) ?? 0,
+		generated_at: normalizeIsoDate(value.generated_at, generatedAt),
+		numeric_columns: [],
+		categorical_columns: [],
+		datetime_columns: [],
+		column_profiles: [],
+		correlations: [],
+		top_correlations: [],
+		time_series_insights: [],
+		anomalies: [],
+		summary_stats: {},
+		node_execution: []
 	};
 }
 
@@ -376,6 +369,7 @@ export function normalizeFinancialJobListItem(value: unknown): BackendFinancialJ
 
 	return {
 		job_id: asString(value.job_id) ?? 'fin-unknown',
+		problem_type: asString(value.problem_type) === 'portfolio_optimization' ? 'portfolio_optimization' : null,
 		status: normalizeFinancialJobStatus(value.status),
 		filename: asString(value.filename) ?? 'financial.csv',
 		row_count: asNumber(value.row_count),
@@ -406,6 +400,7 @@ export function normalizeFinancialJobResponse(value: unknown): FinancialJobRespo
 
 	return {
 		job_id: jobId,
+		problem_type: asString(value.problem_type),
 		status: normalizeFinancialJobStatus(value.status),
 		filename,
 		row_count: asNumber(value.row_count) ?? undefined,

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -114,6 +116,37 @@ class TestPeerRegistryHeartbeat:
         assert entry is not None
         assert entry.health_status == "degraded"
 
+    async def test_unenrolled_peer_heartbeat_is_not_marked_healthy(self) -> None:
+        registry = PeerRegistry(
+            mongo_runtime=None,
+            stale_peer_ttl_seconds=60,
+            enforce_enrollment=True,
+        )
+        registry._load_enrollment = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+        await registry.process_event(_hb_event("peer-unapproved", health="healthy"))
+
+        entry = registry.get_peer("peer-unapproved")
+        assert entry is not None
+        assert entry.health_status == "unapproved"
+
+
+class TestPeerRegistryEnrollmentVisibility:
+    async def test_unenrolled_peer_advertisement_is_sandboxed(self) -> None:
+        registry = PeerRegistry(
+            mongo_runtime=None,
+            stale_peer_ttl_seconds=60,
+            enforce_enrollment=True,
+        )
+        registry._load_enrollment = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+        await registry.process_event(_adv_event("peer-unapproved"))
+
+        entry = registry.get_peer("peer-unapproved")
+        assert entry is not None
+        assert entry.trust_tier == "public_untrusted"
+        assert entry.service_ids == ()
+
 
 class TestPeerRegistryStaleHandling:
     async def test_peer_is_not_stale_immediately_after_event(
@@ -221,3 +254,61 @@ class TestPeerRegistryQueryInterface:
         self, registry: PeerRegistry
     ) -> None:
         assert not registry.is_peer_stale("completely-unknown")
+
+
+class _AsyncDocList:
+    def __init__(self, documents: list[object]) -> None:
+        self._documents = documents
+
+    async def to_list(self) -> list[object]:
+        return self._documents
+
+
+class TestPeerRegistryRehydrate:
+    async def test_rehydrate_normalizes_naive_datetimes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from quantum_backend_v2.persistence.mongodb import (
+            PeerCapabilityDocument,
+            TopologyProjectionDocument,
+        )
+
+        naive_now = datetime.now(timezone.utc).replace(tzinfo=None)
+        capability_doc = SimpleNamespace(
+            peer_id="peer-restored",
+            capabilities=["platform_managed"],
+            published_service_ids=["svc.quantum.test"],
+            network_addresses=["/ip4/10.0.0.5/tcp/4011"],
+            protocol_versions={"/qb2/test/peer-exchange/1.0.0": "1.0.0"},
+            last_advertised_at=naive_now,
+            updated_at=naive_now,
+        )
+        topology_doc = SimpleNamespace(
+            peer_id="peer-restored",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            active_reservations=1,
+            active_executions=2,
+            peer_log_position=9,
+            observed_at=naive_now,
+        )
+
+        monkeypatch.setattr(
+            PeerCapabilityDocument,
+            "find_all",
+            lambda: _AsyncDocList([capability_doc]),
+        )
+        monkeypatch.setattr(
+            TopologyProjectionDocument,
+            "find_all",
+            lambda: _AsyncDocList([topology_doc]),
+        )
+
+        registry = PeerRegistry(mongo_runtime=object(), stale_peer_ttl_seconds=60)
+
+        await registry.rehydrate()
+
+        entry = registry.get_peer("peer-restored")
+        assert entry is not None
+        assert entry.last_seen_at.tzinfo is not None
+        assert entry.last_advertisement_at is not None
+        assert entry.last_advertisement_at.tzinfo is not None
+        assert not registry.is_peer_stale("peer-restored")

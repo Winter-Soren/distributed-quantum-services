@@ -30,9 +30,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _auth_required: bool = True
+_allow_dev_bearer_tokens: bool = False
 
 
-def configure_auth(*, enabled: bool) -> None:
+def configure_auth(*, enabled: bool, allow_dev_bearer_tokens: bool = False) -> None:
     """Toggle auth enforcement for the lifetime of the process.
 
     Call this early in ``create_app()`` based on the ``QB2_AUTH_REQUIRED``
@@ -40,12 +41,19 @@ def configure_auth(*, enabled: bool) -> None:
     traffic.
     """
     global _auth_required
+    global _allow_dev_bearer_tokens
     _auth_required = enabled
+    _allow_dev_bearer_tokens = allow_dev_bearer_tokens
     if not enabled:
         logger.warning(
             "AUTH DISABLED (QB2_AUTH_REQUIRED=false) — "
             "all requests are treated as the local dev-admin user. "
             "Never use this setting in production."
+        )
+    elif allow_dev_bearer_tokens:
+        logger.warning(
+            "Development bearer tokens are enabled in an auth-required environment. "
+            "Restrict this to controlled local testing."
         )
 
 
@@ -95,7 +103,7 @@ async def _resolve_user_claims(
     if token is None:
         return None
 
-    if token.startswith("dev-"):
+    if token.startswith("dev-") and _allow_dev_bearer_tokens:
         # Minimal dev-mode stub — accepts any `dev-<user_id>` token.
         user_id = token.removeprefix("dev-") or "dev-user"
         now = datetime.now(timezone.utc)
@@ -150,6 +158,9 @@ async def require_admin(claims: CurrentUser) -> UserTokenClaims:
             message="Administrator role required.",
         )
     return claims
+
+
+AdminUser = Annotated[UserTokenClaims, Depends(require_admin)]
 
 
 def require_role(role: UserRole) -> "type[UserTokenClaims]":

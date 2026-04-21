@@ -2,7 +2,7 @@ import 'server-only';
 
 type FetchBackendJsonOptions = Omit<RequestInit, 'cache'>;
 
-const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8081';
+const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8080';
 
 type BackendErrorPayload = {
 	detail?: unknown;
@@ -24,6 +24,23 @@ export class BackendClientError extends Error {
 
 export function getBackendBaseUrl() {
 	return (process.env.QUANTUM_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, '');
+}
+
+export function applyBackendAuth(headers: Headers | Record<string, string>) {
+	const token = process.env.QUANTUM_BACKEND_API_KEY?.trim();
+
+	if (!token) {
+		return;
+	}
+
+	const authorization = token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`;
+
+	if (headers instanceof Headers) {
+		headers.set('Authorization', authorization);
+		return;
+	}
+
+	headers.Authorization = authorization;
 }
 
 function normalizeBackendErrorDetails(payload: BackendErrorPayload | null) {
@@ -85,13 +102,9 @@ export async function readBackendErrorDetails(response: Response) {
 export async function fetchBackendJson<T>(pathname: string, init: FetchBackendJsonOptions = {}): Promise<T> {
 	const url = new URL(pathname, `${getBackendBaseUrl()}/`);
 	const headers = new Headers(init.headers);
-	const apiKey = process.env.QUANTUM_BACKEND_API_KEY;
 
 	headers.set('Accept', 'application/json');
-
-	if (apiKey) {
-		headers.set('X-API-Key', apiKey);
-	}
+	applyBackendAuth(headers);
 
 	let response: Response;
 

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { BackendClientError, getBackendBaseUrl, readBackendErrorDetails } from '@/lib/backend-client';
+import {
+	BackendClientError,
+	applyBackendAuth,
+	getBackendBaseUrl,
+	readBackendErrorDetails
+} from '@/lib/backend-client';
 import { normalizeFinancialJobList, normalizeFinancialJobStatus } from '@/lib/backend-normalizers';
 
 export const dynamic = 'force-dynamic';
@@ -16,13 +21,21 @@ export async function POST(request: NextRequest) {
 		}
 
 		const backendUrl = getBackendBaseUrl();
-		const apiKey = process.env.QUANTUM_BACKEND_API_KEY;
 
 		const upstream = new FormData();
-		upstream.append('file', file);
+		for (const [key, value] of formData.entries()) {
+			if (key === 'file') {
+				upstream.append('file', file);
+				continue;
+			}
+
+			if (typeof value === 'string' && value.trim()) {
+				upstream.append(key, value);
+			}
+		}
 
 		const headers: Record<string, string> = {};
-		if (apiKey) headers['X-API-Key'] = apiKey;
+		applyBackendAuth(headers);
 
 		let res: Response;
 		try {
@@ -50,10 +63,12 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const payload = (await res.json()) as { job_id?: unknown; status?: unknown };
+		const payload = (await res.json()) as { job_id?: unknown; status?: unknown; problem_type?: unknown };
 		return NextResponse.json({
 			job_id: typeof payload.job_id === 'string' ? payload.job_id : 'fin-unknown',
-			status: normalizeFinancialJobStatus(payload.status)
+			status: normalizeFinancialJobStatus(payload.status),
+			problem_type:
+				typeof payload.problem_type === 'string' ? payload.problem_type : 'portfolio_optimization'
 		});
 	} catch (error) {
 		const status = error instanceof BackendClientError ? error.status : 500;
@@ -68,9 +83,8 @@ export async function POST(request: NextRequest) {
 export async function GET() {
 	try {
 		const backendUrl = getBackendBaseUrl();
-		const apiKey = process.env.QUANTUM_BACKEND_API_KEY;
 		const headers: Record<string, string> = { Accept: 'application/json' };
-		if (apiKey) headers['X-API-Key'] = apiKey;
+		applyBackendAuth(headers);
 
 		const res = await fetch(`${backendUrl}/api/v1/finance?limit=20`, {
 			headers,

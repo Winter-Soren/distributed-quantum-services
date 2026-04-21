@@ -22,20 +22,30 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 
 from quantum_backend_v2.discovery.events import DiscoveryEvent, DiscoveryEventKind
 from quantum_backend_v2.discovery.models import PeerAdvertisement, PeerHeartbeat
+from quantum_backend_v2.identity.models import PeerTrustTier
 from quantum_backend_v2.persistence.mongodb import (
     MongoRuntime,
     PeerCapabilityDocument,
     TopologyProjectionDocument,
 )
+from quantum_backend_v2.persistence.postgres import PeerEnrollmentRecord
 
 logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _as_utc_datetime(value: datetime | None, fallback: datetime | None = None) -> datetime:
+    resolved = value or fallback or _utc_now()
+    if resolved.tzinfo is None or resolved.tzinfo.utcoffset(resolved) is None:
+        return resolved.replace(tzinfo=timezone.utc)
+    return resolved.astimezone(timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +92,9 @@ class PeerRegistry:
 
     mongo_runtime: MongoRuntime | None
     stale_peer_ttl_seconds: int
+    session_factory: object | None = None
+    enforce_enrollment: bool = False
+    trusted_peer_ids: set[str] = field(default_factory=set)
     _entries: dict[str, PeerRegistryEntry] = field(default_factory=dict, init=False)
 
     # ------------------------------------------------------------------
@@ -112,6 +125,64 @@ class PeerRegistry:
         if entry is None:
             return False
         return self._is_stale(entry)
+
+    async def rehydrate(self) -> None:
+        """Rebuild the in-memory registry cache from MongoDB projections."""
+        if self.mongo_runtime is None:
+            self._entries = {}
+            return
+
+        capability_docs = await PeerCapabilityDocument.find_all().to_list()
+        topology_docs = await TopologyProjectionDocument.find_all().to_list()
+
+        entries: dict[str, PeerRegistryEntry] = {}
+        for doc in capability_docs:
+            observed_at = _as_utc_datetime(doc.last_advertised_at, doc.updated_at)
+            trust_tier = doc.capabilities[0] if doc.capabilities else "unknown"
+            entries[doc.peer_id] = PeerRegistryEntry(
+                peer_id=doc.peer_id,
+                trust_tier=trust_tier,
+                network_addresses=tuple(doc.network_addresses),
+                supported_protocols=tuple(doc.protocol_versions.keys()),
+                service_ids=tuple(doc.published_service_ids),
+                first_seen_at=observed_at,
+                last_seen_at=observed_at,
+                last_advertisement_at=_as_utc_datetime(doc.last_advertised_at, doc.updated_at),
+            )
+
+        for doc in topology_docs:
+            observed_at = _as_utc_datetime(doc.observed_at)
+            existing = entries.get(doc.peer_id)
+            if existing is None:
+                entries[doc.peer_id] = PeerRegistryEntry(
+                    peer_id=doc.peer_id,
+                    trust_tier=doc.trust_tier,
+                    health_status=doc.health_status,
+                    active_reservations=doc.active_reservations,
+                    active_executions=doc.active_executions,
+                    peer_log_position=doc.peer_log_position,
+                    first_seen_at=observed_at,
+                    last_seen_at=observed_at,
+                    last_heartbeat_at=observed_at,
+                )
+                continue
+
+            entries[doc.peer_id] = existing.model_copy(
+                update={
+                    "trust_tier": existing.trust_tier
+                    if existing.trust_tier != "unknown"
+                    else doc.trust_tier,
+                    "health_status": doc.health_status,
+                    "active_reservations": doc.active_reservations,
+                    "active_executions": doc.active_executions,
+                    "peer_log_position": doc.peer_log_position,
+                    "last_seen_at": max(_as_utc_datetime(existing.last_seen_at), observed_at),
+                    "last_heartbeat_at": observed_at,
+                }
+            )
+
+        self._entries = entries
+        logger.info("rehydrated discovery registry with %d cached peers", len(entries))
 
     # ------------------------------------------------------------------
     # Event processing — called from the asyncio drain loop
@@ -157,7 +228,7 @@ class PeerRegistry:
     # ------------------------------------------------------------------
 
     def _is_stale(self, entry: PeerRegistryEntry) -> bool:
-        delta = (_utc_now() - entry.last_seen_at).total_seconds()
+        delta = (_utc_now() - _as_utc_datetime(entry.last_seen_at)).total_seconds()
         return delta > self.stale_peer_ttl_seconds
 
     async def _apply_advertisement(
@@ -165,16 +236,26 @@ class PeerRegistry:
     ) -> None:
         existing = self._entries.get(adv.peer_id)
         rejoined = existing is not None and self._is_stale(existing)
+        effective_trust_tier, allow_services, forced_health_status = (
+            await self._resolve_enrollment_visibility(adv.peer_id)
+        )
+        service_ids = (
+            tuple(s.service_id for s in adv.service_summaries)
+            if allow_services
+            else ()
+        )
+        health_status = forced_health_status or (
+            existing.health_status if existing is not None else "unknown"
+        )
 
         if existing is None:
             entry = PeerRegistryEntry(
                 peer_id=adv.peer_id,
-                trust_tier=adv.trust_tier,
+                trust_tier=effective_trust_tier or adv.trust_tier,
+                health_status=health_status,
                 network_addresses=adv.network_addresses,
                 supported_protocols=adv.supported_protocols,
-                service_ids=tuple(
-                    s.service_id for s in adv.service_summaries
-                ),
+                service_ids=service_ids,
                 peer_log_position=adv.peer_log_position,
                 first_seen_at=received_at,
                 last_seen_at=received_at,
@@ -184,12 +265,11 @@ class PeerRegistry:
         else:
             entry = existing.model_copy(
                 update={
-                    "trust_tier": adv.trust_tier,
+                    "trust_tier": effective_trust_tier or adv.trust_tier,
+                    "health_status": health_status,
                     "network_addresses": adv.network_addresses,
                     "supported_protocols": adv.supported_protocols,
-                    "service_ids": tuple(
-                        s.service_id for s in adv.service_summaries
-                    ),
+                    "service_ids": service_ids,
                     "peer_log_position": adv.peer_log_position,
                     "last_seen_at": received_at,
                     "last_advertisement_at": received_at,
@@ -202,17 +282,29 @@ class PeerRegistry:
         if rejoined:
             logger.info("peer %s rejoined the network", adv.peer_id)
 
-        await self._upsert_capability_document(adv)
+        await self._upsert_capability_document(
+            peer_id=adv.peer_id,
+            trust_tier=entry.trust_tier,
+            network_addresses=entry.network_addresses,
+            supported_protocols=entry.supported_protocols,
+            service_ids=entry.service_ids,
+            received_at=received_at,
+        )
 
     async def _apply_heartbeat(
         self, hb: PeerHeartbeat, received_at: datetime
     ) -> None:
         existing = self._entries.get(hb.peer_id)
+        effective_trust_tier, _, forced_health_status = (
+            await self._resolve_enrollment_visibility(hb.peer_id)
+        )
+        health_status = forced_health_status or hb.health_status
 
         if existing is None:
             entry = PeerRegistryEntry(
                 peer_id=hb.peer_id,
-                health_status=hb.health_status,
+                trust_tier=effective_trust_tier or "unknown",
+                health_status=health_status,
                 active_reservations=hb.active_reservations,
                 active_executions=hb.active_executions,
                 peer_log_position=hb.peer_log_position,
@@ -224,7 +316,8 @@ class PeerRegistry:
             rejoined = self._is_stale(existing)
             entry = existing.model_copy(
                 update={
-                    "health_status": hb.health_status,
+                    "trust_tier": effective_trust_tier or existing.trust_tier,
+                    "health_status": health_status,
                     "active_reservations": hb.active_reservations,
                     "active_executions": hb.active_executions,
                     "peer_log_position": hb.peer_log_position,
@@ -237,67 +330,98 @@ class PeerRegistry:
                 logger.info("peer %s sent heartbeat after stale period", hb.peer_id)
 
         self._entries[hb.peer_id] = entry
-        await self._upsert_topology_document(hb, received_at)
+        await self._upsert_topology_document(
+            peer_id=hb.peer_id,
+            trust_tier=entry.trust_tier,
+            health_status=entry.health_status,
+            active_reservations=entry.active_reservations,
+            active_executions=entry.active_executions,
+            peer_log_position=entry.peer_log_position,
+            observed_at=received_at,
+        )
 
-    async def _upsert_capability_document(self, adv: PeerAdvertisement) -> None:
+    async def _upsert_capability_document(
+        self,
+        *,
+        peer_id: str,
+        trust_tier: str,
+        network_addresses: tuple[str, ...],
+        supported_protocols: tuple[str, ...],
+        service_ids: tuple[str, ...],
+        received_at: datetime,
+    ) -> None:
         if self.mongo_runtime is None:
             return
         try:
             existing = await PeerCapabilityDocument.find_one(
-                PeerCapabilityDocument.peer_id == adv.peer_id
+                PeerCapabilityDocument.peer_id == peer_id
             )
             if existing is None:
                 doc = PeerCapabilityDocument(
-                    peer_id=adv.peer_id,
-                    capabilities=[adv.trust_tier],
-                    published_service_ids=[
-                        s.service_id for s in adv.service_summaries
-                    ],
-                    protocol_versions={
-                        proto: "1.0.0" for proto in adv.supported_protocols
-                    },
+                    peer_id=peer_id,
+                    capabilities=[trust_tier],
+                    published_service_ids=list(service_ids),
+                    network_addresses=list(network_addresses),
+                    protocol_versions={proto: "1.0.0" for proto in supported_protocols},
+                    last_advertised_at=received_at,
+                    updated_at=received_at,
                 )
                 await doc.insert()
             else:
-                existing.capabilities = [adv.trust_tier]
-                existing.published_service_ids = [
-                    s.service_id for s in adv.service_summaries
-                ]
+                existing.capabilities = [trust_tier]
+                existing.published_service_ids = list(service_ids)
+                existing.network_addresses = list(network_addresses)
                 existing.protocol_versions = {
-                    proto: "1.0.0" for proto in adv.supported_protocols
+                    proto: "1.0.0" for proto in supported_protocols
                 }
-                existing.updated_at = _utc_now()
+                existing.last_advertised_at = received_at
+                existing.updated_at = received_at
                 await existing.save()
         except Exception:
             logger.exception(
-                "failed to upsert PeerCapabilityDocument for peer %s", adv.peer_id
+                "failed to upsert PeerCapabilityDocument for peer %s", peer_id
             )
 
     async def _upsert_topology_document(
-        self, hb: PeerHeartbeat, observed_at: datetime
+        self,
+        *,
+        peer_id: str,
+        trust_tier: str,
+        health_status: str,
+        active_reservations: int,
+        active_executions: int,
+        peer_log_position: int,
+        observed_at: datetime,
     ) -> None:
         if self.mongo_runtime is None:
             return
         try:
             existing = await TopologyProjectionDocument.find_one(
-                TopologyProjectionDocument.peer_id == hb.peer_id
+                TopologyProjectionDocument.peer_id == peer_id
             )
             if existing is None:
                 doc = TopologyProjectionDocument(
-                    peer_id=hb.peer_id,
+                    peer_id=peer_id,
                     connected_peers=[],
-                    trust_tier="unknown",
-                    health_status=hb.health_status,
+                    trust_tier=trust_tier,
+                    health_status=health_status,
+                    active_reservations=active_reservations,
+                    active_executions=active_executions,
+                    peer_log_position=peer_log_position,
                     observed_at=observed_at,
                 )
                 await doc.insert()
             else:
-                existing.health_status = hb.health_status
+                existing.trust_tier = trust_tier
+                existing.health_status = health_status
+                existing.active_reservations = active_reservations
+                existing.active_executions = active_executions
+                existing.peer_log_position = peer_log_position
                 existing.observed_at = observed_at
                 await existing.save()
         except Exception:
             logger.exception(
-                "failed to upsert TopologyProjectionDocument for peer %s", hb.peer_id
+                "failed to upsert TopologyProjectionDocument for peer %s", peer_id
             )
 
     async def _mark_stale_in_mongo(self, peer_id: str) -> None:
@@ -314,3 +438,32 @@ class PeerRegistry:
             logger.exception(
                 "failed to mark peer %s as stale in MongoDB", peer_id
             )
+
+    async def _resolve_enrollment_visibility(
+        self,
+        peer_id: str,
+    ) -> tuple[str | None, bool, str | None]:
+        if not self.enforce_enrollment or peer_id in self.trusted_peer_ids:
+            return None, True, None
+
+        record = await self._load_enrollment(peer_id)
+        if record is None:
+            return PeerTrustTier.PUBLIC_UNTRUSTED.value, False, "unapproved"
+
+        if record.enrollment_status == "ready":
+            return record.trust_tier, True, None
+
+        if record.enrollment_status in {"quarantined", "rejected"}:
+            return PeerTrustTier.QUARANTINED.value, False, record.enrollment_status
+
+        return record.trust_tier, False, "pending_approval"
+
+    async def _load_enrollment(self, peer_id: str) -> PeerEnrollmentRecord | None:
+        if self.session_factory is None:
+            return None
+
+        async with self.session_factory() as session:  # type: ignore[operator]
+            result = await session.execute(
+                select(PeerEnrollmentRecord).where(PeerEnrollmentRecord.peer_id == peer_id)
+            )
+            return result.scalar_one_or_none()

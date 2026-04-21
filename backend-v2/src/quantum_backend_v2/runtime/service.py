@@ -152,7 +152,12 @@ class ExecutionService:
         idem_key = idempotency_key or uuid.uuid4().hex
         async with self._session_factory() as session:
             state = await _require_state(session, execution_id)
-            updated = state.apply(transition, **state_kwargs)
+            retry_attempt = state.retry_attempt + (1 if transition == ExecutionTransition.RETRYING else 0)
+            updated = state.apply(
+                transition,
+                retry_attempt=retry_attempt,
+                **state_kwargs,
+            )
             await _append_event(
                 session,
                 execution_id=execution_id,
@@ -166,7 +171,7 @@ class ExecutionService:
                 fidelity_score=state_kwargs.get("fidelity_score"),
                 latency_ms=state_kwargs.get("latency_ms"),
                 error_detail=state_kwargs.get("error_detail"),
-                retry_attempt=state.retry_attempt + (1 if transition == ExecutionTransition.RETRYING else 0),
+                retry_attempt=retry_attempt,
                 payload=payload or {},
             )
             await session.commit()
@@ -199,7 +204,7 @@ async def _load_state(
         fragment_id=first.fragment_id,
         service_id=first.service_id,
         executing_peer_id=first.executing_peer_id,
-        retry_attempt=0,
+        retry_attempt=first.retry_attempt,
         last_event_at=first.occurred_at,
     )
 
@@ -214,7 +219,8 @@ async def _load_state(
             kwargs["error_detail"] = event.error_detail
         if event.payload.get("checkpoint_ref"):
             kwargs["checkpoint_ref"] = event.payload["checkpoint_ref"]
-        state = state.apply(transition, **kwargs)
+        kwargs["retry_attempt"] = event.retry_attempt
+        state = state.apply(transition, occurred_at=event.occurred_at, **kwargs)
 
     return state
 
