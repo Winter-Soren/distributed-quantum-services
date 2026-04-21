@@ -24,6 +24,8 @@ def test_build_financial_comparison_report_flags_workflow_evidence_when_classica
             "start_date": "2024-01-31",
             "end_date": "2024-12-31",
             "selected_tickers": ["AAPL", "MSFT", "NVDA", "GOOG", "AMZN", "IBM"],
+            "benchmark_readiness": "market_comparable",
+            "asset_semantics": "tradable_security_series",
         },
         "request": {
             "budget": 3,
@@ -124,6 +126,8 @@ def test_build_financial_comparison_report_flags_workflow_evidence_when_classica
     assert report["scorecard"]["runtime_basis"] == "inconclusive"
     assert report["verdict"]["pitch_position"] == "mixed"
     assert report["verdict"]["claim_readiness"] == "qualified"
+    assert report["dataset"]["market_comparable"] is True
+    assert report["fairness"]["runtime_comparable"] is False
     assert report["quantum"]["has_qasm"] is True
     assert report["quantum"]["has_runtime_result"] is True
     assert any(
@@ -142,6 +146,8 @@ def test_build_financial_comparison_report_flags_advantage_when_quantum_wins() -
         "col_count": 7,
         "dataset": {
             "asset_count": 6,
+            "selected_tickers": ["AAPL", "MSFT", "NVDA", "GOOG", "AMZN", "IBM"],
+            "benchmark_readiness": "market_comparable",
         },
         "request": {
             "budget": 3,
@@ -235,11 +241,16 @@ def test_build_financial_comparison_report_flags_advantage_when_quantum_wins() -
     assert report["scorecard"]["runtime_basis"] == "solver_only"
     assert report["verdict"]["pitch_position"] == "numerical_advantage"
     assert report["verdict"]["claim_readiness"] == "qualified"
+    assert report["dataset"]["market_comparable"] is True
 
 
 def test_build_financial_comparison_report_prefers_end_to_end_runtime_when_available() -> None:
     payload: dict[str, object] = {
-        "dataset": {"asset_count": 6},
+        "dataset": {
+            "asset_count": 6,
+            "selected_tickers": ["AAPL", "MSFT", "NVDA", "GOOG", "AMZN", "IBM"],
+            "benchmark_readiness": "market_comparable",
+        },
         "request": {"budget": 3, "qaoa_reps": 2, "parameter_search_steps": 9},
         "solver_diagnostics": {
             "classical_solver": {"strategy": "exact_enumeration", "evaluated_portfolios": 20},
@@ -313,3 +324,94 @@ def test_build_financial_comparison_report_prefers_end_to_end_runtime_when_avail
     assert report["classical"]["duration_ms"] == 43
     assert report["quantum"]["duration_ms"] == 91
     assert report["evidence"]["workflow_total_duration_ms"] == 117
+
+
+def test_build_financial_comparison_report_downgrades_metric_matrices_to_workflow_evidence() -> None:
+    payload: dict[str, object] = {
+        "dataset": {
+            "input_layout": "wide",
+            "asset_count": 6,
+            "selected_tickers": [
+                "REVENUE_USD",
+                "GROSS_PROFIT_USD",
+                "OPERATING_INCOME_USD",
+                "NET_INCOME_USD",
+                "ASSETS_USD",
+                "EQUITY_USD",
+            ],
+            "benchmark_readiness": "workflow_only",
+            "asset_semantics": "derived_company_metric_series",
+        },
+        "request": {"budget": 3, "qaoa_reps": 1, "parameter_search_steps": 9},
+        "solver_diagnostics": {
+            "classical_solver": {"strategy": "exact_enumeration", "evaluated_portfolios": 20},
+            "quantum_solver": {
+                "strategy": "constraint_preserving_multistart_coordinate_search",
+                "ansatz": "QAOA",
+                "parameter_evaluations": 81,
+            },
+        },
+        "benchmark": {
+            "classical": {
+                "bitstring": "101001",
+                "selected_assets": ["REVENUE_USD", "OPERATING_INCOME_USD", "ASSETS_USD"],
+                "selected_asset_count": 3,
+                "feasible": True,
+                "budget_gap": 0,
+                "objective": 0.72,
+                "expected_return": 1.1,
+                "variance": 0.2,
+                "volatility": 0.447,
+            },
+            "quantum": {
+                "bitstring": "110001",
+                "selected_assets": ["REVENUE_USD", "GROSS_PROFIT_USD", "EQUITY_USD"],
+                "selected_asset_count": 3,
+                "feasible": True,
+                "budget_gap": 0,
+                "objective": 0.83,
+                "expected_return": 1.16,
+                "variance": 0.19,
+                "volatility": 0.435,
+                "probability": 0.42,
+                "rank": 1,
+            },
+            "comparison": {
+                "objective_gap": 0.11,
+                "return_gap": 0.06,
+                "variance_gap": -0.01,
+                "feasible_probability_mass": 0.77,
+                "optimum_probability": 0.42,
+                "quantum_advantage_detected": True,
+            },
+            "frontier": {
+                "feasible_portfolio_count": 20,
+                "efficient_frontier": [{"bitstring": "110001"}],
+                "quantum_rank": 1,
+                "quantum_percentile": 1.0,
+                "quantum_on_frontier": True,
+            },
+            "timings": {
+                "classical_duration_ms": 25,
+                "quantum_duration_ms": 18,
+            },
+        },
+        "fragments_executed": 12,
+        "distributed_nodes_used": 2,
+        "quantum_execution": {
+            "circuit_text": "OPENQASM 2.0;",
+            "circuit_summary": {"qubit_count": 6, "depth": 38, "size": 96},
+            "quantum_result": {"counts": {"110001": 54}},
+        },
+    }
+
+    report = build_financial_comparison_report(payload)
+
+    assert report["dataset"]["market_comparable"] is False
+    assert report["verdict"]["pitch_position"] == "workflow_evidence"
+    assert report["verdict"]["claim_readiness"] == "not_ready"
+    assert report["fairness"]["runtime_comparable"] is False
+    assert any(
+        "Do not present this run as a real portfolio benchmark" in claim
+        for claim in report["verdict"]["avoid_claims"]
+    )

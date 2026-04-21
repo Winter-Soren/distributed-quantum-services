@@ -252,6 +252,11 @@ export interface FinancialComparisonFairness {
 	same_dataset: boolean;
 	same_constraints: boolean;
 	same_objective: boolean;
+	same_runtime_stack?: boolean;
+	same_distributed_substrate?: boolean;
+	same_compute_budget?: boolean;
+	runtime_comparable?: boolean;
+	market_comparable_dataset?: boolean;
 	notes: string[];
 }
 
@@ -266,6 +271,11 @@ export interface FinancialComparisonDataset {
 	start_date: string;
 	end_date: string;
 	selected_tickers: string[];
+	asset_identifier_mode?: string;
+	asset_semantics?: string;
+	benchmark_readiness?: string;
+	market_comparable?: boolean;
+	semantic_notes?: string[];
 }
 
 export interface FinancialComparisonProblem {
@@ -333,6 +343,7 @@ export interface FinancialComparisonScorecard {
 	overlap_count: number;
 	overlap_ratio: number;
 	quantum_advantage_detected: boolean;
+	runtime_comparable?: boolean;
 }
 
 export interface FinancialComparisonEvidence {
@@ -343,6 +354,7 @@ export interface FinancialComparisonEvidence {
 	observed_basis_state_count: number;
 	workflow_total_duration_ms?: number;
 	runtime_basis?: FinancialComparisonRuntimeBasis;
+	dataset_market_comparable?: boolean;
 	warnings: string[];
 }
 

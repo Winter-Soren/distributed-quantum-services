@@ -355,7 +355,11 @@ export function PortfolioComparisonReportSection({
 									? 'Aligned'
 									: 'Check inputs'
 							}
-							detail='Same screened dataset, portfolio constraints, and objective were used on both sides of the comparison.'
+							detail={
+								report.fairness.runtime_comparable === false
+									? 'Same dataset, constraints, and objective, but the runtime stacks are not apples-to-apples.'
+									: 'Same screened dataset, portfolio constraints, and objective were used on both sides of the comparison.'
+							}
 						/>
 						<MetricCard
 							icon={<ScaleIcon className='size-5' />}
@@ -369,7 +373,11 @@ export function PortfolioComparisonReportSection({
 							iconClassName='bg-[rgb(193_176_255_/_0.34)] text-[var(--clay-ube-dark)]'
 							label='Runtime winner'
 							value={winnerLabel(report.scorecard.winner_by_runtime)}
-							detail={`Classical ${formatDuration(report.classical.duration_ms)} versus quantum ${formatDuration(report.quantum.duration_ms)}.`}
+							detail={
+								report.scorecard.runtime_comparable === false
+									? `Classical ${formatDuration(report.classical.duration_ms)} versus quantum ${formatDuration(report.quantum.duration_ms)}. Treat as descriptive only.`
+									: `Classical ${formatDuration(report.classical.duration_ms)} versus quantum ${formatDuration(report.quantum.duration_ms)}.`
+							}
 						/>
 						<MetricCard
 							icon={<CpuIcon className='size-5' />}
@@ -418,6 +426,18 @@ export function PortfolioComparisonReportSection({
 											{formatCount(report.dataset.raw_asset_count)} raw to{' '}
 											{formatCount(report.dataset.asset_count)} modeled
 										</dd>
+										{report.dataset.benchmark_readiness ? (
+											<>
+												<dt className='text-muted-foreground'>Benchmark readiness</dt>
+												<dd>{titleCaseFromKey(report.dataset.benchmark_readiness)}</dd>
+											</>
+										) : null}
+										{report.dataset.asset_semantics ? (
+											<>
+												<dt className='text-muted-foreground'>Dataset semantics</dt>
+												<dd>{titleCaseFromKey(report.dataset.asset_semantics)}</dd>
+											</>
+										) : null}
 										<dt className='text-muted-foreground'>Periods</dt>
 										<dd>{formatCount(report.dataset.period_count)}</dd>
 									</dl>

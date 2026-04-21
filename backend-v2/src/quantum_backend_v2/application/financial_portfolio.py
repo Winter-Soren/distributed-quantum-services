@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -67,6 +68,39 @@ _DEFAULT_LOCAL_REFINEMENT_ROUNDS = 3
 _LOCAL_REFINEMENT_POINTS = 5
 _QAOA_TOP_SEEDS = 4
 _QAOA_RANDOM_SEED = 19
+_MARKET_TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
+_METRIC_COLUMN_KEYWORDS = (
+    "revenue",
+    "gross",
+    "operating",
+    "income",
+    "profit",
+    "net",
+    "margin",
+    "cash",
+    "flow",
+    "assets",
+    "liabilities",
+    "equity",
+    "inventory",
+    "capex",
+    "expense",
+    "ebit",
+    "ebitda",
+    "fcf",
+    "freecashflow",
+    "debt",
+    "book",
+    "ratio",
+    "yield",
+    "usd",
+    "pct",
+    "quarter",
+    "fiscal",
+    "r_and_d",
+    "rnd",
+    "sga",
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +136,15 @@ class CandidateAsset:
     sharpe_like: float
     cumulative_return: float
     periods: int
+
+
+@dataclass(frozen=True)
+class DatasetSemanticsSummary:
+    asset_identifier_mode: str
+    asset_semantics: str
+    benchmark_readiness: str
+    market_comparable: bool
+    semantic_notes: tuple[str, ...]
 
 
 def _utc_now_iso() -> str:
@@ -152,6 +195,7 @@ def build_portfolio_optimization_artifacts(
             value_column=value_column,
             value_mode=inferred_value_mode,
         )
+        source_asset_headers = list(returns_by_ticker)
     else:
         value_columns = _resolve_wide_value_columns(headers, rows, date_column)
         input_layout = "wide"
@@ -167,8 +211,14 @@ def build_portfolio_optimization_artifacts(
             value_mode=inferred_value_mode,
         )
         value_column = None
+        source_asset_headers = value_columns
 
     raw_asset_count = len(returns_by_ticker)
+    dataset_semantics = _summarize_dataset_semantics(
+        input_layout=input_layout,
+        ticker_column=ticker_column,
+        source_asset_headers=source_asset_headers,
+    )
     candidates = _build_candidate_assets(returns_by_ticker)
     if len(candidates) < _MIN_ASSET_COUNT:
         raise ValueError(
@@ -283,6 +333,7 @@ def build_portfolio_optimization_artifacts(
         input_layout=input_layout,
         value_mode=inferred_value_mode,
         dropped_records=dropped_records,
+        dataset_semantics=dataset_semantics,
     )
 
     elapsed_ms = int((time.perf_counter() - started_at) * 1000)
@@ -303,6 +354,11 @@ def build_portfolio_optimization_artifacts(
         "value_column": value_column,
         "dropped_records": dropped_records,
         "selected_tickers": selected_tickers,
+        "asset_identifier_mode": dataset_semantics.asset_identifier_mode,
+        "asset_semantics": dataset_semantics.asset_semantics,
+        "benchmark_readiness": dataset_semantics.benchmark_readiness,
+        "market_comparable": dataset_semantics.market_comparable,
+        "semantic_notes": list(dataset_semantics.semantic_notes),
     }
     request_summary = {
         "problem_type": "portfolio_optimization",
@@ -871,6 +927,9 @@ def _build_solver_diagnostics(
         "classical_solver": {
             "strategy": "exact_enumeration",
             "evaluated_portfolios": len(feasible_portfolios),
+            "compute_model": "local_in_process_exact_enumeration",
+            "distributed": False,
+            "budget_matched_to_quantum": False,
         },
         "quantum_solver": {
             "ansatz": "QAOA",
@@ -886,6 +945,8 @@ def _build_solver_diagnostics(
             "coarse_grid_steps": optimizer["coarse_grid_steps"],
             "local_refinement_rounds": optimizer["local_refinement_rounds"],
             "local_refinement_points": optimizer["local_refinement_points"],
+            "compute_model": "local_qaoa_search_plus_distributed_fragment_execution",
+            "distributed": True,
         },
     }
 
@@ -1483,6 +1544,7 @@ def _build_dataset_warnings(
     input_layout: str,
     value_mode: str,
     dropped_records: int,
+    dataset_semantics: DatasetSemanticsSummary,
 ) -> list[str]:
     warnings: list[str] = []
     if raw_asset_count > len(selected_assets):
@@ -1496,7 +1558,90 @@ def _build_dataset_warnings(
     if dropped_records > 0:
         warnings.append(f"Ignored {dropped_records} malformed or unusable records during ingestion.")
     warnings.append(f"Detected {input_layout} dataset layout with {value_mode} semantics.")
+    if dataset_semantics.benchmark_readiness == "workflow_only":
+        warnings.append(
+            "Uploaded columns look like derived company metrics rather than tradable securities. "
+            "Treat this run as workflow evidence, not as a professional portfolio benchmark."
+        )
+    elif dataset_semantics.benchmark_readiness == "review_required":
+        warnings.append(
+            "Asset column semantics are ambiguous. Verify that uploaded columns represent tradable securities "
+            "before using this run in any investor-facing comparison."
+        )
     return warnings
+
+
+def _summarize_dataset_semantics(
+    *,
+    input_layout: str,
+    ticker_column: str | None,
+    source_asset_headers: list[str],
+) -> DatasetSemanticsSummary:
+    asset_headers = [header for header in source_asset_headers if header]
+    if input_layout == "long" and ticker_column is not None:
+        return DatasetSemanticsSummary(
+            asset_identifier_mode="ticker_column",
+            asset_semantics="tradable_security_series",
+            benchmark_readiness="market_comparable",
+            market_comparable=True,
+            semantic_notes=(
+                "Long-format input uses an explicit ticker column, so the asset universe is treated as tradable securities.",
+            ),
+        )
+
+    metric_like_count = sum(1 for header in asset_headers if _header_looks_metric_like(header))
+    ticker_like_count = sum(1 for header in asset_headers if _header_looks_ticker_like(header))
+    majority_threshold = max(2, math.ceil(len(asset_headers) / 2))
+
+    if metric_like_count >= majority_threshold and metric_like_count > ticker_like_count:
+        return DatasetSemanticsSummary(
+            asset_identifier_mode="derived_metric_columns",
+            asset_semantics="derived_company_metric_series",
+            benchmark_readiness="workflow_only",
+            market_comparable=False,
+            semantic_notes=(
+                "Wide-format numeric columns look like accounting or KPI metrics instead of tradable securities.",
+                "This dataset shape is suitable for workflow validation, but not for a genuine market benchmark.",
+            ),
+        )
+    if ticker_like_count >= majority_threshold:
+        return DatasetSemanticsSummary(
+            asset_identifier_mode="header_ticker_symbols",
+            asset_semantics="tradable_security_series",
+            benchmark_readiness="market_comparable",
+            market_comparable=True,
+            semantic_notes=(
+                "Wide-format numeric columns look like ticker symbols, so the dataset is treated as a tradable market universe.",
+            ),
+        )
+    return DatasetSemanticsSummary(
+        asset_identifier_mode="ambiguous_columns",
+        asset_semantics="review_required",
+        benchmark_readiness="review_required",
+        market_comparable=False,
+        semantic_notes=(
+            "Column names do not clearly identify either ticker symbols or derived financial metrics.",
+            "Review the uploaded headers before using this result as an external benchmark.",
+        ),
+    )
+
+
+def _header_looks_ticker_like(value: str) -> bool:
+    normalized = value.strip().upper()
+    if not normalized:
+        return False
+    if _header_looks_metric_like(normalized):
+        return False
+    return _MARKET_TICKER_PATTERN.fullmatch(normalized) is not None
+
+
+def _header_looks_metric_like(value: str) -> bool:
+    normalized = _normalize_header(value)
+    if not normalized:
+        return False
+    if normalized.endswith(("_usd", "_pct", "_margin", "_ratio")):
+        return True
+    return any(keyword in normalized for keyword in _METRIC_COLUMN_KEYWORDS)
 
 
 def _single_qubit_pauli_label(qubit_count: int, qubit_index: int) -> str:

@@ -3,10 +3,42 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Any, Mapping
 
 
 _EPSILON = 1e-9
+_TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
+_METRIC_KEYWORDS = (
+    "revenue",
+    "gross",
+    "operating",
+    "income",
+    "profit",
+    "net",
+    "margin",
+    "cash",
+    "flow",
+    "assets",
+    "liabilities",
+    "equity",
+    "inventory",
+    "capex",
+    "expense",
+    "ebit",
+    "ebitda",
+    "fcf",
+    "freecashflow",
+    "ratio",
+    "yield",
+    "usd",
+    "pct",
+    "quarter",
+    "fiscal",
+    "r_and_d",
+    "rnd",
+    "sga",
+)
 
 
 def _utc_now_iso() -> str:
@@ -67,6 +99,51 @@ def _maybe_integer(value: object) -> int | None:
     if isinstance(value, float):
         return int(value)
     return None
+
+
+def _normalize_token(value: str) -> str:
+    return "".join(character for character in value.lower().strip() if character.isalnum() or character == "_")
+
+
+def _looks_metric_like(value: str) -> bool:
+    normalized = _normalize_token(value)
+    if not normalized:
+        return False
+    if normalized.endswith(("_usd", "_pct", "_margin", "_ratio")):
+        return True
+    return any(keyword in normalized for keyword in _METRIC_KEYWORDS)
+
+
+def _looks_ticker_like(value: str) -> bool:
+    normalized = value.strip().upper()
+    if not normalized:
+        return False
+    if _looks_metric_like(normalized):
+        return False
+    return _TICKER_PATTERN.fullmatch(normalized) is not None
+
+
+def _infer_market_comparability(dataset: Mapping[str, Any]) -> bool:
+    explicit_market_comparable = dataset.get("market_comparable")
+    if explicit_market_comparable is True:
+        return True
+    if explicit_market_comparable is False:
+        return False
+
+    readiness = _string(dataset.get("benchmark_readiness"))
+    if readiness == "market_comparable":
+        return True
+    if readiness in {"workflow_only", "review_required"}:
+        return False
+
+    selected_tickers = _as_str_list(dataset.get("selected_tickers"))
+    if not selected_tickers:
+        return False
+    ticker_like_count = sum(1 for ticker in selected_tickers if _looks_ticker_like(ticker))
+    metric_like_count = sum(1 for ticker in selected_tickers if _looks_metric_like(ticker))
+    if ticker_like_count >= max(2, len(selected_tickers) // 2) and metric_like_count == 0:
+        return True
+    return False
 
 
 def _selection(value: object) -> dict[str, Any]:
@@ -167,6 +244,36 @@ def _runtime_view(timings: Mapping[str, Any]) -> dict[str, int | str]:
     }
 
 
+def _build_fairness_notes(
+    *,
+    market_comparable: bool,
+    exact_baseline_available: bool,
+    runtime_comparable: bool,
+) -> list[str]:
+    notes = [
+        "Classical and quantum candidates are derived from the same screened asset universe and portfolio constraints.",
+    ]
+    if market_comparable:
+        notes.append(
+            "Dataset semantics indicate tradable securities rather than single-company derived metric columns."
+        )
+    else:
+        notes.append(
+            "Dataset semantics do not support a real market benchmark, so this run should be presented only as workflow evidence."
+        )
+    if exact_baseline_available:
+        notes.append("The classical baseline is exact enumeration over the screened universe.")
+    else:
+        notes.append("The classical baseline is heuristic, so solution-quality claims are approximate.")
+    if runtime_comparable:
+        notes.append("Runtime comparison is compute-budget matched and uses comparable execution stacks.")
+    else:
+        notes.append(
+            "Runtime comparison is descriptive only: classical runs locally in-process, while quantum includes local QAOA search/statevector work plus distributed fragment execution."
+        )
+    return notes
+
+
 def _format_percent(value: float | None, digits: int = 2) -> str:
     if value is None:
         return "n/a"
@@ -185,7 +292,12 @@ def _classify_pitch_position(
     has_runtime_result: bool,
     feasible_probability_mass: float,
     quantum_on_frontier: bool,
+    market_comparable: bool,
 ) -> str:
+    if not market_comparable:
+        if has_qasm or has_runtime_result:
+            return "workflow_evidence"
+        return "not_ready"
     if objective_winner == "quantum" and has_qasm and has_runtime_result:
         return "numerical_advantage"
     if has_qasm and has_runtime_result and (
@@ -203,9 +315,13 @@ def _classify_claim_readiness(
     has_runtime_result: bool,
     exact_baseline_available: bool,
     asset_count: int,
+    market_comparable: bool,
+    runtime_comparable: bool,
 ) -> str:
+    if not market_comparable:
+        return "not_ready"
     if has_qasm and has_runtime_result and exact_baseline_available:
-        return "qualified" if asset_count <= 8 else "ready"
+        return "qualified" if asset_count <= 8 or not runtime_comparable else "ready"
     return "not_ready"
 
 
@@ -263,8 +379,13 @@ def _build_limitations(
     asset_count: int,
     quantum_on_frontier: bool,
     has_runtime_result: bool,
+    market_comparable: bool,
 ) -> list[str]:
     limitations: list[str] = []
+    if not market_comparable:
+        limitations.append(
+            "Dataset columns look like derived company metrics rather than tradable securities, so this is not a real portfolio benchmark."
+        )
     if objective_winner != "quantum":
         limitations.append(
             "Quantum candidate did not beat the exact classical objective "
@@ -304,6 +425,7 @@ def _build_recommended_claims(
     feasible_probability_mass: float,
     has_qasm: bool,
     has_runtime_result: bool,
+    market_comparable: bool,
 ) -> list[str]:
     claims = [
         "Both classical and quantum candidates were generated from the same screened dataset, objective, budget, and risk settings."
@@ -312,7 +434,7 @@ def _build_recommended_claims(
         claims.append(
             "The platform converts a finance dataset into an executable quantum circuit and surfaces distributed runtime evidence end-to-end."
         )
-    if objective_winner == "quantum":
+    if objective_winner == "quantum" and market_comparable:
         claims.append(
             "On this dataset and parameterization, the quantum candidate exceeded the exact classical objective."
         )
@@ -334,8 +456,11 @@ def _build_avoid_claims(
     asset_count: int,
     quantum_on_frontier: bool,
     has_runtime_result: bool,
+    market_comparable: bool,
 ) -> list[str]:
     avoid_claims: list[str] = []
+    if not market_comparable:
+        avoid_claims.append("Do not present this run as a real portfolio benchmark across tradable securities.")
     if objective_winner != "quantum":
         avoid_claims.append("Do not claim quantum outperformed the exact classical baseline on this dataset.")
     if runtime_winner != "quantum":
@@ -416,6 +541,27 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
     quantum_duration_ms = int(runtime["quantum_runtime_ms"])
     classical_solve_duration_ms = int(runtime["classical_solve_duration_ms"])
     quantum_solve_duration_ms = int(runtime["quantum_solve_duration_ms"])
+    classical_strategy = _string(classical_solver.get("strategy"), "unknown")
+    quantum_strategy = _string(quantum_solver.get("strategy"), "unknown")
+    exact_baseline_available = classical_strategy == "exact_enumeration"
+    classical_compute_model = _string(
+        classical_solver.get("compute_model"),
+        "local_in_process_exact_enumeration" if exact_baseline_available else "local_in_process_classical_solver",
+    )
+    quantum_compute_model = _string(
+        quantum_solver.get("compute_model"),
+        "local_qaoa_search_plus_distributed_fragment_execution",
+    )
+    classical_distributed = classical_solver.get("distributed") is True
+    quantum_distributed = (
+        quantum_solver.get("distributed") is True
+        or _integer(payload.get("distributed_nodes_used")) > 0
+        or _integer(payload.get("fragments_executed")) > 0
+    )
+    same_runtime_stack = classical_compute_model == quantum_compute_model
+    same_distributed_substrate = classical_distributed == quantum_distributed
+    same_compute_budget = classical_solver.get("budget_matched_to_quantum") is True
+    runtime_comparable = same_runtime_stack and same_distributed_substrate and same_compute_budget
     objective_winner = _winner_for_higher_is_better(objective_gap)
     return_winner = _winner_for_higher_is_better(return_gap)
     risk_winner = _winner_for_lower_is_better(variance_gap)
@@ -424,6 +570,26 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         quantum_duration_ms=quantum_duration_ms,
     )
     asset_count = _integer(dataset.get("asset_count"))
+    market_comparable = _infer_market_comparability(dataset)
+    benchmark_readiness = _string(
+        dataset.get("benchmark_readiness"),
+        "market_comparable" if market_comparable else "workflow_only",
+    )
+    asset_semantics = _string(
+        dataset.get("asset_semantics"),
+        "tradable_security_series" if market_comparable else "derived_company_metric_series",
+    )
+    asset_identifier_mode = _string(
+        dataset.get("asset_identifier_mode"),
+        "selected_tickers" if market_comparable else "review_required",
+    )
+    semantic_notes = _as_str_list(dataset.get("semantic_notes"))
+    if not semantic_notes:
+        semantic_notes = (
+            ["Dataset columns behave like tradable security identifiers."]
+            if market_comparable
+            else ["Dataset columns behave like derived company metrics or otherwise non-tradable series."]
+        )
     feasible_portfolio_count = _integer(frontier.get("feasible_portfolio_count"))
     feasible_probability_mass = _number(comparison.get("feasible_probability_mass"))
     optimum_probability = _maybe_number(comparison.get("optimum_probability"))
@@ -436,12 +602,15 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         has_runtime_result=has_runtime_result,
         feasible_probability_mass=feasible_probability_mass,
         quantum_on_frontier=quantum_on_frontier,
+        market_comparable=market_comparable,
     )
     claim_readiness = _classify_claim_readiness(
         has_qasm=has_qasm,
         has_runtime_result=has_runtime_result,
-        exact_baseline_available=classical_solver.get("strategy") == "exact_enumeration",
+        exact_baseline_available=exact_baseline_available,
         asset_count=asset_count,
+        market_comparable=market_comparable,
+        runtime_comparable=runtime_comparable,
     )
     headline, summary = _build_headline_and_summary(
         pitch_position=pitch_position,
@@ -456,9 +625,11 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         "solve_duration_ms": classical_solve_duration_ms,
         "end_to_end_duration_ms": int(runtime["classical_end_to_end_duration_ms"]),
         "shared_preparation_duration_ms": int(runtime["shared_preparation_duration_ms"]),
-        "strategy": _string(classical_solver.get("strategy"), "unknown"),
+        "strategy": classical_strategy,
         "evaluated_portfolios": _integer(classical_solver.get("evaluated_portfolios")),
-        "is_exact_optimum": classical_solver.get("strategy") == "exact_enumeration",
+        "is_exact_optimum": exact_baseline_available,
+        "compute_model": classical_compute_model,
+        "distributed": classical_distributed,
     }
     quantum_report = {
         **quantum,
@@ -474,7 +645,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         "service_wait_duration_ms": int(runtime["service_wait_duration_ms"]),
         "plan_compile_duration_ms": int(runtime["plan_compile_duration_ms"]),
         "distributed_execution_duration_ms": int(runtime["distributed_execution_duration_ms"]),
-        "strategy": _string(quantum_solver.get("strategy"), "unknown"),
+        "strategy": quantum_strategy,
         "ansatz": _string(quantum_solver.get("ansatz"), "QAOA"),
         "parameter_evaluations": _integer(quantum_solver.get("parameter_evaluations")),
         "feasible_probability_mass": feasible_probability_mass,
@@ -489,6 +660,8 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         "circuit_size": _maybe_integer(circuit_summary.get("size")),
         "has_qasm": has_qasm,
         "has_runtime_result": has_runtime_result,
+        "compute_model": quantum_compute_model,
+        "distributed": quantum_distributed,
     }
 
     strengths = _build_strengths(
@@ -515,6 +688,12 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         asset_count=asset_count,
         quantum_on_frontier=quantum_on_frontier,
         has_runtime_result=has_runtime_result,
+        market_comparable=market_comparable,
+    )
+    fairness_notes = _build_fairness_notes(
+        market_comparable=market_comparable,
+        exact_baseline_available=exact_baseline_available,
+        runtime_comparable=runtime_comparable,
     )
 
     return {
@@ -525,11 +704,12 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "same_dataset": True,
             "same_constraints": True,
             "same_objective": True,
-            "notes": [
-                "Classical and quantum candidates are derived from the same screened asset universe and portfolio constraints.",
-                "The classical baseline is exact enumeration, not a heuristic fallback.",
-                "The quantum candidate is the highest-ranked feasible state returned by the QAOA workflow.",
-            ],
+            "same_runtime_stack": same_runtime_stack,
+            "same_distributed_substrate": same_distributed_substrate,
+            "same_compute_budget": same_compute_budget,
+            "runtime_comparable": runtime_comparable,
+            "market_comparable_dataset": market_comparable,
+            "notes": fairness_notes,
         },
         "dataset": {
             "input_layout": _string(dataset.get("input_layout"), "long"),
@@ -542,6 +722,11 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "start_date": _string(dataset.get("start_date")),
             "end_date": _string(dataset.get("end_date")),
             "selected_tickers": _as_str_list(dataset.get("selected_tickers")),
+            "asset_identifier_mode": asset_identifier_mode,
+            "asset_semantics": asset_semantics,
+            "benchmark_readiness": benchmark_readiness,
+            "market_comparable": market_comparable,
+            "semantic_notes": semantic_notes,
         },
         "problem": {
             "problem_type": _string(payload.get("problem_type"), "portfolio_optimization"),
@@ -555,8 +740,8 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "penalty": _number(request.get("penalty")),
             "qaoa_reps": _integer(request.get("qaoa_reps"), 1),
             "parameter_search_steps": _integer(request.get("parameter_search_steps")),
-            "classical_strategy": _string(classical_solver.get("strategy"), "unknown"),
-            "quantum_strategy": _string(quantum_solver.get("strategy"), "unknown"),
+            "classical_strategy": classical_strategy,
+            "quantum_strategy": quantum_strategy,
         },
         "classical": classical_report,
         "quantum": quantum_report,
@@ -577,6 +762,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "overlap_count": _integer(comparison.get("overlap_count")),
             "overlap_ratio": _number(comparison.get("overlap_ratio")),
             "quantum_advantage_detected": comparison.get("quantum_advantage_detected") is True,
+            "runtime_comparable": runtime_comparable,
         },
         "evidence": {
             "exact_baseline_available": classical_report["is_exact_optimum"],
@@ -586,6 +772,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "observed_basis_state_count": len(_as_mapping(quantum_result.get("counts"))),
             "workflow_total_duration_ms": int(runtime["workflow_total_duration_ms"]),
             "runtime_basis": _string(runtime.get("runtime_basis"), "inconclusive"),
+            "dataset_market_comparable": market_comparable,
             "warnings": warnings,
         },
         "verdict": {
@@ -601,6 +788,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
                 feasible_probability_mass=feasible_probability_mass,
                 has_qasm=has_qasm,
                 has_runtime_result=has_runtime_result,
+                market_comparable=market_comparable,
             ),
             "avoid_claims": _build_avoid_claims(
                 objective_winner=objective_winner,
@@ -608,6 +796,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
                 asset_count=asset_count,
                 quantum_on_frontier=quantum_on_frontier,
                 has_runtime_result=has_runtime_result,
+                market_comparable=market_comparable,
             ),
         },
     }

@@ -46,6 +46,18 @@ def _long_returns_csv() -> bytes:
     )
 
 
+def _wide_metric_matrix_csv() -> bytes:
+    return (
+        b"period_end,revenue_usd,gross_profit_usd,operating_income_usd,net_income_usd,assets_usd,equity_usd\n"
+        b"2024-03-31,100,38,19,15,240,105\n"
+        b"2024-06-30,108,41,21,16,246,109\n"
+        b"2024-09-30,112,43,22,17,252,112\n"
+        b"2024-12-31,119,45,24,19,260,118\n"
+        b"2025-03-31,124,47,25,20,268,122\n"
+        b"2025-06-30,131,50,27,21,276,127\n"
+    )
+
+
 def test_build_portfolio_artifacts_from_wide_prices() -> None:
     artifacts = build_portfolio_optimization_artifacts(
         csv_bytes=_wide_prices_csv(),
@@ -62,6 +74,10 @@ def test_build_portfolio_artifacts_from_wide_prices() -> None:
     assert payload["problem_type"] == "portfolio_optimization"
     assert payload["dataset"]["input_layout"] == "wide"
     assert payload["dataset"]["asset_count"] == 4
+    assert payload["dataset"]["asset_identifier_mode"] == "header_ticker_symbols"
+    assert payload["dataset"]["asset_semantics"] == "tradable_security_series"
+    assert payload["dataset"]["benchmark_readiness"] == "market_comparable"
+    assert payload["dataset"]["market_comparable"] is True
     assert payload["request"]["resolved_value_mode"] == "prices"
     assert payload["benchmark"]["classical"]["selected_asset_count"] == payload["request"]["budget"]
     assert payload["benchmark"]["quantum"]["selected_asset_count"] == payload["request"]["budget"]
@@ -105,6 +121,10 @@ def test_build_portfolio_artifacts_from_long_returns() -> None:
     payload = artifacts.payload
 
     assert payload["dataset"]["input_layout"] == "long"
+    assert payload["dataset"]["asset_identifier_mode"] == "ticker_column"
+    assert payload["dataset"]["asset_semantics"] == "tradable_security_series"
+    assert payload["dataset"]["benchmark_readiness"] == "market_comparable"
+    assert payload["dataset"]["market_comparable"] is True
     assert payload["request"]["budget"] == 2
     assert payload["request"]["qaoa_reps"] == 2
     assert payload["request"]["resolved_value_mode"] == "returns"
@@ -115,3 +135,27 @@ def test_build_portfolio_artifacts_from_long_returns() -> None:
     assert payload["quantum_execution"]["qaoa_parameters"]["parameter_search_steps"] == 3
     assert len(payload["quantum_execution"]["qaoa_parameters"]["beta_parameters"]) == 2
     assert len(payload["quantum_execution"]["qaoa_parameters"]["gamma_parameters"]) == 2
+
+
+def test_build_portfolio_artifacts_flags_metric_matrix_as_workflow_only() -> None:
+    artifacts = build_portfolio_optimization_artifacts(
+        csv_bytes=_wide_metric_matrix_csv(),
+        job_id="fin-test-metrics",
+        filename="quarterly-metrics.csv",
+        config=PortfolioOptimizationConfig(
+            max_assets_considered=6,
+            parameter_search_steps=3,
+            date_column="period_end",
+        ),
+    )
+
+    payload = artifacts.payload
+
+    assert payload["dataset"]["asset_identifier_mode"] == "derived_metric_columns"
+    assert payload["dataset"]["asset_semantics"] == "derived_company_metric_series"
+    assert payload["dataset"]["benchmark_readiness"] == "workflow_only"
+    assert payload["dataset"]["market_comparable"] is False
+    assert any(
+        "derived company metrics rather than tradable securities" in warning
+        for warning in payload["warnings"]
+    )
