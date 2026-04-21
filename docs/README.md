@@ -15,6 +15,7 @@ If you are new, read in this order:
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): end-to-end architecture, components, and execution flow
 - [`design.md`](design.md): design goals and tradeoffs for the POC
 - [`requirements.md`](requirements.md): functional and non-functional requirements
+- [`FINANCIAL_MODELING_FOUNDATIONS.md`](FINANCIAL_MODELING_FOUNDATIONS.md): finance terminology, dataset shapes, corporate-finance vs quantum-finance tracks, and recommended product direction
 
 ### I want delivery status and execution plan
 
@@ -32,7 +33,7 @@ If you are new, read in this order:
 
 ## Doc Types
 
-- **Current-state docs**: `ARCHITECTURE.md`, `design.md`, `requirements.md`
+- **Current-state docs**: `ARCHITECTURE.md`, `design.md`, `requirements.md`, `FINANCIAL_MODELING_FOUNDATIONS.md`
 - **Execution docs**: `tasks.md`, `PROGRESS.md`
 - **Future-state docs**: `FUTURE_ROADMAP.md`, `future-roadmap/*.md`
 

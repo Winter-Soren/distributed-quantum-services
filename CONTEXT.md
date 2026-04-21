@@ -19,6 +19,8 @@ This repository is a research-oriented platform that treats quantum-style operat
 
 There is also a newer financial-analysis workflow in the same platform that reuses the operator console and backend infrastructure, even though the main docs still focus mostly on the quantum/distributed-orchestration story.
 
+Important nuance: the richer finance engine currently lives in legacy `backend/`; `backend-v2/` currently exposes a narrower finance parity flow centered on CSV profiling.
+
 ## What The Platform Does Today
 
 At a practical level, the platform currently provides:
@@ -62,8 +64,9 @@ The cleanest mental model is:
 Separately:
 
 1. A CSV can be submitted as a financial analysis job.
-2. The backend profiles columns, correlations, trends, DCF, and anomalies.
-3. The frontend displays that analysis in the same operator console.
+2. In legacy `backend/`, the finance path profiles columns, computes correlations and time-series insights, performs a simplified DCF path, detects anomalies, and derives a finance-themed quantum execution artifact.
+3. In `backend-v2/`, the current finance path is much narrower and stops at CSV profiling plus simple per-column statistics.
+4. The frontend displays the active finance payload in the same operator console.
 
 ## Current State Vs Future State
 
@@ -133,6 +136,8 @@ Docs:
   - best first stop for running the project
 - `docs/ARCHITECTURE.md`
   - best narrative overview of how the quantum system is supposed to work
+- `docs/FINANCIAL_MODELING_FOUNDATIONS.md`
+  - best explanation of what "financial modeling" should mean for this repo and which finance track fits the platform
 - `docs/tasks.md`
   - best view of completed vs incomplete near-term milestones
 - `docs/FUTURE_ROADMAP.md`
@@ -393,6 +398,8 @@ So the quantum analysis is meaningful for this POC, but not equivalent to a full
 ## Financial Analysis Workflow
 
 The backend also supports a separate financial-analysis path:
+
+The detailed behavior described below refers to the legacy `backend/` workflow. `backend-v2/` currently implements a reduced finance parity flow that stops at CSV profiling and simple per-column statistics.
 
 - `POST /api/v1/finance/submit`
 - `GET /api/v1/finance/{job_id}`
