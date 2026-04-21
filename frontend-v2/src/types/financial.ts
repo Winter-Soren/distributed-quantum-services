@@ -204,6 +204,12 @@ export interface PortfolioSolverDiagnostics {
 		reps: number;
 		strategy: string;
 		parameter_evaluations: number;
+		backend?: string;
+		constraint_preserving?: boolean;
+		mixer?: string;
+		initial_state?: string;
+		top_seed_count?: number;
+		candidate_count?: number;
 		coarse_grid_steps: number;
 		local_refinement_rounds: number;
 		local_refinement_points: number;
@@ -218,14 +224,29 @@ export interface PortfolioBenchmarkSummary {
 	comparison: PortfolioBenchmarkComparison;
 	frontier: PortfolioFrontierSummary;
 	timings: {
+		shared_preparation_duration_ms?: number;
 		classical_duration_ms: number;
+		classical_solve_duration_ms?: number;
+		classical_end_to_end_duration_ms?: number;
 		quantum_duration_ms: number;
+		quantum_solve_duration_ms?: number;
+		quantum_parameter_search_duration_ms?: number;
+		quantum_solution_extraction_duration_ms?: number;
+		quantum_circuit_compile_duration_ms?: number;
+		quantum_local_end_to_end_duration_ms?: number;
+		quantum_end_to_end_duration_ms?: number;
+		service_wait_duration_ms?: number;
+		plan_compile_duration_ms?: number;
+		distributed_execution_duration_ms?: number;
+		report_assembly_duration_ms?: number;
+		workflow_total_duration_ms?: number;
 	};
 }
 
 export type FinancialComparisonWinner = 'classical' | 'quantum' | 'tie' | 'inconclusive';
 export type FinancialComparisonPitchPosition = 'workflow_evidence' | 'mixed' | 'numerical_advantage' | 'not_ready';
 export type FinancialComparisonClaimReadiness = 'ready' | 'qualified' | 'not_ready';
+export type FinancialComparisonRuntimeBasis = 'solver_only' | 'end_to_end_paths' | 'inconclusive';
 
 export interface FinancialComparisonFairness {
 	same_dataset: boolean;
@@ -262,6 +283,9 @@ export interface FinancialComparisonProblem {
 
 export interface FinancialComparisonClassicalSelection extends PortfolioSelectionSummary {
 	duration_ms: number;
+	solve_duration_ms?: number;
+	end_to_end_duration_ms?: number;
+	shared_preparation_duration_ms?: number;
 	strategy: string;
 	evaluated_portfolios: number;
 	is_exact_optimum: boolean;
@@ -269,6 +293,15 @@ export interface FinancialComparisonClassicalSelection extends PortfolioSelectio
 
 export interface FinancialComparisonQuantumSelection extends PortfolioSelectionSummary {
 	duration_ms: number;
+	solve_duration_ms?: number;
+	end_to_end_duration_ms?: number;
+	local_end_to_end_duration_ms?: number;
+	parameter_search_duration_ms?: number;
+	solution_extraction_duration_ms?: number;
+	circuit_compile_duration_ms?: number;
+	service_wait_duration_ms?: number;
+	plan_compile_duration_ms?: number;
+	distributed_execution_duration_ms?: number;
 	strategy: string;
 	ansatz: string;
 	parameter_evaluations: number;
@@ -291,6 +324,8 @@ export interface FinancialComparisonScorecard {
 	winner_by_return: FinancialComparisonWinner;
 	winner_by_risk: FinancialComparisonWinner;
 	winner_by_runtime: FinancialComparisonWinner;
+	winner_by_solver_runtime?: FinancialComparisonWinner;
+	runtime_basis?: FinancialComparisonRuntimeBasis;
 	objective_gap: number;
 	objective_ratio?: number | null;
 	return_gap: number;
@@ -306,6 +341,8 @@ export interface FinancialComparisonEvidence {
 	top_state_count: number;
 	fragment_count: number;
 	observed_basis_state_count: number;
+	workflow_total_duration_ms?: number;
+	runtime_basis?: FinancialComparisonRuntimeBasis;
 	warnings: string[];
 }
 
@@ -364,7 +401,13 @@ export interface PortfolioQaoaParameters {
 	reps: number;
 	beta: number;
 	gamma: number;
+	beta_parameters?: number[];
+	gamma_parameters?: number[];
 	parameter_search_steps: number;
+	search_strategy?: string;
+	mixer_strategy?: string;
+	initial_state_strategy?: string;
+	warm_start_bitstring?: string;
 }
 
 export interface PortfolioQuantumState {

@@ -151,6 +151,7 @@ async def test_submit_financial_csv_uses_authenticated_owner_id(
                 "budget": "3",
                 "risk_aversion": "0.7",
                 "max_assets_considered": "5",
+                "qaoa_reps": "2",
                 "parameter_search_steps": "11",
             },
             files={"file": ("portfolio.csv", b"date,ticker,close\n2024-01-01,AAPL,100\n", "text/csv")},
@@ -161,6 +162,7 @@ async def test_submit_financial_csv_uses_authenticated_owner_id(
     assert len(service.submit_calls) == 1
     assert service.submit_calls[0]["owner_user_id"] == "alice"
     assert service.submit_calls[0]["problem_type"] == "portfolio_optimization"
+    assert getattr(service.submit_calls[0]["config"], "qaoa_reps") == 2
 
 
 async def test_get_financial_job_forwards_summary_detail_and_user(

@@ -4,6 +4,7 @@ import type {
 	FinancialComparisonClaimReadiness,
 	FinancialComparisonPitchPosition,
 	FinancialComparisonReport,
+	FinancialComparisonRuntimeBasis,
 	FinancialComparisonWinner,
 	FinancialJobResponse,
 	FinancialJobStatus,
@@ -33,6 +34,12 @@ function asString(value: unknown) {
 
 function asNumber(value: unknown) {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function asNumberArray(value: unknown) {
+	return Array.isArray(value)
+		? value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
+		: [];
 }
 
 function asStringArray(value: unknown) {
@@ -185,6 +192,15 @@ function normalizePortfolioSolverDiagnostics(value: unknown): PortfolioSolverDia
 			reps: asNumber(quantumSolver.reps) ?? 0,
 			strategy: asString(quantumSolver.strategy) ?? 'unknown',
 			parameter_evaluations: asNumber(quantumSolver.parameter_evaluations) ?? 0,
+			backend: asString(quantumSolver.backend) ?? undefined,
+			constraint_preserving:
+				typeof quantumSolver.constraint_preserving === 'boolean'
+					? quantumSolver.constraint_preserving
+					: undefined,
+			mixer: asString(quantumSolver.mixer) ?? undefined,
+			initial_state: asString(quantumSolver.initial_state) ?? undefined,
+			top_seed_count: asNumber(quantumSolver.top_seed_count) ?? undefined,
+			candidate_count: asNumber(quantumSolver.candidate_count) ?? undefined,
 			coarse_grid_steps: asNumber(quantumSolver.coarse_grid_steps) ?? 0,
 			local_refinement_rounds: asNumber(quantumSolver.local_refinement_rounds) ?? 0,
 			local_refinement_points: asNumber(quantumSolver.local_refinement_points) ?? 0
@@ -215,8 +231,28 @@ function normalizePortfolioBenchmarkSummary(value: unknown): PortfolioBenchmarkS
 		},
 		frontier: normalizePortfolioFrontierSummary(record.frontier),
 		timings: {
+			shared_preparation_duration_ms: asNumber(timings.shared_preparation_duration_ms) ?? undefined,
 			classical_duration_ms: asNumber(timings.classical_duration_ms) ?? 0,
-			quantum_duration_ms: asNumber(timings.quantum_duration_ms) ?? 0
+			classical_solve_duration_ms: asNumber(timings.classical_solve_duration_ms) ?? undefined,
+			classical_end_to_end_duration_ms:
+				asNumber(timings.classical_end_to_end_duration_ms) ?? undefined,
+			quantum_duration_ms: asNumber(timings.quantum_duration_ms) ?? 0,
+			quantum_solve_duration_ms: asNumber(timings.quantum_solve_duration_ms) ?? undefined,
+			quantum_parameter_search_duration_ms:
+				asNumber(timings.quantum_parameter_search_duration_ms) ?? undefined,
+			quantum_solution_extraction_duration_ms:
+				asNumber(timings.quantum_solution_extraction_duration_ms) ?? undefined,
+			quantum_circuit_compile_duration_ms:
+				asNumber(timings.quantum_circuit_compile_duration_ms) ?? undefined,
+			quantum_local_end_to_end_duration_ms:
+				asNumber(timings.quantum_local_end_to_end_duration_ms) ?? undefined,
+			quantum_end_to_end_duration_ms: asNumber(timings.quantum_end_to_end_duration_ms) ?? undefined,
+			service_wait_duration_ms: asNumber(timings.service_wait_duration_ms) ?? undefined,
+			plan_compile_duration_ms: asNumber(timings.plan_compile_duration_ms) ?? undefined,
+			distributed_execution_duration_ms:
+				asNumber(timings.distributed_execution_duration_ms) ?? undefined,
+			report_assembly_duration_ms: asNumber(timings.report_assembly_duration_ms) ?? undefined,
+			workflow_total_duration_ms: asNumber(timings.workflow_total_duration_ms) ?? undefined
 		}
 	};
 }
@@ -243,6 +279,14 @@ function normalizeFinancialComparisonClaimReadiness(value: unknown): FinancialCo
 		return raw;
 	}
 	return 'not_ready';
+}
+
+function normalizeFinancialComparisonRuntimeBasis(value: unknown): FinancialComparisonRuntimeBasis {
+	const raw = asString(value);
+	if (raw === 'solver_only' || raw === 'end_to_end_paths' || raw === 'inconclusive') {
+		return raw;
+	}
+	return 'inconclusive';
 }
 
 export function normalizeFinancialComparisonReport(value: unknown): FinancialComparisonReport | undefined {
@@ -305,6 +349,10 @@ export function normalizeFinancialComparisonReport(value: unknown): FinancialCom
 		classical: {
 			...normalizePortfolioSelectionSummary(classical),
 			duration_ms: asNumber(classical.duration_ms) ?? 0,
+			solve_duration_ms: asNumber(classical.solve_duration_ms) ?? undefined,
+			end_to_end_duration_ms: asNumber(classical.end_to_end_duration_ms) ?? undefined,
+			shared_preparation_duration_ms:
+				asNumber(classical.shared_preparation_duration_ms) ?? undefined,
 			strategy: asString(classical.strategy) ?? 'unknown',
 			evaluated_portfolios: asNumber(classical.evaluated_portfolios) ?? 0,
 			is_exact_optimum: classical.is_exact_optimum === true
@@ -312,6 +360,18 @@ export function normalizeFinancialComparisonReport(value: unknown): FinancialCom
 		quantum: {
 			...normalizePortfolioSelectionSummary(quantum),
 			duration_ms: asNumber(quantum.duration_ms) ?? 0,
+			solve_duration_ms: asNumber(quantum.solve_duration_ms) ?? undefined,
+			end_to_end_duration_ms: asNumber(quantum.end_to_end_duration_ms) ?? undefined,
+			local_end_to_end_duration_ms: asNumber(quantum.local_end_to_end_duration_ms) ?? undefined,
+			parameter_search_duration_ms:
+				asNumber(quantum.parameter_search_duration_ms) ?? undefined,
+			solution_extraction_duration_ms:
+				asNumber(quantum.solution_extraction_duration_ms) ?? undefined,
+			circuit_compile_duration_ms: asNumber(quantum.circuit_compile_duration_ms) ?? undefined,
+			service_wait_duration_ms: asNumber(quantum.service_wait_duration_ms) ?? undefined,
+			plan_compile_duration_ms: asNumber(quantum.plan_compile_duration_ms) ?? undefined,
+			distributed_execution_duration_ms:
+				asNumber(quantum.distributed_execution_duration_ms) ?? undefined,
 			strategy: asString(quantum.strategy) ?? 'unknown',
 			ansatz: asString(quantum.ansatz) ?? 'QAOA',
 			parameter_evaluations: asNumber(quantum.parameter_evaluations) ?? 0,
@@ -333,6 +393,8 @@ export function normalizeFinancialComparisonReport(value: unknown): FinancialCom
 			winner_by_return: normalizeFinancialComparisonWinner(scorecard.winner_by_return),
 			winner_by_risk: normalizeFinancialComparisonWinner(scorecard.winner_by_risk),
 			winner_by_runtime: normalizeFinancialComparisonWinner(scorecard.winner_by_runtime),
+			winner_by_solver_runtime: normalizeFinancialComparisonWinner(scorecard.winner_by_solver_runtime),
+			runtime_basis: normalizeFinancialComparisonRuntimeBasis(scorecard.runtime_basis),
 			objective_gap: asNumber(scorecard.objective_gap) ?? 0,
 			objective_ratio: asNumber(scorecard.objective_ratio),
 			return_gap: asNumber(scorecard.return_gap) ?? 0,
@@ -347,6 +409,8 @@ export function normalizeFinancialComparisonReport(value: unknown): FinancialCom
 			top_state_count: asNumber(evidence.top_state_count) ?? 0,
 			fragment_count: asNumber(evidence.fragment_count) ?? 0,
 			observed_basis_state_count: asNumber(evidence.observed_basis_state_count) ?? 0,
+			workflow_total_duration_ms: asNumber(evidence.workflow_total_duration_ms) ?? undefined,
+			runtime_basis: normalizeFinancialComparisonRuntimeBasis(evidence.runtime_basis),
 			warnings: asStringArray(evidence.warnings)
 		},
 		verdict: {
@@ -371,7 +435,13 @@ function normalizePortfolioQaoaParameters(value: unknown): PortfolioQaoaParamete
 		reps: asNumber(value.reps) ?? 1,
 		beta: asNumber(value.beta) ?? 0,
 		gamma: asNumber(value.gamma) ?? 0,
-		parameter_search_steps: asNumber(value.parameter_search_steps) ?? 0
+		beta_parameters: asNumberArray(value.beta_parameters),
+		gamma_parameters: asNumberArray(value.gamma_parameters),
+		parameter_search_steps: asNumber(value.parameter_search_steps) ?? 0,
+		search_strategy: asString(value.search_strategy) ?? undefined,
+		mixer_strategy: asString(value.mixer_strategy) ?? undefined,
+		initial_state_strategy: asString(value.initial_state_strategy) ?? undefined,
+		warm_start_bitstring: asString(value.warm_start_bitstring) ?? undefined
 	};
 }
 

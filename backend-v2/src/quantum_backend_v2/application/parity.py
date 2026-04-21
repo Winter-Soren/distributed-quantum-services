@@ -370,11 +370,16 @@ class FinancialJobService:
                 filename=filename,
                 config=config,
             )
+            service_wait_started_at = time.perf_counter()
             await self._quantum_bridge.wait_for_service_peers()
+            service_wait_duration_ms = int((time.perf_counter() - service_wait_started_at) * 1000)
+            plan_compile_started_at = time.perf_counter()
             plan = self._quantum_bridge.compile_plan(artifacts.circuit_qasm)
+            plan_compile_duration_ms = int((time.perf_counter() - plan_compile_started_at) * 1000)
             runtime_fragment_results: list[Any] = []
             serialized_fragment_results: list[dict[str, Any]] = []
             final_state = None
+            distributed_execution_started_at = time.perf_counter()
             async for execution in self._quantum_bridge.iter_fragment_executions(
                 workflow_run_id=job_id,
                 plan=plan,
@@ -391,6 +396,9 @@ class FinancialJobService:
                 plan=plan,
                 fragment_results=tuple(runtime_fragment_results),
                 final_state=final_state,
+            )
+            distributed_execution_duration_ms = int(
+                (time.perf_counter() - distributed_execution_started_at) * 1000
             )
 
             result_payload = copy.deepcopy(artifacts.payload)
@@ -413,7 +421,41 @@ class FinancialJobService:
             )
             result_payload["fragments_executed"] = len(serialized_fragment_results)
             result_payload["generated_at"] = _utc_now().isoformat()
+            benchmark = result_payload.get("benchmark")
+            timings = benchmark.get("timings") if isinstance(benchmark, dict) else None
+            if isinstance(timings, dict):
+                shared_preparation_duration_ms = int(
+                    timings.get("shared_preparation_duration_ms", 0)
+                )
+                quantum_local_end_to_end_duration_ms = int(
+                    timings.get("quantum_local_end_to_end_duration_ms", 0)
+                )
+                timings.update(
+                    {
+                        "service_wait_duration_ms": service_wait_duration_ms,
+                        "plan_compile_duration_ms": plan_compile_duration_ms,
+                        "distributed_execution_duration_ms": distributed_execution_duration_ms,
+                        "quantum_end_to_end_duration_ms": (
+                            quantum_local_end_to_end_duration_ms
+                            + service_wait_duration_ms
+                            + plan_compile_duration_ms
+                            + distributed_execution_duration_ms
+                        ),
+                        "classical_end_to_end_duration_ms": (
+                            shared_preparation_duration_ms
+                            + int(timings.get("classical_solve_duration_ms", 0))
+                        ),
+                    }
+                )
+            report_started_at = time.perf_counter()
             result_payload = _attach_financial_comparison_report(result_payload)
+            report_assembly_duration_ms = int((time.perf_counter() - report_started_at) * 1000)
+            result_payload["analysis_duration_ms"] = int(
+                (time.perf_counter() - process_started_at) * 1000
+            )
+            if isinstance(timings, dict):
+                timings["report_assembly_duration_ms"] = report_assembly_duration_ms
+                timings["workflow_total_duration_ms"] = result_payload["analysis_duration_ms"]
 
             async with self._session_factory() as session:
                 record = await session.get(FinancialJobRecord, job_id)

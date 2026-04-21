@@ -15,6 +15,7 @@ import numpy as np
 from qiskit import qasm2, transpile
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit.library import QAOAAnsatz
+from qiskit.primitives import StatevectorEstimator
 from qiskit.quantum_info import SparsePauliOp, Statevector
 
 
@@ -61,8 +62,11 @@ _MIN_ASSET_COUNT = 2
 _MIN_OBSERVATIONS = 4
 _DEFAULT_MAX_ASSETS = 6
 _DEFAULT_PARAMETER_STEPS = 9
+_MAX_QAOA_REPS = 4
 _DEFAULT_LOCAL_REFINEMENT_ROUNDS = 3
 _LOCAL_REFINEMENT_POINTS = 5
+_QAOA_TOP_SEEDS = 4
+_QAOA_RANDOM_SEED = 19
 
 
 @dataclass(frozen=True)
@@ -206,6 +210,7 @@ def build_portfolio_optimization_artifacts(
         budget=budget,
         penalty=penalty,
     )
+    shared_preparation_duration_ms = int((time.perf_counter() - started_at) * 1000)
     classical_started_at = time.perf_counter()
     classical_portfolios = _enumerate_feasible_portfolios(
         tickers=[asset.ticker for asset in selected_assets],
@@ -339,8 +344,30 @@ def build_portfolio_optimization_artifacts(
             "comparison": comparison["comparison"],
             "frontier": frontier,
             "timings": {
+                "shared_preparation_duration_ms": shared_preparation_duration_ms,
                 "classical_duration_ms": classical_duration_ms,
+                "classical_solve_duration_ms": classical_duration_ms,
+                "classical_end_to_end_duration_ms": shared_preparation_duration_ms + classical_duration_ms,
                 "quantum_duration_ms": quantum_duration_ms,
+                "quantum_solve_duration_ms": quantum_duration_ms,
+                "quantum_parameter_search_duration_ms": quantum_solution["timings"][
+                    "parameter_search_duration_ms"
+                ],
+                "quantum_solution_extraction_duration_ms": quantum_solution["timings"][
+                    "solution_extraction_duration_ms"
+                ],
+                "quantum_circuit_compile_duration_ms": quantum_solution["timings"][
+                    "circuit_compile_duration_ms"
+                ],
+                "quantum_local_end_to_end_duration_ms": (
+                    shared_preparation_duration_ms + quantum_duration_ms
+                ),
+                "quantum_end_to_end_duration_ms": 0,
+                "service_wait_duration_ms": 0,
+                "plan_compile_duration_ms": 0,
+                "distributed_execution_duration_ms": 0,
+                "report_assembly_duration_ms": 0,
+                "workflow_total_duration_ms": elapsed_ms,
             },
         },
         "warnings": warnings,
@@ -351,7 +378,13 @@ def build_portfolio_optimization_artifacts(
                 "reps": resolved_config.qaoa_reps,
                 "beta": quantum_solution["beta"],
                 "gamma": quantum_solution["gamma"],
+                "beta_parameters": quantum_solution["beta_parameters"],
+                "gamma_parameters": quantum_solution["gamma_parameters"],
                 "parameter_search_steps": resolved_config.parameter_search_steps,
+                "search_strategy": quantum_solution["optimizer"]["strategy"],
+                "mixer_strategy": quantum_solution["mixer_strategy"],
+                "initial_state_strategy": quantum_solution["initial_state_strategy"],
+                "warm_start_bitstring": quantum_solution["warm_start_bitstring"],
             },
             "circuit_summary": quantum_solution["circuit_summary"],
             "top_states": quantum_solution["top_states"],
@@ -376,8 +409,8 @@ def _normalize_config(config: PortfolioOptimizationConfig) -> PortfolioOptimizat
     value_mode = config.value_mode.strip().lower()
     if value_mode not in {"auto", "prices", "returns"}:
         raise ValueError("value_mode must be one of auto, prices, or returns.")
-    if config.qaoa_reps != 1:
-        raise ValueError("Only qaoa_reps=1 is supported in the current backend-v2 finance runtime.")
+    if not (1 <= config.qaoa_reps <= _MAX_QAOA_REPS):
+        raise ValueError(f"qaoa_reps must be between 1 and {_MAX_QAOA_REPS}.")
     if not (2 <= config.max_assets_considered <= 8):
         raise ValueError("max_assets_considered must be between 2 and 8.")
     if not (0.0 <= config.risk_aversion <= 10.0):
@@ -392,8 +425,8 @@ def _normalize_config(config: PortfolioOptimizationConfig) -> PortfolioOptimizat
         ticker_column=_normalize_optional_text(config.ticker_column),
         value_column=_normalize_optional_text(config.value_column),
         value_mode=value_mode,
-        qaoa_reps=config.qaoa_reps,
-        parameter_search_steps=config.parameter_search_steps,
+        qaoa_reps=int(config.qaoa_reps),
+        parameter_search_steps=int(config.parameter_search_steps),
     )
 
 
@@ -844,6 +877,12 @@ def _build_solver_diagnostics(
             "reps": quantum_solution["reps"],
             "strategy": optimizer["strategy"],
             "parameter_evaluations": optimizer["parameter_evaluations"],
+            "backend": optimizer["backend"],
+            "constraint_preserving": optimizer["constraint_preserving"],
+            "mixer": quantum_solution["mixer_strategy"],
+            "initial_state": quantum_solution["initial_state_strategy"],
+            "top_seed_count": optimizer["top_seed_count"],
+            "candidate_count": optimizer["candidate_count"],
             "coarse_grid_steps": optimizer["coarse_grid_steps"],
             "local_refinement_rounds": optimizer["local_refinement_rounds"],
             "local_refinement_points": optimizer["local_refinement_points"],
@@ -913,66 +952,47 @@ def _solve_quantum_qaoa(
     qaoa_reps: int,
     parameter_search_steps: int,
 ) -> dict[str, Any]:
-    ansatz = QAOAAnsatz(cost_operator=cost_operator, reps=qaoa_reps, flatten=True)
-    beta_grid = np.linspace(0.05, np.pi / 2.0, parameter_search_steps)
-    gamma_grid = np.linspace(0.05, np.pi, parameter_search_steps)
-    best_energy: float | None = None
-    best_beta = 0.0
-    best_gamma = 0.0
-    best_state: Statevector | None = None
-    best_circuit: QuantumCircuit | None = None
-    parameter_evaluations = 0
-    evaluated_points: set[tuple[float, float]] = set()
+    solve_started_at = time.perf_counter()
+    initial_state, warm_start_mask = _build_greedy_budget_initial_state(
+        tickers=tickers,
+        mean_returns=mean_returns,
+        covariance=covariance,
+        risk_aversion=risk_aversion,
+        budget=budget,
+    )
+    ansatz = QAOAAnsatz(
+        cost_operator=cost_operator,
+        reps=qaoa_reps,
+        initial_state=initial_state,
+        mixer_operator=_build_ring_xy_mixer(len(tickers)),
+        flatten=True,
+    )
+    estimator = StatevectorEstimator()
 
-    def evaluate_point(beta: float, gamma: float) -> None:
-        nonlocal best_beta
-        nonlocal best_circuit
-        nonlocal best_energy
-        nonlocal best_gamma
-        nonlocal best_state
-        nonlocal parameter_evaluations
+    parameter_search_started_at = time.perf_counter()
+    search_result = _search_qaoa_parameters(
+        ansatz=ansatz,
+        cost_operator=cost_operator,
+        estimator=estimator,
+        qaoa_reps=qaoa_reps,
+        parameter_search_steps=parameter_search_steps,
+    )
+    parameter_search_duration_ms = int(
+        (time.perf_counter() - parameter_search_started_at) * 1000
+    )
 
-        point_key = (round(beta, 12), round(gamma, 12))
-        if point_key in evaluated_points:
-            return
-        evaluated_points.add(point_key)
+    best_parameters = search_result["best_parameters"]
+    beta_values = best_parameters[:qaoa_reps]
+    gamma_values = best_parameters[qaoa_reps:]
 
-        candidate_circuit = _assign_qaoa_parameters(ansatz, beta=beta, gamma=gamma)
-        candidate_state = Statevector.from_instruction(candidate_circuit)
-        energy = float(np.real(candidate_state.expectation_value(cost_operator)))
-        parameter_evaluations += 1
-        if best_energy is None or energy < best_energy:
-            best_energy = energy
-            best_beta = beta
-            best_gamma = gamma
-            best_state = candidate_state
-            best_circuit = candidate_circuit
-
-    for beta in beta_grid:
-        for gamma in gamma_grid:
-            evaluate_point(beta=float(beta), gamma=float(gamma))
-
-    beta_window = float(beta_grid[1] - beta_grid[0]) if len(beta_grid) > 1 else (np.pi / 4.0)
-    gamma_window = float(gamma_grid[1] - gamma_grid[0]) if len(gamma_grid) > 1 else (np.pi / 2.0)
-    for _ in range(_DEFAULT_LOCAL_REFINEMENT_ROUNDS):
-        local_betas = np.linspace(
-            max(0.0, best_beta - beta_window),
-            min(np.pi / 2.0, best_beta + beta_window),
-            _LOCAL_REFINEMENT_POINTS,
-        )
-        local_gammas = np.linspace(
-            max(0.0, best_gamma - gamma_window),
-            min(np.pi, best_gamma + gamma_window),
-            _LOCAL_REFINEMENT_POINTS,
-        )
-        for beta in local_betas:
-            for gamma in local_gammas:
-                evaluate_point(beta=float(beta), gamma=float(gamma))
-        beta_window = max(beta_window / 2.0, 0.01)
-        gamma_window = max(gamma_window / 2.0, 0.01)
-
-    if best_state is None or best_circuit is None or best_energy is None:
-        raise ValueError("Quantum parameter search did not produce a valid circuit.")
+    solution_extraction_started_at = time.perf_counter()
+    best_circuit = _assign_qaoa_parameters(
+        ansatz,
+        beta_values=beta_values,
+        gamma_values=gamma_values,
+    )
+    best_state = Statevector.from_instruction(best_circuit)
+    best_energy = float(search_result["best_energy"])
 
     full_probabilities = {
         str(bitstring): float(probability)
@@ -1020,12 +1040,19 @@ def _solve_quantum_qaoa(
         )
         best_feasible["rank"] = 1
 
+    solution_extraction_duration_ms = int(
+        (time.perf_counter() - solution_extraction_started_at) * 1000
+    )
+    circuit_compile_started_at = time.perf_counter()
     measured_circuit = _prepare_measured_qaoa_circuit(best_circuit)
     circuit_qasm = _circuit_to_qasm(measured_circuit)
+    circuit_compile_duration_ms = int((time.perf_counter() - circuit_compile_started_at) * 1000)
     return {
         "reps": qaoa_reps,
-        "beta": round(best_beta, 12),
-        "gamma": round(best_gamma, 12),
+        "beta": round(float(beta_values[0]), 12),
+        "gamma": round(float(gamma_values[0]), 12),
+        "beta_parameters": [round(float(value), 12) for value in beta_values],
+        "gamma_parameters": [round(float(value), 12) for value in gamma_values],
         "energy": round(best_energy, 12),
         "circuit_qasm": circuit_qasm,
         "circuit_summary": {
@@ -1042,12 +1069,25 @@ def _solve_quantum_qaoa(
         "feasible_probability_mass": round(feasible_probability_mass, 12),
         "top_states": top_states,
         "full_probabilities": full_probabilities,
+        "mixer_strategy": "ring_xy_budget_preserving",
+        "initial_state_strategy": "greedy_budget_basis_state",
+        "warm_start_bitstring": _mask_to_qiskit_bitstring(warm_start_mask),
         "optimizer": {
-            "strategy": "grid_plus_local_refinement",
-            "parameter_evaluations": parameter_evaluations,
+            "strategy": "constraint_preserving_multistart_coordinate_search",
+            "backend": "qiskit_statevector_estimator",
+            "constraint_preserving": True,
+            "parameter_evaluations": search_result["parameter_evaluations"],
+            "candidate_count": search_result["candidate_count"],
+            "top_seed_count": search_result["top_seed_count"],
             "coarse_grid_steps": parameter_search_steps,
-            "local_refinement_rounds": _DEFAULT_LOCAL_REFINEMENT_ROUNDS,
-            "local_refinement_points": _LOCAL_REFINEMENT_POINTS,
+            "local_refinement_rounds": search_result["refinement_rounds"],
+            "local_refinement_points": 2,
+        },
+        "timings": {
+            "parameter_search_duration_ms": parameter_search_duration_ms,
+            "solution_extraction_duration_ms": solution_extraction_duration_ms,
+            "circuit_compile_duration_ms": circuit_compile_duration_ms,
+            "solve_duration_ms": int((time.perf_counter() - solve_started_at) * 1000),
         },
     }
 
@@ -1055,24 +1095,243 @@ def _solve_quantum_qaoa(
 def _assign_qaoa_parameters(
     ansatz: QAOAAnsatz,
     *,
-    beta: float,
-    gamma: float,
+    beta_values: np.ndarray,
+    gamma_values: np.ndarray,
 ) -> QuantumCircuit:
-    parameter_map: dict[Any, float] = {}
-    for parameter in ansatz.parameters:
-        if parameter.name.startswith("\u03b2"):
-            parameter_map[parameter] = beta
-        elif parameter.name.startswith("\u03b3"):
-            parameter_map[parameter] = gamma
-        else:
-            raise ValueError(f"Unexpected QAOA parameter '{parameter.name}'.")
+    ordered_values = [float(value) for value in beta_values] + [float(value) for value in gamma_values]
+    if len(ordered_values) != len(ansatz.parameters):
+        raise ValueError("QAOA parameter vector does not match the ansatz parameter count.")
+    parameter_map = dict(zip(ansatz.parameters, ordered_values, strict=True))
     return ansatz.assign_parameters(parameter_map, inplace=False)
 
 
 def _prepare_measured_qaoa_circuit(circuit: QuantumCircuit) -> QuantumCircuit:
     measured = circuit.copy()
     measured.measure_all()
-    return transpile(measured, basis_gates=["u", "cx"], optimization_level=0)
+    return transpile(measured, basis_gates=["u", "cx"], optimization_level=1)
+
+
+def _build_ring_xy_mixer(qubit_count: int) -> SparsePauliOp:
+    pauli_terms: list[tuple[str, float]] = []
+    for left in range(qubit_count):
+        right = (left + 1) % qubit_count
+        if left >= right:
+            continue
+        pauli_terms.append((_two_qubit_pauli_label_for_axis(qubit_count, left, right, "X"), 0.5))
+        pauli_terms.append((_two_qubit_pauli_label_for_axis(qubit_count, left, right, "Y"), 0.5))
+    return SparsePauliOp.from_list(pauli_terms)
+
+
+def _build_greedy_budget_initial_state(
+    *,
+    tickers: list[str],
+    mean_returns: Any,
+    covariance: Any,
+    risk_aversion: float,
+    budget: int,
+) -> tuple[QuantumCircuit, list[int]]:
+    diagonal_risk = np.diag(np.asarray(covariance, dtype=float))
+    asset_scores = np.asarray(mean_returns, dtype=float) - (risk_aversion * diagonal_risk)
+    ranked_indices = np.argsort(-asset_scores, kind="stable")
+    selected = {int(index) for index in ranked_indices[:budget]}
+    mask = [1 if index in selected else 0 for index in range(len(tickers))]
+    circuit = QuantumCircuit(len(tickers))
+    for qubit_index, included in enumerate(mask):
+        if included:
+            circuit.x(qubit_index)
+    return circuit, mask
+
+
+def _search_qaoa_parameters(
+    *,
+    ansatz: QAOAAnsatz,
+    cost_operator: SparsePauliOp,
+    estimator: StatevectorEstimator,
+    qaoa_reps: int,
+    parameter_search_steps: int,
+) -> dict[str, Any]:
+    evaluation_cache: dict[tuple[float, ...], float] = {}
+    candidate_count = max(parameter_search_steps * max(4, qaoa_reps * 2), 12)
+    initial_candidates = _build_initial_parameter_candidates(
+        qaoa_reps=qaoa_reps,
+        candidate_count=candidate_count,
+    )
+    initial_evaluations = _evaluate_qaoa_candidates(
+        ansatz=ansatz,
+        cost_operator=cost_operator,
+        estimator=estimator,
+        candidates=initial_candidates,
+        cache=evaluation_cache,
+    )
+    ranked_candidates = sorted(initial_evaluations, key=lambda item: item[1])
+    top_seed_count = min(_QAOA_TOP_SEEDS, len(ranked_candidates))
+    best_parameters = ranked_candidates[0][0].copy()
+    best_energy = float(ranked_candidates[0][1])
+
+    refinement_rounds = max(_DEFAULT_LOCAL_REFINEMENT_ROUNDS, min(parameter_search_steps, 6))
+    for candidate, energy in ranked_candidates[:top_seed_count]:
+        refined_parameters, refined_energy = _coordinate_refine_qaoa_candidate(
+            ansatz=ansatz,
+            cost_operator=cost_operator,
+            estimator=estimator,
+            seed_parameters=candidate,
+            seed_energy=float(energy),
+            qaoa_reps=qaoa_reps,
+            parameter_search_steps=parameter_search_steps,
+            refinement_rounds=refinement_rounds,
+            cache=evaluation_cache,
+        )
+        if refined_energy < best_energy:
+            best_parameters = refined_parameters
+            best_energy = refined_energy
+
+    return {
+        "best_parameters": best_parameters,
+        "best_energy": best_energy,
+        "parameter_evaluations": len(evaluation_cache),
+        "candidate_count": len(initial_candidates),
+        "top_seed_count": top_seed_count,
+        "refinement_rounds": refinement_rounds,
+    }
+
+
+def _build_initial_parameter_candidates(
+    *,
+    qaoa_reps: int,
+    candidate_count: int,
+) -> list[np.ndarray]:
+    beta_mid = np.linspace(0.18, np.pi / 4.0, qaoa_reps)
+    gamma_mid = np.linspace(0.55, np.pi / 2.0, qaoa_reps)
+    deterministic_candidates = [
+        np.concatenate([np.full(qaoa_reps, 0.12), np.full(qaoa_reps, 0.35)]),
+        np.concatenate([beta_mid, gamma_mid]),
+        np.concatenate(
+            [
+                np.linspace(0.1, np.pi / 3.0, qaoa_reps),
+                np.linspace(0.45, np.pi * 0.8, qaoa_reps),
+            ]
+        ),
+        np.concatenate(
+            [
+                np.linspace(np.pi / 3.5, 0.12, qaoa_reps),
+                np.linspace(np.pi * 0.8, 0.45, qaoa_reps),
+            ]
+        ),
+    ]
+    rng = np.random.default_rng(_QAOA_RANDOM_SEED + (qaoa_reps * 1000) + candidate_count)
+    lhs_points = _latin_hypercube_points(
+        sample_count=max(candidate_count - len(deterministic_candidates), 4),
+        dimensions=qaoa_reps * 2,
+        rng=rng,
+    )
+    lhs_points[:, :qaoa_reps] *= np.pi / 2.0
+    lhs_points[:, qaoa_reps:] *= np.pi
+
+    unique_candidates: list[np.ndarray] = []
+    seen: set[tuple[float, ...]] = set()
+    for candidate in [*deterministic_candidates, *lhs_points]:
+        normalized = _clip_qaoa_parameters(np.asarray(candidate, dtype=float), qaoa_reps=qaoa_reps)
+        key = _parameter_cache_key(normalized)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_candidates.append(normalized)
+    return unique_candidates
+
+
+def _coordinate_refine_qaoa_candidate(
+    *,
+    ansatz: QAOAAnsatz,
+    cost_operator: SparsePauliOp,
+    estimator: StatevectorEstimator,
+    seed_parameters: np.ndarray,
+    seed_energy: float,
+    qaoa_reps: int,
+    parameter_search_steps: int,
+    refinement_rounds: int,
+    cache: dict[tuple[float, ...], float],
+) -> tuple[np.ndarray, float]:
+    current_parameters = seed_parameters.copy()
+    current_energy = seed_energy
+    beta_step = max((np.pi / 2.0) / max(parameter_search_steps, 3), 0.08)
+    gamma_step = max(np.pi / max(parameter_search_steps, 3), 0.12)
+    dimension = qaoa_reps * 2
+
+    for _ in range(refinement_rounds):
+        proposals: list[np.ndarray] = []
+        for parameter_index in range(dimension):
+            step = beta_step if parameter_index < qaoa_reps else gamma_step
+            for direction in (-1.0, 1.0):
+                proposal = current_parameters.copy()
+                proposal[parameter_index] += direction * step
+                proposals.append(_clip_qaoa_parameters(proposal, qaoa_reps=qaoa_reps))
+
+        evaluated = _evaluate_qaoa_candidates(
+            ansatz=ansatz,
+            cost_operator=cost_operator,
+            estimator=estimator,
+            candidates=proposals,
+            cache=cache,
+        )
+        best_proposal, best_proposal_energy = min(evaluated, key=lambda item: item[1])
+        if best_proposal_energy + 1e-12 < current_energy:
+            current_parameters = best_proposal.copy()
+            current_energy = float(best_proposal_energy)
+        beta_step = max(beta_step / 2.0, 0.01)
+        gamma_step = max(gamma_step / 2.0, 0.02)
+
+    return current_parameters, current_energy
+
+
+def _evaluate_qaoa_candidates(
+    *,
+    ansatz: QAOAAnsatz,
+    cost_operator: SparsePauliOp,
+    estimator: StatevectorEstimator,
+    candidates: list[np.ndarray],
+    cache: dict[tuple[float, ...], float],
+) -> list[tuple[np.ndarray, float]]:
+    pending_candidates: list[np.ndarray] = []
+    pending_keys: list[tuple[float, ...]] = []
+    for candidate in candidates:
+        key = _parameter_cache_key(candidate)
+        if key in cache:
+            continue
+        pending_candidates.append(candidate)
+        pending_keys.append(key)
+
+    if pending_candidates:
+        parameter_values = np.asarray(pending_candidates, dtype=float)
+        job = estimator.run([(ansatz, cost_operator, parameter_values)])
+        energies = np.atleast_1d(np.asarray(job.result()[0].data.evs, dtype=float))
+        for key, energy in zip(pending_keys, energies, strict=True):
+            cache[key] = float(energy)
+
+    return [(candidate, cache[_parameter_cache_key(candidate)]) for candidate in candidates]
+
+
+def _latin_hypercube_points(
+    *,
+    sample_count: int,
+    dimensions: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    samples = np.zeros((sample_count, dimensions), dtype=float)
+    for dimension in range(dimensions):
+        permutation = rng.permutation(sample_count)
+        samples[:, dimension] = (permutation + 0.5) / sample_count
+    return samples
+
+
+def _clip_qaoa_parameters(values: np.ndarray, *, qaoa_reps: int) -> np.ndarray:
+    clipped = values.copy()
+    clipped[:qaoa_reps] = np.clip(clipped[:qaoa_reps], 0.0, np.pi / 2.0)
+    clipped[qaoa_reps:] = np.clip(clipped[qaoa_reps:], 0.0, np.pi)
+    return clipped
+
+
+def _parameter_cache_key(values: np.ndarray) -> tuple[float, ...]:
+    return tuple(round(float(value), 12) for value in values)
 
 
 def _circuit_to_qasm(circuit: QuantumCircuit) -> str:
@@ -1250,6 +1509,18 @@ def _two_qubit_pauli_label(qubit_count: int, left: int, right: int) -> str:
     labels = ["I"] * qubit_count
     labels[qubit_count - 1 - left] = "Z"
     labels[qubit_count - 1 - right] = "Z"
+    return "".join(labels)
+
+
+def _two_qubit_pauli_label_for_axis(
+    qubit_count: int,
+    left: int,
+    right: int,
+    axis: str,
+) -> str:
+    labels = ["I"] * qubit_count
+    labels[qubit_count - 1 - left] = axis
+    labels[qubit_count - 1 - right] = axis
     return "".join(labels)
 
 

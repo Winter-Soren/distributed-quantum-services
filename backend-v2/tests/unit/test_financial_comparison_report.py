@@ -120,6 +120,8 @@ def test_build_financial_comparison_report_flags_workflow_evidence_when_classica
 
     assert report["scorecard"]["winner_by_objective"] == "classical"
     assert report["scorecard"]["winner_by_runtime"] == "inconclusive"
+    assert report["scorecard"]["winner_by_solver_runtime"] == "inconclusive"
+    assert report["scorecard"]["runtime_basis"] == "inconclusive"
     assert report["verdict"]["pitch_position"] == "mixed"
     assert report["verdict"]["claim_readiness"] == "qualified"
     assert report["quantum"]["has_qasm"] is True
@@ -229,5 +231,85 @@ def test_build_financial_comparison_report_flags_advantage_when_quantum_wins() -
     assert report["scorecard"]["winner_by_return"] == "quantum"
     assert report["scorecard"]["winner_by_risk"] == "quantum"
     assert report["scorecard"]["winner_by_runtime"] == "quantum"
+    assert report["scorecard"]["winner_by_solver_runtime"] == "quantum"
+    assert report["scorecard"]["runtime_basis"] == "solver_only"
     assert report["verdict"]["pitch_position"] == "numerical_advantage"
     assert report["verdict"]["claim_readiness"] == "qualified"
+
+
+def test_build_financial_comparison_report_prefers_end_to_end_runtime_when_available() -> None:
+    payload: dict[str, object] = {
+        "dataset": {"asset_count": 6},
+        "request": {"budget": 3, "qaoa_reps": 2, "parameter_search_steps": 9},
+        "solver_diagnostics": {
+            "classical_solver": {"strategy": "exact_enumeration", "evaluated_portfolios": 20},
+            "quantum_solver": {
+                "strategy": "constraint_preserving_multistart_coordinate_search",
+                "ansatz": "QAOA",
+                "parameter_evaluations": 96,
+            },
+        },
+        "benchmark": {
+            "classical": {
+                "bitstring": "101001",
+                "selected_assets": ["AAPL", "MSFT", "NVDA"],
+                "selected_asset_count": 3,
+                "feasible": True,
+                "budget_gap": 0,
+                "objective": 0.72,
+                "expected_return": 1.1,
+                "variance": 0.2,
+                "volatility": 0.447,
+            },
+            "quantum": {
+                "bitstring": "110001",
+                "selected_assets": ["AAPL", "MSFT", "GOOG"],
+                "selected_asset_count": 3,
+                "feasible": True,
+                "budget_gap": 0,
+                "objective": 0.75,
+                "expected_return": 1.15,
+                "variance": 0.19,
+                "volatility": 0.435,
+                "probability": 0.42,
+                "rank": 1,
+            },
+            "comparison": {
+                "objective_gap": 0.03,
+                "return_gap": 0.05,
+                "variance_gap": -0.01,
+                "feasible_probability_mass": 1.0,
+                "quantum_advantage_detected": True,
+            },
+            "frontier": {
+                "feasible_portfolio_count": 20,
+                "efficient_frontier": [{"bitstring": "110001"}],
+                "quantum_rank": 1,
+                "quantum_percentile": 1.0,
+                "quantum_on_frontier": True,
+            },
+            "timings": {
+                "classical_duration_ms": 25,
+                "classical_solve_duration_ms": 25,
+                "classical_end_to_end_duration_ms": 43,
+                "quantum_duration_ms": 18,
+                "quantum_solve_duration_ms": 18,
+                "quantum_end_to_end_duration_ms": 91,
+                "workflow_total_duration_ms": 117,
+            },
+        },
+        "quantum_execution": {
+            "circuit_text": "OPENQASM 2.0;",
+            "top_states": [{"bitstring": "110001"}],
+            "quantum_result": {"counts": {"110001": 54}},
+        },
+    }
+
+    report = build_financial_comparison_report(payload)
+
+    assert report["scorecard"]["winner_by_runtime"] == "classical"
+    assert report["scorecard"]["winner_by_solver_runtime"] == "quantum"
+    assert report["scorecard"]["runtime_basis"] == "end_to_end_paths"
+    assert report["classical"]["duration_ms"] == 43
+    assert report["quantum"]["duration_ms"] == 91
+    assert report["evidence"]["workflow_total_duration_ms"] == 117

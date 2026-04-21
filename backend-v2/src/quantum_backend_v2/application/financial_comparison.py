@@ -112,6 +112,61 @@ def _winner_for_duration(*, classical_duration_ms: int, quantum_duration_ms: int
     return "tie"
 
 
+def _runtime_view(timings: Mapping[str, Any]) -> dict[str, int | str]:
+    classical_solve_duration_ms = _integer(
+        timings.get("classical_solve_duration_ms", timings.get("classical_duration_ms"))
+    )
+    quantum_solve_duration_ms = _integer(
+        timings.get("quantum_solve_duration_ms", timings.get("quantum_duration_ms"))
+    )
+    classical_end_to_end_duration_ms = _integer(
+        timings.get("classical_end_to_end_duration_ms", classical_solve_duration_ms)
+    )
+    quantum_end_to_end_duration_ms = _integer(timings.get("quantum_end_to_end_duration_ms"))
+
+    runtime_basis = "inconclusive"
+    classical_runtime_ms = 0
+    quantum_runtime_ms = 0
+    if classical_end_to_end_duration_ms > 0 and quantum_end_to_end_duration_ms > 0:
+        runtime_basis = "end_to_end_paths"
+        classical_runtime_ms = classical_end_to_end_duration_ms
+        quantum_runtime_ms = quantum_end_to_end_duration_ms
+    elif classical_solve_duration_ms > 0 and quantum_solve_duration_ms > 0:
+        runtime_basis = "solver_only"
+        classical_runtime_ms = classical_solve_duration_ms
+        quantum_runtime_ms = quantum_solve_duration_ms
+
+    return {
+        "runtime_basis": runtime_basis,
+        "classical_runtime_ms": classical_runtime_ms,
+        "quantum_runtime_ms": quantum_runtime_ms,
+        "shared_preparation_duration_ms": _integer(timings.get("shared_preparation_duration_ms")),
+        "classical_solve_duration_ms": classical_solve_duration_ms,
+        "classical_end_to_end_duration_ms": classical_end_to_end_duration_ms,
+        "quantum_solve_duration_ms": quantum_solve_duration_ms,
+        "quantum_local_end_to_end_duration_ms": _integer(
+            timings.get("quantum_local_end_to_end_duration_ms")
+        ),
+        "quantum_end_to_end_duration_ms": quantum_end_to_end_duration_ms,
+        "quantum_parameter_search_duration_ms": _integer(
+            timings.get("quantum_parameter_search_duration_ms")
+        ),
+        "quantum_solution_extraction_duration_ms": _integer(
+            timings.get("quantum_solution_extraction_duration_ms")
+        ),
+        "quantum_circuit_compile_duration_ms": _integer(
+            timings.get("quantum_circuit_compile_duration_ms")
+        ),
+        "service_wait_duration_ms": _integer(timings.get("service_wait_duration_ms")),
+        "plan_compile_duration_ms": _integer(timings.get("plan_compile_duration_ms")),
+        "distributed_execution_duration_ms": _integer(
+            timings.get("distributed_execution_duration_ms")
+        ),
+        "report_assembly_duration_ms": _integer(timings.get("report_assembly_duration_ms")),
+        "workflow_total_duration_ms": _integer(timings.get("workflow_total_duration_ms")),
+    }
+
+
 def _format_percent(value: float | None, digits: int = 2) -> str:
     if value is None:
         return "n/a"
@@ -201,6 +256,7 @@ def _build_limitations(
     quantum_objective: float,
     classical_objective: float,
     runtime_winner: str,
+    runtime_basis: str,
     classical_duration_ms: int,
     quantum_duration_ms: int,
     optimum_probability: float | None,
@@ -215,12 +271,15 @@ def _build_limitations(
             f"({_format_signed(quantum_objective)} vs {_format_signed(classical_objective)})."
         )
     if runtime_winner == "classical":
+        runtime_label = (
+            "end-to-end quantum path" if runtime_basis == "end_to_end_paths" else "solver runtime"
+        )
         limitations.append(
-            f"Quantum wall-clock solve was slower ({quantum_duration_ms} ms vs {classical_duration_ms} ms)."
+            f"Quantum {runtime_label} was slower ({quantum_duration_ms} ms vs {classical_duration_ms} ms)."
         )
     elif runtime_winner == "inconclusive":
         limitations.append(
-            "Runtime comparison is inconclusive because at least one solver timing rounded to zero."
+            "Runtime comparison is inconclusive because the payload does not contain a comparable runtime pair."
         )
     if optimum_probability is not None and optimum_probability < 0.1:
         limitations.append(
@@ -352,8 +411,11 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
     objective_gap = _number(comparison.get("objective_gap"))
     return_gap = _number(comparison.get("return_gap"))
     variance_gap = _number(comparison.get("variance_gap"))
-    classical_duration_ms = _integer(timings.get("classical_duration_ms"))
-    quantum_duration_ms = _integer(timings.get("quantum_duration_ms"))
+    runtime = _runtime_view(timings)
+    classical_duration_ms = int(runtime["classical_runtime_ms"])
+    quantum_duration_ms = int(runtime["quantum_runtime_ms"])
+    classical_solve_duration_ms = int(runtime["classical_solve_duration_ms"])
+    quantum_solve_duration_ms = int(runtime["quantum_solve_duration_ms"])
     objective_winner = _winner_for_higher_is_better(objective_gap)
     return_winner = _winner_for_higher_is_better(return_gap)
     risk_winner = _winner_for_lower_is_better(variance_gap)
@@ -391,6 +453,9 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
     classical_report = {
         **classical,
         "duration_ms": classical_duration_ms,
+        "solve_duration_ms": classical_solve_duration_ms,
+        "end_to_end_duration_ms": int(runtime["classical_end_to_end_duration_ms"]),
+        "shared_preparation_duration_ms": int(runtime["shared_preparation_duration_ms"]),
         "strategy": _string(classical_solver.get("strategy"), "unknown"),
         "evaluated_portfolios": _integer(classical_solver.get("evaluated_portfolios")),
         "is_exact_optimum": classical_solver.get("strategy") == "exact_enumeration",
@@ -398,6 +463,17 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
     quantum_report = {
         **quantum,
         "duration_ms": quantum_duration_ms,
+        "solve_duration_ms": quantum_solve_duration_ms,
+        "end_to_end_duration_ms": int(runtime["quantum_end_to_end_duration_ms"]),
+        "local_end_to_end_duration_ms": int(runtime["quantum_local_end_to_end_duration_ms"]),
+        "parameter_search_duration_ms": int(runtime["quantum_parameter_search_duration_ms"]),
+        "solution_extraction_duration_ms": int(
+            runtime["quantum_solution_extraction_duration_ms"]
+        ),
+        "circuit_compile_duration_ms": int(runtime["quantum_circuit_compile_duration_ms"]),
+        "service_wait_duration_ms": int(runtime["service_wait_duration_ms"]),
+        "plan_compile_duration_ms": int(runtime["plan_compile_duration_ms"]),
+        "distributed_execution_duration_ms": int(runtime["distributed_execution_duration_ms"]),
         "strategy": _string(quantum_solver.get("strategy"), "unknown"),
         "ansatz": _string(quantum_solver.get("ansatz"), "QAOA"),
         "parameter_evaluations": _integer(quantum_solver.get("parameter_evaluations")),
@@ -432,6 +508,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         quantum_objective=quantum_report["objective"],
         classical_objective=classical_report["objective"],
         runtime_winner=runtime_winner,
+        runtime_basis=str(runtime["runtime_basis"]),
         classical_duration_ms=classical_duration_ms,
         quantum_duration_ms=quantum_duration_ms,
         optimum_probability=optimum_probability,
@@ -488,6 +565,11 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "winner_by_return": return_winner,
             "winner_by_risk": risk_winner,
             "winner_by_runtime": runtime_winner,
+            "winner_by_solver_runtime": _winner_for_duration(
+                classical_duration_ms=classical_solve_duration_ms,
+                quantum_duration_ms=quantum_solve_duration_ms,
+            ),
+            "runtime_basis": _string(runtime.get("runtime_basis"), "inconclusive"),
             "objective_gap": objective_gap,
             "objective_ratio": _maybe_number(comparison.get("objective_ratio")),
             "return_gap": return_gap,
@@ -502,6 +584,8 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
             "top_state_count": len(_as_list(quantum_execution.get("top_states"))),
             "fragment_count": _integer(payload.get("fragments_executed")),
             "observed_basis_state_count": len(_as_mapping(quantum_result.get("counts"))),
+            "workflow_total_duration_ms": int(runtime["workflow_total_duration_ms"]),
+            "runtime_basis": _string(runtime.get("runtime_basis"), "inconclusive"),
             "warnings": warnings,
         },
         "verdict": {
