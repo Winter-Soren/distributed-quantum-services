@@ -246,6 +246,70 @@ def test_quantum_bridge_groups_entangled_stage_into_single_block() -> None:
     assert plan.assignments["frag-0005"].block_id == block.block_id
 
 
+def test_quantum_bridge_merges_same_stage_blocks_with_overlapping_live_components() -> None:
+    now = datetime.now(timezone.utc)
+    peers = [
+        PeerRegistryEntry(
+            peer_id="12D3KooWPeerA",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            network_addresses=("/ip4/127.0.0.1/tcp/4101",),
+            supported_protocols=(),
+            service_ids=("hadamard", "cz", "measurement_feedforward", "subcircuit_bundle"),
+            last_seen_at=now,
+        ),
+        PeerRegistryEntry(
+            peer_id="12D3KooWPeerB",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            network_addresses=("/ip4/127.0.0.1/tcp/4102",),
+            supported_protocols=(),
+            service_ids=("hadamard", "cz", "measurement_feedforward", "subcircuit_bundle"),
+            last_seen_at=now,
+        ),
+    ]
+
+    fake_discovery_service = SimpleNamespace(
+        registry=SimpleNamespace(
+            list_peers=lambda include_stale=False: list(peers),
+            get_peer=lambda peer_id: next((peer for peer in peers if peer.peer_id == peer_id), None),
+        )
+    )
+    fake_runtime = SimpleNamespace(
+        settings=SimpleNamespace(rendezvous_namespace="test-ns", dev_service_peer_count=2),
+        host=MagicMock(),
+    )
+    fake_runtime.host.get_id.return_value = "12D3KooWCoordinator"
+
+    bridge = QuantumExecutionBridge(
+        discovery_service=fake_discovery_service,
+        libp2p_runtime=fake_runtime,
+    )
+    plan = bridge.compile_plan(
+        "\n".join(
+            [
+                "OPENQASM 2.0;",
+                'include "qelib1.inc";',
+                "qreg q[3];",
+                "creg c[3];",
+                "h q[0];",
+                "h q[1];",
+                "cz q[0],q[1];",
+                "h q[1];",
+                "cz q[0],q[2];",
+            ]
+        )
+    )
+
+    assert len(plan.stages) == 3
+    overlapping_stage = plan.stages[2]
+    assert len(overlapping_stage.block_ids) == 1
+    block = plan.blocks[overlapping_stage.block_ids[0]]
+    assert block.fragment_ids == ("frag-0004", "frag-0005")
+    assert block.input_component_qubits == ((0, 1), (2,))
+    assert block.state_qubits == (0, 1, 2)
+
+
 async def test_quantum_bridge_executes_parallel_blocks_with_local_component_state() -> None:
     now = datetime.now(timezone.utc)
     peers = [
@@ -314,6 +378,100 @@ async def test_quantum_bridge_executes_parallel_blocks_with_local_component_stat
     assert {tuple(execution.output.component_qubits) for execution in stage_zero} == {(0,), (2,)}
     assert {tuple(execution.output.component_qubits) for execution in stage_one} == {(0, 1), (2, 3)}
     assert all(execution.output.state.num_qubits == len(execution.output.component_qubits) for execution in executions)
+
+
+async def test_quantum_bridge_preserves_validation_fidelity_for_overlapping_component_stage() -> None:
+    now = datetime.now(timezone.utc)
+    peers = [
+        PeerRegistryEntry(
+            peer_id="12D3KooWPeerA",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            network_addresses=("/ip4/127.0.0.1/tcp/4101",),
+            supported_protocols=(),
+            service_ids=("hadamard", "cz", "measurement_feedforward", "subcircuit_bundle"),
+            last_seen_at=now,
+        ),
+        PeerRegistryEntry(
+            peer_id="12D3KooWPeerB",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            network_addresses=("/ip4/127.0.0.1/tcp/4102",),
+            supported_protocols=(),
+            service_ids=("hadamard", "cz", "measurement_feedforward", "subcircuit_bundle"),
+            last_seen_at=now,
+        ),
+        PeerRegistryEntry(
+            peer_id="12D3KooWPeerC",
+            trust_tier="platform_managed",
+            health_status="healthy",
+            network_addresses=("/ip4/127.0.0.1/tcp/4103",),
+            supported_protocols=(),
+            service_ids=("hadamard", "cz", "measurement_feedforward", "subcircuit_bundle"),
+            last_seen_at=now,
+        ),
+    ]
+    workers = {
+        peer.peer_id: PeerFragmentWorker(peer_id=peer.peer_id, max_concurrent_slots=4)
+        for peer in peers
+    }
+    fake_discovery_service = _FakeDiscoveryService(peers=peers, workers=workers)
+    fake_runtime = SimpleNamespace(
+        settings=SimpleNamespace(rendezvous_namespace="test-ns", dev_service_peer_count=3),
+        host=MagicMock(),
+    )
+    fake_runtime.host.get_id.return_value = "12D3KooWCoordinator"
+
+    bridge = QuantumExecutionBridge(
+        discovery_service=fake_discovery_service,
+        libp2p_runtime=fake_runtime,
+    )
+    plan = bridge.compile_plan(
+        "\n".join(
+            [
+                "OPENQASM 2.0;",
+                'include "qelib1.inc";',
+                "qreg q[3];",
+                "creg c[3];",
+                "h q[0];",
+                "h q[1];",
+                "cz q[0],q[1];",
+                "h q[1];",
+                "cz q[0],q[2];",
+                "measure q[0] -> c[0];",
+                "measure q[1] -> c[1];",
+                "measure q[2] -> c[2];",
+            ]
+        )
+    )
+
+    executions = [
+        execution
+        async for execution in bridge.iter_fragment_executions(
+            workflow_run_id="job-12345678",
+            plan=plan,
+        )
+    ]
+
+    final_state = executions[-1].state
+    quantum_result = bridge.build_quantum_result(
+        plan=plan,
+        fragment_results=tuple(execution.fragment_result for execution in executions),
+        final_state=final_state,
+    )
+    analytic_result = bridge._bridge["build_quantum_result"](
+        plan,
+        fragment_results=tuple(execution.fragment_result for execution in executions),
+    )
+
+    assert quantum_result["counts"] == analytic_result["counts"]
+    for basis_state, probability in analytic_result["probabilities"].items():
+        if probability <= 0.0:
+            continue
+        assert quantum_result["probabilities"][basis_state] == pytest.approx(probability)
+    assert quantum_result["distributed_execution"]["validation_statevector_fidelity"] == pytest.approx(
+        1.0
+    )
 
 
 def test_quantum_bridge_spreads_assignments_across_peers() -> None:

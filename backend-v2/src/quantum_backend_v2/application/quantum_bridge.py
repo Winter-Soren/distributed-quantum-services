@@ -232,6 +232,53 @@ def _topological_stages(
     return tuple(stages)
 
 
+def _merge_stage_fragment_groups(
+    *,
+    stage_fragment_ids: tuple[str, ...],
+    fragments: dict[str, Any],
+    component_for_qubit: dict[int, tuple[int, ...]],
+) -> tuple[tuple[tuple[tuple[int, ...], ...], tuple[str, ...]], ...]:
+    fragment_components: dict[str, tuple[tuple[int, ...], ...]] = {}
+    for fragment_id in stage_fragment_ids:
+        fragment = fragments[fragment_id]
+        fragment_components[fragment_id] = tuple(
+            sorted(
+                {component_for_qubit[qubit] for qubit in fragment.qubits},
+                key=lambda component: component,
+            )
+        )
+
+    pending_fragment_ids = list(stage_fragment_ids)
+    merged_groups: list[tuple[tuple[tuple[int, ...], ...], tuple[str, ...]]] = []
+    while pending_fragment_ids:
+        seed_fragment_id = pending_fragment_ids.pop(0)
+        group_fragment_ids = [seed_fragment_id]
+        group_components = set(fragment_components[seed_fragment_id])
+
+        changed = True
+        while changed:
+            changed = False
+            remaining_fragment_ids: list[str] = []
+            for fragment_id in pending_fragment_ids:
+                input_components = set(fragment_components[fragment_id])
+                if group_components & input_components:
+                    group_fragment_ids.append(fragment_id)
+                    group_components.update(input_components)
+                    changed = True
+                    continue
+                remaining_fragment_ids.append(fragment_id)
+            pending_fragment_ids = remaining_fragment_ids
+
+        merged_groups.append(
+            (
+                tuple(sorted(group_components, key=lambda component: component)),
+                tuple(group_fragment_ids),
+            )
+        )
+
+    return tuple(merged_groups)
+
+
 class QuantumExecutionBridge:
     """Compile QASM, assign subcircuits, and execute them over real libp2p RPC."""
 
@@ -284,25 +331,17 @@ class QuantumExecutionBridge:
         }
 
         for stage_index, stage_fragment_ids in enumerate(stage_fragments):
-            grouped_fragments: dict[tuple[tuple[int, ...], ...], list[str]] = {}
-            group_order: list[tuple[tuple[int, ...], ...]] = []
-            for fragment_id in stage_fragment_ids:
-                fragment = fragments[fragment_id]
-                input_components = tuple(
-                    sorted(
-                        {component_for_qubit[qubit] for qubit in fragment.qubits},
-                        key=lambda component: component,
-                    )
-                )
-                if input_components not in grouped_fragments:
-                    grouped_fragments[input_components] = []
-                    group_order.append(input_components)
-                grouped_fragments[input_components].append(fragment_id)
-
+            stage_groups = _merge_stage_fragment_groups(
+                stage_fragment_ids=stage_fragment_ids,
+                fragments=fragments,
+                component_for_qubit=component_for_qubit,
+            )
             stage_block_ids: list[str] = []
             component_updates: list[tuple[tuple[tuple[int, ...], ...], tuple[int, ...]]] = []
-            for block_index, input_components in enumerate(group_order, start=1):
-                block_fragment_ids = tuple(grouped_fragments[input_components])
+            for block_index, (input_components, block_fragment_ids) in enumerate(
+                stage_groups,
+                start=1,
+            ):
                 service_types = tuple(
                     sorted(
                         {
