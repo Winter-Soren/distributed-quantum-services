@@ -24,10 +24,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import type { FinancialJobResponse, FinancialJobStatus } from '@/types/financial';
 import type { BackendFinancialJobListItem } from '@/types/runs';
 
 const POLL_INTERVAL_MS = 1500;
+
+const FORM_INPUT_CLASS_NAME =
+	'clay-input h-11 rounded-[1.15rem] border-[var(--clay-oat)] bg-white/90 px-4 text-sm shadow-none focus-visible:border-[var(--clay-blueberry)] focus-visible:ring-[rgb(56_89_249_/_0.18)]';
+const FORM_SELECT_CLASS_NAME =
+	'w-full [&_select]:clay-input [&_select]:h-11 [&_select]:rounded-[1.15rem] [&_select]:border-[var(--clay-oat)] [&_select]:bg-white/90 [&_select]:px-4 [&_select]:text-sm [&_select]:shadow-none [&_select]:focus-visible:border-[var(--clay-blueberry)] [&_select]:focus-visible:ring-[rgb(56_89_249_/_0.18)] [&_[data-slot=native-select-icon]]:text-[var(--clay-charcoal)]';
+const PRIMARY_BUTTON_CLASS_NAME =
+	'clay-hover-lift rounded-full border border-black/10 bg-[var(--clay-blueberry)] text-white shadow-[var(--clay-shadow)] hover:bg-[var(--clay-ube-dark)]';
+const SECONDARY_BUTTON_CLASS_NAME =
+	'clay-hover-lift rounded-full border border-[var(--clay-oat)] bg-white text-foreground shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]';
+const GHOST_BUTTON_CLASS_NAME =
+	'rounded-full border border-transparent bg-transparent text-[var(--clay-charcoal)] hover:border-[var(--clay-oat)] hover:bg-white/80 hover:text-foreground';
+const SOFT_BADGE_CLASS_NAME =
+	'rounded-full border border-black/10 bg-white/78 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-foreground shadow-[var(--clay-shadow)]';
 
 type FinanceSubmitResponse = {
 	job_id: string;
@@ -79,14 +93,27 @@ function formatDateTime(isoValue: string | null | undefined) {
 	}).format(date);
 }
 
-function formatStatusVariant(status: FinancialJobStatus) {
+function statusBadgeClassName(status: FinancialJobStatus) {
 	switch (status) {
 		case 'COMPLETED':
-			return 'outline' as const;
+			return 'border-[rgb(2_73_42_/_0.14)] bg-[rgb(132_231_165_/_0.62)] text-[var(--clay-matcha-dark)]';
 		case 'FAILED':
-			return 'destructive' as const;
+			return 'border-[rgb(201_76_87_/_0.24)] bg-[rgb(252_121_129_/_0.22)] text-[#842432]';
 		default:
-			return 'secondary' as const;
+			return 'border-[rgb(1_65_141_/_0.16)] bg-[rgb(59_211_253_/_0.2)] text-[var(--clay-blueberry)]';
+	}
+}
+
+function jobSummaryPanelClassName(status: FinancialJobStatus) {
+	switch (status) {
+		case 'COMPLETED':
+			return 'clay-panel-matcha';
+		case 'FAILED':
+			return 'clay-panel-pomegranate';
+		case 'ANALYSING':
+			return 'clay-panel-ube';
+		default:
+			return 'clay-panel-slushie';
 	}
 }
 
@@ -115,59 +142,149 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 	return payload as T;
 }
 
-function WorkflowStatusBadge({ status }: { status: FinancialJobStatus }) {
-	return <Badge variant={formatStatusVariant(status)}>{status.toLowerCase()}</Badge>;
+function WorkflowStatusBadge({ status, className }: { status: FinancialJobStatus; className?: string }) {
+	return (
+		<Badge
+			variant='outline'
+			className={cn(
+				'rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] shadow-[var(--clay-shadow)]',
+				statusBadgeClassName(status),
+				className
+			)}
+		>
+			{status.toLowerCase()}
+		</Badge>
+	);
+}
+
+function HeroSignalCard({
+	icon,
+	label,
+	description,
+	toneClassName
+}: {
+	icon: React.ReactNode;
+	label: string;
+	description: string;
+	toneClassName: string;
+}) {
+	return (
+		<div
+			className={cn(
+				'clay-hover-lift rounded-[2rem] border border-black/10 p-5 shadow-[var(--clay-shadow)]',
+				toneClassName
+			)}
+		>
+			<div className='flex items-center gap-3'>
+				<div className='clay-icon-chip bg-white/72 text-foreground'>{icon}</div>
+				<p className='clay-label text-foreground'>{label}</p>
+			</div>
+			<p className='mt-4 text-sm leading-6 text-black/72'>{description}</p>
+		</div>
+	);
+}
+
+function FormField({
+	label,
+	htmlFor,
+	hint,
+	children
+}: {
+	label: string;
+	htmlFor: string;
+	hint?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className='rounded-[1.55rem] border border-[var(--clay-oat-light)] bg-white/80 p-4 shadow-[var(--clay-shadow)]'>
+			<Label
+				htmlFor={htmlFor}
+				className='clay-label text-[var(--clay-charcoal)]'
+			>
+				{label}
+			</Label>
+			<div className='mt-3'>{children}</div>
+			{hint ? <p className='mt-3 text-xs leading-5 text-muted-foreground'>{hint}</p> : null}
+		</div>
+	);
 }
 
 function JobProgressBar({ status }: { status: FinancialJobStatus }) {
 	const stepIndex = STATUS_STEPS.indexOf(status);
 	const isFailed = status === 'FAILED';
+	const effectiveIndex = isFailed ? STATUS_STEPS.length - 2 : Math.max(stepIndex, 0);
 	const progress = isFailed ? 100 : Math.round(((Math.max(stepIndex, 0) + 1) / STATUS_STEPS.length) * 100);
 
 	return (
-		<div className='space-y-4'>
-			<div className='flex items-center justify-between text-sm'>
-				<span className='font-medium'>
-					{isFailed
-						? 'Execution failed'
-						: status === 'QUEUED'
-							? 'Queued for processing'
-							: status === 'INGESTING'
-								? 'Normalizing portfolio dataset'
-								: status === 'ANALYSING'
-									? 'Building and routing quantum solve'
-									: 'Execution complete'}
-				</span>
-				<span className='text-muted-foreground'>{isFailed ? '-' : `${progress}%`}</span>
+		<div className='clay-card clay-panel-slushie space-y-5 p-5'>
+			<div className='flex items-center justify-between gap-4'>
+				<div>
+					<p className='clay-label'>Live workflow</p>
+					<p className='mt-2 text-base font-semibold text-foreground'>
+						{isFailed
+							? 'Execution stopped before completion'
+							: status === 'QUEUED'
+								? 'Queued for processing'
+								: status === 'INGESTING'
+									? 'Normalizing portfolio dataset'
+									: status === 'ANALYSING'
+										? 'Building and routing quantum solve'
+										: 'Execution complete'}
+					</p>
+				</div>
+				<WorkflowStatusBadge status={status} />
 			</div>
 			<Progress
 				value={progress}
-				className={isFailed ? '[&>div]:bg-destructive' : ''}
+				className={cn(
+					'h-3 rounded-full border border-black/10 bg-white/70 [&>div]:rounded-full',
+					isFailed ? '[&>div]:bg-destructive' : '[&>div]:bg-[var(--clay-blueberry)]'
+				)}
 			/>
-			<div className='grid grid-cols-4 gap-2 text-xs'>
+			<div className='grid grid-cols-2 gap-3 text-xs sm:grid-cols-4'>
 				{STATUS_STEPS.map((step, index) => {
-					const active = index <= stepIndex;
+					const completed = index <= effectiveIndex;
+					const current = !isFailed && index === stepIndex && status !== 'COMPLETED';
+					const terminalFailure = isFailed && index === STATUS_STEPS.length - 1;
+
 					return (
 						<div
 							key={step}
-							className='flex flex-col items-center gap-2'
+							className='rounded-[1.35rem] border border-black/10 bg-white/72 p-3 text-center shadow-[var(--clay-shadow)]'
 						>
 							<div
-								className={`flex size-7 items-center justify-center rounded-full border text-[11px] ${
-									active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground'
-								}`}
+								className={cn(
+									'mx-auto flex size-8 items-center justify-center rounded-full border text-[11px] shadow-[var(--clay-shadow)]',
+									terminalFailure
+										? 'border-[rgb(201_76_87_/_0.24)] bg-[rgb(252_121_129_/_0.2)] text-[#842432]'
+										: completed
+											? 'border-[rgb(2_73_42_/_0.14)] bg-[rgb(132_231_165_/_0.7)] text-[var(--clay-matcha-dark)]'
+											: current
+												? 'border-[rgb(1_65_141_/_0.16)] bg-[rgb(59_211_253_/_0.3)] text-[var(--clay-blueberry)]'
+												: 'border-[var(--clay-oat)] bg-[var(--clay-cream)] text-muted-foreground'
+								)}
 							>
-								{active && step !== 'COMPLETED' ? <Loader2Icon className='size-3 animate-spin' /> : index + 1}
+								{terminalFailure ? (
+									<XCircleIcon className='size-3.5' />
+								) : current ? (
+									<Loader2Icon className='size-3.5 animate-spin' />
+								) : completed ? (
+									<CheckCircle2Icon className='size-3.5' />
+								) : (
+									index + 1
+								)}
 							</div>
-							<span className='text-center text-muted-foreground'>
+							<p className='mt-3 font-medium text-foreground'>
 								{step === 'QUEUED'
 									? 'Queued'
 									: step === 'INGESTING'
 										? 'Ingest'
 										: step === 'ANALYSING'
 											? 'Optimize'
-											: 'Complete'}
-							</span>
+											: isFailed
+												? 'Failed'
+												: 'Complete'}
+							</p>
 						</div>
 					);
 				})}
@@ -205,19 +322,34 @@ function UploadPanel({
 	);
 
 	return (
-		<Card className='relative overflow-hidden shadow-lg ring-1 ring-primary/10'>
-			<div
-				aria-hidden
-				className='pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-r from-primary/12 via-chart-2/12 to-chart-3/12'
-			/>
-			<CardHeader className='relative border-b border-border/70'>
-				<CardTitle>Track B Portfolio Optimization</CardTitle>
-				<CardDescription>
-					Upload a market dataset, compute the exact classical optimum, generate the QAOA circuit, and push it
-					through the distributed quantum runtime.
-				</CardDescription>
+		<Card
+			id='upload'
+			className='clay-section overflow-hidden border-[var(--clay-oat)] bg-[rgb(255_255_255_/_0.76)] shadow-[var(--clay-shadow)]'
+		>
+			<CardHeader className='border-b border-[var(--clay-oat)]'>
+				<div className='flex flex-wrap items-start justify-between gap-4'>
+					<div className='max-w-2xl space-y-3'>
+						<p className='clay-label'>Run a benchmark</p>
+						<CardTitle className='text-2xl font-semibold tracking-[-0.04em] text-foreground md:text-4xl'>
+							Feed one market dataset into the exact classical baseline and the routed quantum flow.
+						</CardTitle>
+						<CardDescription className='max-w-2xl text-sm leading-6 text-muted-foreground md:text-base'>
+							Upload a real CSV, resolve the schema, compute the exact optimum, and submit the same screened
+							problem into the Track B quantum stack. The UI below stays on the same data contract the backend
+							now returns.
+						</CardDescription>
+					</div>
+					<div className='rounded-[1.5rem] border border-black/10 bg-[rgb(255_255_255_/_0.8)] px-4 py-3 shadow-[var(--clay-shadow)]'>
+						<p className='clay-label'>Accepted shapes</p>
+						<div className='mt-3 flex flex-wrap gap-2'>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>long market tape</Badge>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>wide price matrix</Badge>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>returns or prices</Badge>
+						</div>
+					</div>
+				</div>
 			</CardHeader>
-			<CardContent className='relative space-y-6 pt-6'>
+			<CardContent className='space-y-6 pt-6'>
 				<input
 					ref={fileInputRef}
 					type='file'
@@ -230,6 +362,7 @@ function UploadPanel({
 						}
 					}}
 				/>
+
 				<div
 					onDragOver={event => {
 						event.preventDefault();
@@ -237,43 +370,76 @@ function UploadPanel({
 					}}
 					onDragLeave={() => setDragActive(false)}
 					onDrop={handleDrop}
-					className={`rounded-[2rem] border-2 border-dashed p-8 transition ${
-						dragActive ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'
-					}`}
+					className={cn(
+						'clay-dashed rounded-[2.3rem] border-2 p-6 shadow-[var(--clay-shadow)] transition md:p-8',
+						dragActive
+							? 'border-[var(--clay-blueberry)] bg-[linear-gradient(135deg,rgba(59,211,253,0.34),rgba(255,255,255,0.94))]'
+							: 'border-[var(--clay-oat)] bg-[linear-gradient(135deg,rgba(59,211,253,0.18),rgba(255,255,255,0.94))]'
+					)}
 				>
-					<div className='flex flex-col items-center gap-4 text-center'>
-						<div className='flex size-16 items-center justify-center rounded-3xl bg-primary/10 text-primary'>
-							<UploadCloudIcon className='size-8' />
-						</div>
-						<div className='space-y-2'>
-							<p className='text-lg font-semibold'>Drop a CSV or choose a file</p>
-							<p className='max-w-xl text-sm text-muted-foreground'>
+					<div className='flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between'>
+						<div className='max-w-2xl space-y-4'>
+							<div className='flex items-center gap-3'>
+								<div className='clay-icon-chip bg-white/78 text-[var(--clay-blueberry)]'>
+									<UploadCloudIcon className='size-5' />
+								</div>
+								<div>
+									<p className='clay-label text-foreground'>Dataset intake</p>
+									<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground'>
+										Drop a CSV or choose a file
+									</p>
+								</div>
+							</div>
+							<p className='text-sm leading-6 text-black/72 md:text-base'>
 								Supported layouts: long format (`date`, `ticker`, `adjusted_close` or `return`) and wide
-								format (`date`, `AAPL`, `MSFT`, ...).
+								format (`date`, `AAPL`, `MSFT`, `NVDA`, ...). The backend will infer a resolved shape unless
+								you override the columns below.
 							</p>
+							<div className='flex flex-wrap gap-2'>
+								<Badge className={SOFT_BADGE_CLASS_NAME}>date,ticker,adjusted_close</Badge>
+								<Badge className={SOFT_BADGE_CLASS_NAME}>date,AAPL,MSFT,NVDA</Badge>
+								<Badge className={SOFT_BADGE_CLASS_NAME}>value_mode=auto|prices|returns</Badge>
+							</div>
 						</div>
-						<div className='flex flex-wrap justify-center gap-2'>
-							<Badge variant='secondary'>date,ticker,adjusted_close</Badge>
-							<Badge variant='secondary'>date,AAPL,MSFT,NVDA</Badge>
-							<Badge variant='secondary'>value_mode=auto|prices|returns</Badge>
-						</div>
-						<div className='flex flex-wrap items-center justify-center gap-3'>
-							<Button
-								type='button'
-								onClick={() => fileInputRef.current?.click()}
-								disabled={uploading}
-							>
-								{uploading ? <Loader2Icon className='size-4 animate-spin' /> : <UploadCloudIcon className='size-4' />}
-								{uploading ? 'Submitting...' : 'Choose CSV'}
-							</Button>
-							{fileName ? <span className='text-sm text-muted-foreground'>{fileName}</span> : null}
+						<div className='rounded-[1.8rem] border border-black/10 bg-white/82 p-5 shadow-[var(--clay-shadow)] lg:min-w-[18rem]'>
+							<p className='clay-label text-[var(--clay-charcoal)]'>Submission</p>
+							<p className='mt-3 text-sm leading-6 text-muted-foreground'>
+								{fileName ? `Ready: ${fileName}` : 'No CSV selected in this session yet.'}
+							</p>
+							<div className='mt-5 flex flex-wrap gap-3'>
+								<Button
+									type='button'
+									onClick={() => fileInputRef.current?.click()}
+									disabled={uploading}
+									className={cn('h-11 px-5', PRIMARY_BUTTON_CLASS_NAME)}
+								>
+									{uploading ? (
+										<Loader2Icon className='size-4 animate-spin' />
+									) : (
+										<UploadCloudIcon className='size-4' />
+									)}
+									{uploading ? 'Submitting...' : 'Choose CSV'}
+								</Button>
+								<Button
+									type='button'
+									variant='outline'
+									onClick={() => fileInputRef.current?.click()}
+									disabled={uploading}
+									className={cn('h-11 px-5', SECONDARY_BUTTON_CLASS_NAME)}
+								>
+									Replace file
+								</Button>
+							</div>
 						</div>
 					</div>
 				</div>
 
 				<div className='grid gap-4 md:grid-cols-2'>
-					<div className='space-y-2'>
-						<Label htmlFor='budget'>Portfolio budget</Label>
+					<FormField
+						label='Portfolio budget'
+						htmlFor='budget'
+						hint='Optional cardinality constraint. The backend validates it against the screened asset count.'
+					>
 						<Input
 							id='budget'
 							type='number'
@@ -282,11 +448,14 @@ function UploadPanel({
 							placeholder='Optional'
 							value={form.budget}
 							onChange={event => onChange({ budget: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-						<p className='text-xs text-muted-foreground'>Optional cardinality constraint. Backend validates it against the screened asset count.</p>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='risk-aversion'>Risk aversion</Label>
+					</FormField>
+					<FormField
+						label='Risk aversion'
+						htmlFor='risk-aversion'
+						hint='Higher values increase the penalty for volatility in the objective.'
+					>
 						<Input
 							id='risk-aversion'
 							type='number'
@@ -296,10 +465,14 @@ function UploadPanel({
 							max='10'
 							value={form.riskAversion}
 							onChange={event => onChange({ riskAversion: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='max-assets'>Max assets considered</Label>
+					</FormField>
+					<FormField
+						label='Max assets considered'
+						htmlFor='max-assets'
+						hint='Upper bound for the screened universe sent into the binary optimization layer.'
+					>
 						<Input
 							id='max-assets'
 							type='number'
@@ -308,10 +481,14 @@ function UploadPanel({
 							max='8'
 							value={form.maxAssetsConsidered}
 							onChange={event => onChange({ maxAssetsConsidered: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='search-steps'>Parameter search steps</Label>
+					</FormField>
+					<FormField
+						label='Parameter search steps'
+						htmlFor='search-steps'
+						hint='Coarse search width for QAOA parameter exploration before local refinement.'
+					>
 						<Input
 							id='search-steps'
 							type='number'
@@ -320,13 +497,17 @@ function UploadPanel({
 							max='25'
 							value={form.parameterSearchSteps}
 							onChange={event => onChange({ parameterSearchSteps: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='value-mode'>Value mode</Label>
+					</FormField>
+					<FormField
+						label='Value mode'
+						htmlFor='value-mode'
+						hint='Auto-detect raw prices versus already-derived returns from the uploaded columns.'
+					>
 						<NativeSelect
 							id='value-mode'
-							className='w-full'
+							className={FORM_SELECT_CLASS_NAME}
 							value={form.valueMode}
 							onChange={event => onChange({ valueMode: event.target.value as PortfolioSubmitFormState['valueMode'] })}
 						>
@@ -334,34 +515,46 @@ function UploadPanel({
 							<NativeSelectOption value='prices'>Prices</NativeSelectOption>
 							<NativeSelectOption value='returns'>Returns</NativeSelectOption>
 						</NativeSelect>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='date-column'>Date column override</Label>
+					</FormField>
+					<FormField
+						label='Date column override'
+						htmlFor='date-column'
+						hint='Use when your dataset does not expose a standard date column name.'
+					>
 						<Input
 							id='date-column'
 							placeholder='Optional'
 							value={form.dateColumn}
 							onChange={event => onChange({ dateColumn: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='ticker-column'>Ticker column override</Label>
+					</FormField>
+					<FormField
+						label='Ticker column override'
+						htmlFor='ticker-column'
+						hint='Useful for long-format datasets where the symbol column uses a custom name.'
+					>
 						<Input
 							id='ticker-column'
 							placeholder='Optional'
 							value={form.tickerColumn}
 							onChange={event => onChange({ tickerColumn: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='value-column'>Value column override</Label>
+					</FormField>
+					<FormField
+						label='Value column override'
+						htmlFor='value-column'
+						hint='Set this explicitly if the prices or returns column cannot be inferred cleanly.'
+					>
 						<Input
 							id='value-column'
 							placeholder='Optional'
 							value={form.valueColumn}
 							onChange={event => onChange({ valueColumn: event.target.value })}
+							className={FORM_INPUT_CLASS_NAME}
 						/>
-					</div>
+					</FormField>
 				</div>
 			</CardContent>
 		</Card>
@@ -386,12 +579,17 @@ function SelectedJobCard({
 	onClear: () => void;
 }) {
 	return (
-		<Card className='shadow-lg ring-1 ring-foreground/5'>
-			<CardHeader className='border-b border-border/70'>
-				<CardTitle>Selected benchmark run</CardTitle>
-				<CardDescription>
-					{jobId ? 'Track the live portfolio optimization workflow and jump into the distributed run detail.' : 'Select a submitted finance job or upload a new dataset.'}
-				</CardDescription>
+		<Card className='clay-card border-[var(--clay-oat)] bg-white/84 shadow-[var(--clay-shadow)]'>
+			<CardHeader className='border-b border-[var(--clay-oat)]'>
+				<div className='space-y-2'>
+					<p className='clay-label'>Selected benchmark run</p>
+					<CardTitle className='text-2xl font-semibold tracking-[-0.04em]'>Watch the active Track B job.</CardTitle>
+					<CardDescription className='text-sm leading-6 text-muted-foreground'>
+						{jobId
+							? 'Track the live optimization workflow, inspect the result payload, and jump into the distributed run detail.'
+							: 'Select a submitted finance job or upload a new market dataset.'}
+					</CardDescription>
+				</div>
 			</CardHeader>
 			<CardContent className='space-y-4 pt-6'>
 				{loadError ? (
@@ -403,7 +601,7 @@ function SelectedJobCard({
 				) : null}
 
 				{loading && !job ? (
-					<div className='flex items-center gap-3 rounded-3xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground'>
+					<div className='clay-card clay-panel-slushie flex items-center gap-3 p-4 text-sm text-muted-foreground'>
 						<Loader2Icon className='size-4 animate-spin' />
 						Loading selected finance run...
 					</div>
@@ -411,15 +609,27 @@ function SelectedJobCard({
 
 				{job ? (
 					<>
-						<div className='rounded-[2rem] border border-border/70 bg-gradient-to-br from-background via-background to-primary/5 p-5'>
+						<div
+							className={cn(
+								'rounded-[2.15rem] border border-black/10 p-5 shadow-[var(--clay-shadow)]',
+								jobSummaryPanelClassName(job.status)
+							)}
+						>
 							<div className='flex flex-wrap items-start justify-between gap-4'>
-								<div className='space-y-2'>
+								<div className='space-y-3'>
 									<div className='flex flex-wrap items-center gap-2'>
 										<WorkflowStatusBadge status={job.status} />
-										<Badge variant='secondary'>{job.problem_type ?? job.result?.problem_type ?? 'portfolio_optimization'}</Badge>
+										<Badge className={SOFT_BADGE_CLASS_NAME}>
+											{job.problem_type ?? job.result?.problem_type ?? 'portfolio_optimization'}
+										</Badge>
 									</div>
-									<p className='text-xl font-semibold tracking-tight'>{job.filename}</p>
-									<p className='font-mono text-xs text-muted-foreground'>{job.job_id}</p>
+									<div className='space-y-2'>
+										<p className='clay-label text-foreground'>Benchmark file</p>
+										<p className='text-2xl font-semibold tracking-[-0.04em] text-foreground'>
+											{job.filename}
+										</p>
+										<p className='font-mono text-xs text-black/65'>{job.job_id}</p>
+									</div>
 								</div>
 								<div className='flex flex-wrap gap-2'>
 									<Button
@@ -427,13 +637,19 @@ function SelectedJobCard({
 										size='sm'
 										onClick={onRefresh}
 										disabled={isRefreshing}
+										className={cn('h-10 px-4', SECONDARY_BUTTON_CLASS_NAME)}
 									>
-										{isRefreshing ? <Loader2Icon className='size-4 animate-spin' /> : <ActivityIcon className='size-4' />}
+										{isRefreshing ? (
+											<Loader2Icon className='size-4 animate-spin' />
+										) : (
+											<ActivityIcon className='size-4' />
+										)}
 										Refresh
 									</Button>
 									<Button
 										size='sm'
 										asChild
+										className={cn('h-10 px-4', PRIMARY_BUTTON_CLASS_NAME)}
 									>
 										<Link href={`/runs/${encodeURIComponent(job.job_id)}`}>
 											<GitBranchIcon className='size-4' />
@@ -444,19 +660,20 @@ function SelectedJobCard({
 										variant='ghost'
 										size='sm'
 										onClick={onClear}
+										className={cn('h-10 px-4', GHOST_BUTTON_CLASS_NAME)}
 									>
 										Clear
 									</Button>
 								</div>
 							</div>
 							<div className='mt-5 grid gap-3 sm:grid-cols-2'>
-								<div className='rounded-3xl border border-border/70 bg-background/80 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Created</p>
-									<p className='mt-2 text-sm'>{formatDateTime(job.created_at)}</p>
+								<div className='rounded-[1.45rem] border border-black/10 bg-white/74 p-4 shadow-[var(--clay-shadow)]'>
+									<p className='clay-label text-[var(--clay-charcoal)]'>Created</p>
+									<p className='mt-2 text-sm text-foreground'>{formatDateTime(job.created_at)}</p>
 								</div>
-								<div className='rounded-3xl border border-border/70 bg-background/80 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Updated</p>
-									<p className='mt-2 text-sm'>{formatDateTime(job.updated_at)}</p>
+								<div className='rounded-[1.45rem] border border-black/10 bg-white/74 p-4 shadow-[var(--clay-shadow)]'>
+									<p className='clay-label text-[var(--clay-charcoal)]'>Updated</p>
+									<p className='mt-2 text-sm text-foreground'>{formatDateTime(job.updated_at)}</p>
 								</div>
 							</div>
 						</div>
@@ -471,8 +688,8 @@ function SelectedJobCard({
 						) : null}
 					</>
 				) : !loading && !loadError ? (
-					<div className='rounded-[2rem] border border-dashed border-border bg-muted/15 p-6 text-sm text-muted-foreground'>
-						No finance run selected.
+					<div className='clay-card clay-dashed p-6 text-sm text-muted-foreground'>
+						No finance run selected yet. Pick one from the recent jobs lane or submit a new CSV.
 					</div>
 				) : null}
 			</CardContent>
@@ -494,55 +711,62 @@ function RecentJobsCard({
 	onSelect: (jobId: string) => void;
 }) {
 	return (
-		<Card className='shadow-md ring-1 ring-foreground/5'>
-			<CardHeader className='border-b border-border/70'>
-				<CardTitle>Recent finance jobs</CardTitle>
-				<CardDescription>Use an existing benchmark result or watch a live submission.</CardDescription>
-			</CardHeader>
-			<CardContent className='space-y-3 pt-6'>
-				<div className='flex justify-end'>
+		<Card className='clay-card border-[var(--clay-oat)] bg-white/84 shadow-[var(--clay-shadow)]'>
+			<CardHeader className='border-b border-[var(--clay-oat)]'>
+				<div className='flex flex-wrap items-start justify-between gap-4'>
+					<div className='space-y-2'>
+						<p className='clay-label'>Recent finance jobs</p>
+						<CardTitle className='text-2xl font-semibold tracking-[-0.04em]'>Jump back into existing runs.</CardTitle>
+						<CardDescription className='text-sm leading-6 text-muted-foreground'>
+							Use an existing benchmark result or watch a live submission finish.
+						</CardDescription>
+					</div>
 					<Button
 						variant='outline'
 						size='sm'
 						onClick={onRefresh}
 						disabled={refreshing}
+						className={cn('h-10 px-4', SECONDARY_BUTTON_CLASS_NAME)}
 					>
 						{refreshing ? <Loader2Icon className='size-4 animate-spin' /> : <ActivityIcon className='size-4' />}
 						Refresh jobs
 					</Button>
 				</div>
+			</CardHeader>
+			<CardContent className='space-y-3 pt-6'>
 				{jobs.length === 0 ? (
-					<div className='rounded-3xl border border-dashed border-border bg-muted/15 p-4 text-sm text-muted-foreground'>
+					<div className='clay-card clay-dashed p-4 text-sm text-muted-foreground'>
 						No finance jobs have been submitted yet.
 					</div>
 				) : (
-					<div className='space-y-2'>
+					<div className='space-y-3'>
 						{jobs.map(job => (
 							<button
 								key={job.job_id}
 								type='button'
 								onClick={() => onSelect(job.job_id)}
-								className={`w-full rounded-3xl border p-4 text-left transition ${
+								className={cn(
+									'clay-hover-lift w-full rounded-[1.7rem] border p-4 text-left shadow-[var(--clay-shadow)] transition',
 									activeJobId === job.job_id
-										? 'border-primary bg-primary/5 shadow-sm'
-										: 'border-border/70 bg-background hover:bg-muted/20'
-								}`}
+										? 'border-black/10 bg-[linear-gradient(135deg,rgba(132,231,165,0.34),rgba(255,255,255,0.95))]'
+										: 'border-[var(--clay-oat)] bg-white/78 hover:bg-[linear-gradient(135deg,rgba(248,204,101,0.18),rgba(255,255,255,0.95))]'
+								)}
 							>
-								<div className='flex flex-wrap items-center justify-between gap-3'>
-									<div className='space-y-1'>
-										<p className='font-medium'>{job.filename}</p>
+								<div className='flex flex-wrap items-start justify-between gap-3'>
+									<div className='space-y-2'>
+										<p className='font-semibold tracking-[-0.02em] text-foreground'>{job.filename}</p>
 										<p className='font-mono text-xs text-muted-foreground'>{job.job_id}</p>
 									</div>
 									<WorkflowStatusBadge status={job.status} />
 								</div>
-								<div className='mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground'>
-									<span>{formatDateTime(job.updated_at)}</span>
-									<span>{job.problem_type ?? 'portfolio_optimization'}</span>
-									<span>
+								<div className='mt-4 flex flex-wrap gap-2'>
+									<Badge className={SOFT_BADGE_CLASS_NAME}>{job.problem_type ?? 'portfolio_optimization'}</Badge>
+									<Badge className={SOFT_BADGE_CLASS_NAME}>{formatDateTime(job.updated_at)}</Badge>
+									<Badge className={SOFT_BADGE_CLASS_NAME}>
 										{job.row_count != null && job.col_count != null
-											? `${job.row_count.toLocaleString()} rows x ${job.col_count}`
+											? `${job.row_count.toLocaleString()} rows x ${job.col_count} cols`
 											: 'Pending result'}
-									</span>
+									</Badge>
 								</div>
 							</button>
 						))}
@@ -552,444 +776,6 @@ function RecentJobsCard({
 		</Card>
 	);
 }
-
-/* function ResultDashboard({ result, jobId }: { result: FinancialAnalysisResult; jobId: string }) {
-	const comparisonChartData = React.useMemo(
-		() => [
-			{
-				label: 'Classical',
-				objective: Number(result.benchmark.classical.objective.toFixed(6)),
-				expectedReturn: Number((result.benchmark.classical.expected_return * 100).toFixed(2)),
-				volatility: Number((result.benchmark.classical.volatility * 100).toFixed(2))
-			},
-			{
-				label: 'Quantum',
-				objective: Number(result.benchmark.quantum.objective.toFixed(6)),
-				expectedReturn: Number((result.benchmark.quantum.expected_return * 100).toFixed(2)),
-				volatility: Number((result.benchmark.quantum.volatility * 100).toFixed(2))
-			}
-		],
-		[result]
-	);
-
-	const assetChartData = React.useMemo(
-		() =>
-			result.asset_universe
-				.slice()
-				.sort((left, right) => right.selection_probability - left.selection_probability)
-				.slice(0, 10)
-				.map(asset => ({
-					ticker: asset.ticker,
-					returnPct: Number((asset.annualized_return * 100).toFixed(2)),
-					selectionPct: Number((asset.selection_probability * 100).toFixed(2))
-				})),
-		[result]
-	);
-
-	const topStates = result.quantum_execution?.top_states ?? [];
-	const gateCounts = Object.entries(result.quantum_execution?.circuit_summary?.gate_counts ?? {}).sort(
-		(left, right) => right[1] - left[1]
-	);
-
-	return (
-		<div className='space-y-6'>
-			<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-				<MetricCard
-					icon={<DatabaseIcon className='size-5' />}
-					label='Dataset'
-					value={`${result.dataset.asset_count} assets`}
-					detail={`${result.dataset.period_count} aligned periods from ${result.row_count.toLocaleString()} rows`}
-				/>
-				<MetricCard
-					icon={<BarChart2Icon className='size-5' />}
-					label='Budget'
-					value={String(result.request.budget)}
-					detail={`Risk aversion ${formatNumber(result.request.risk_aversion, 2)} · ${result.request.resolved_value_mode}`}
-				/>
-				<MetricCard
-					icon={<NetworkIcon className='size-5' />}
-					label='Distributed runtime'
-					value={`${result.fragments_executed} fragments`}
-					detail={`${result.distributed_nodes_used} nodes used · ${formatDuration(result.analysis_duration_ms)}`}
-				/>
-				<MetricCard
-					icon={<ZapIcon className='size-5' />}
-					label='Feasible mass'
-					value={formatPercent(result.benchmark.comparison.feasible_probability_mass)}
-					detail={`Optimum state probability ${formatPercent(result.benchmark.comparison.optimum_probability)}`}
-				/>
-			</div>
-
-			<div className='grid gap-6 xl:grid-cols-[1.3fr_0.9fr]'>
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle id='benchmark'>Classical vs quantum benchmark</CardTitle>
-						<CardDescription>
-							Exact classical solve against the best feasible QAOA state on the same screened universe.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className='space-y-5 pt-6'>
-						<div className='grid gap-4 md:grid-cols-2'>
-							<div className='rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-4'>
-								<div className='flex items-start justify-between gap-3'>
-									<div>
-										<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Classical optimum</p>
-										<p className='mt-2 text-xl font-semibold'>{result.benchmark.classical.bitstring}</p>
-									</div>
-									<TrendingUpIcon className='size-5 text-emerald-600' />
-								</div>
-								<div className='mt-4 space-y-1 text-sm text-muted-foreground'>
-									<p>Objective: {formatSignedNumber(result.benchmark.classical.objective)}</p>
-									<p>Return: {formatPercent(result.benchmark.classical.expected_return)}</p>
-									<p>Volatility: {formatPercent(result.benchmark.classical.volatility)}</p>
-								</div>
-							</div>
-							<div className='rounded-3xl border border-primary/20 bg-primary/5 p-4'>
-								<div className='flex items-start justify-between gap-3'>
-									<div>
-										<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Quantum candidate</p>
-										<p className='mt-2 text-xl font-semibold'>{result.benchmark.quantum.bitstring}</p>
-									</div>
-									<CpuIcon className='size-5 text-primary' />
-								</div>
-								<div className='mt-4 space-y-1 text-sm text-muted-foreground'>
-									<p>Objective: {formatSignedNumber(result.benchmark.quantum.objective)}</p>
-									<p>Return: {formatPercent(result.benchmark.quantum.expected_return)}</p>
-									<p>Volatility: {formatPercent(result.benchmark.quantum.volatility)}</p>
-									<p>Probability: {formatPercent(result.benchmark.quantum.probability)}</p>
-								</div>
-							</div>
-						</div>
-						<div className='h-72'>
-							<ResponsiveContainer
-								width='100%'
-								height='100%'
-							>
-								<BarChart data={comparisonChartData}>
-									<CartesianGrid
-										strokeDasharray='4 4'
-										vertical={false}
-									/>
-									<XAxis dataKey='label' />
-									<YAxis />
-									<Tooltip />
-									<Bar
-										dataKey='objective'
-										fill='var(--color-primary, hsl(var(--primary)))'
-										radius={[12, 12, 0, 0]}
-									/>
-								</BarChart>
-							</ResponsiveContainer>
-						</div>
-						<div className='grid gap-3 md:grid-cols-3'>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Objective gap</p>
-								<p className='mt-2 text-lg font-semibold'>
-									{formatSignedNumber(result.benchmark.comparison.objective_gap)}
-								</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Asset overlap</p>
-								<p className='mt-2 text-lg font-semibold'>
-									{result.benchmark.comparison.overlap_count} /{' '}
-									{result.request.budget}
-								</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Quantum advantage flag</p>
-								<p className='mt-2 text-lg font-semibold'>
-									{result.benchmark.comparison.quantum_advantage_detected ? 'Detected' : 'Not detected'}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle>Dataset and request</CardTitle>
-						<CardDescription>Resolved schema, screening window, and solve configuration.</CardDescription>
-					</CardHeader>
-					<CardContent className='space-y-5 pt-6'>
-						<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Dataset summary</p>
-							<dl className='mt-4 grid grid-cols-[8rem_minmax(0,1fr)] gap-y-2 text-sm'>
-								<dt className='text-muted-foreground'>Layout</dt>
-								<dd>{result.dataset.input_layout}</dd>
-								<dt className='text-muted-foreground'>Frequency</dt>
-								<dd>{result.dataset.inferred_frequency}</dd>
-								<dt className='text-muted-foreground'>Date range</dt>
-								<dd>
-									{result.dataset.start_date} to {result.dataset.end_date}
-								</dd>
-								<dt className='text-muted-foreground'>Columns</dt>
-								<dd>
-									{result.dataset.date_column}
-									{result.dataset.ticker_column ? ` / ${result.dataset.ticker_column}` : ''}
-									{result.dataset.value_column ? ` / ${result.dataset.value_column}` : ''}
-								</dd>
-								<dt className='text-muted-foreground'>Dropped rows</dt>
-								<dd>{result.dataset.dropped_records}</dd>
-							</dl>
-						</div>
-						<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Solve request</p>
-							<dl className='mt-4 grid grid-cols-[8rem_minmax(0,1fr)] gap-y-2 text-sm'>
-								<dt className='text-muted-foreground'>Objective</dt>
-								<dd className='break-words'>{result.benchmark.objective_label}</dd>
-								<dt className='text-muted-foreground'>Penalty</dt>
-								<dd>{formatNumber(result.request.penalty, 4)}</dd>
-								<dt className='text-muted-foreground'>QAOA reps</dt>
-								<dd>{result.request.qaoa_reps}</dd>
-								<dt className='text-muted-foreground'>Search steps</dt>
-								<dd>{result.request.parameter_search_steps}</dd>
-								<dt className='text-muted-foreground'>Timings</dt>
-								<dd>
-									Classical {formatDuration(result.benchmark.timings.classical_duration_ms)} · Quantum{' '}
-									{formatDuration(result.benchmark.timings.quantum_duration_ms)}
-								</dd>
-							</dl>
-						</div>
-						<Button asChild>
-							<Link href={`/runs/${encodeURIComponent(jobId)}`}>
-								<GitBranchIcon className='size-4' />
-								Inspect distributed run detail
-							</Link>
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
-
-			<div className='grid gap-6 xl:grid-cols-[1.15fr_0.85fr]'>
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle id='frontier'>Screened asset universe</CardTitle>
-						<CardDescription>
-							Annualized statistics for the screened tickers and the quantum state selection mass.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className='space-y-5 pt-6'>
-						<div className='h-72'>
-							<ResponsiveContainer
-								width='100%'
-								height='100%'
-							>
-								<BarChart data={assetChartData}>
-									<CartesianGrid
-										strokeDasharray='4 4'
-										vertical={false}
-									/>
-									<XAxis dataKey='ticker' />
-									<YAxis />
-									<Tooltip />
-									<Bar
-										dataKey='returnPct'
-										fill='hsl(var(--chart-2))'
-										name='Annualized return %'
-										radius={[8, 8, 0, 0]}
-									/>
-									<Bar
-										dataKey='selectionPct'
-										fill='hsl(var(--chart-4))'
-										name='Selection probability %'
-										radius={[8, 8, 0, 0]}
-									/>
-								</BarChart>
-							</ResponsiveContainer>
-						</div>
-						<div className='max-h-[26rem] overflow-auto rounded-3xl border border-border/70'>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Ticker</TableHead>
-										<TableHead className='text-right'>Return</TableHead>
-										<TableHead className='text-right'>Volatility</TableHead>
-										<TableHead className='text-right'>Selection</TableHead>
-										<TableHead>Flags</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{result.asset_universe.map(asset => (
-										<TableRow key={asset.ticker}>
-											<TableCell className='font-medium'>{asset.ticker}</TableCell>
-											<TableCell className='text-right'>{formatPercent(asset.annualized_return)}</TableCell>
-											<TableCell className='text-right'>
-												{formatPercent(asset.annualized_volatility)}
-											</TableCell>
-											<TableCell className='text-right'>
-												{formatPercent(asset.selection_probability)}
-											</TableCell>
-											<TableCell>
-												<div className='flex flex-wrap gap-2'>
-													{asset.selected_classical ? <Badge variant='secondary'>classical</Badge> : null}
-													{asset.selected_quantum ? <Badge variant='outline'>quantum</Badge> : null}
-												</div>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle id='execution'>Quantum execution metadata</CardTitle>
-						<CardDescription>QAOA parameters, compiled circuit size, and the routed OpenQASM payload.</CardDescription>
-					</CardHeader>
-					<CardContent className='space-y-5 pt-6'>
-						<div className='grid gap-3 sm:grid-cols-2'>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Qubits</p>
-								<p className='mt-2 text-lg font-semibold'>{result.quantum_execution?.circuit_summary?.qubit_count ?? '-'}</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Depth</p>
-								<p className='mt-2 text-lg font-semibold'>{result.quantum_execution?.circuit_summary?.depth ?? '-'}</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Beta</p>
-								<p className='mt-2 text-lg font-semibold'>
-									{formatNumber(result.quantum_execution?.qaoa_parameters?.beta, 4)}
-								</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Gamma</p>
-								<p className='mt-2 text-lg font-semibold'>
-									{formatNumber(result.quantum_execution?.qaoa_parameters?.gamma, 4)}
-								</p>
-							</div>
-						</div>
-						<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Gate counts</p>
-							<div className='mt-3 flex flex-wrap gap-2'>
-								{gateCounts.length ? (
-									gateCounts.map(([gate, count]) => (
-										<Badge
-											key={gate}
-											variant='secondary'
-										>
-											{gate}: {count}
-										</Badge>
-									))
-								) : (
-									<span className='text-sm text-muted-foreground'>No circuit summary returned.</span>
-								)}
-							</div>
-						</div>
-						<div className='space-y-2'>
-							<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Compiled OpenQASM</p>
-							<Textarea
-								readOnly
-								value={result.quantum_execution?.circuit_text ?? ''}
-								className='min-h-[18rem] resize-y font-mono text-xs'
-							/>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			<div className='grid gap-6 xl:grid-cols-[1fr_1fr]'>
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle id='states'>Top quantum states</CardTitle>
-						<CardDescription>Highest-probability bitstrings discovered in the QAOA state distribution.</CardDescription>
-					</CardHeader>
-					<CardContent className='pt-6'>
-						<div className='max-h-[24rem] overflow-auto rounded-3xl border border-border/70'>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Rank</TableHead>
-										<TableHead>Bitstring</TableHead>
-										<TableHead className='text-right'>Probability</TableHead>
-										<TableHead className='text-right'>Objective</TableHead>
-										<TableHead>Assets</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{topStates.length ? (
-										topStates.map(state => (
-											<TableRow key={`${state.bitstring}-${state.rank ?? 0}`}>
-												<TableCell>{state.rank ?? '-'}</TableCell>
-												<TableCell className='font-mono'>{state.bitstring}</TableCell>
-												<TableCell className='text-right'>{formatPercent(state.probability)}</TableCell>
-												<TableCell className='text-right'>{formatSignedNumber(state.objective)}</TableCell>
-												<TableCell>{state.selected_assets.join(', ') || '-'}</TableCell>
-											</TableRow>
-										))
-									) : (
-										<TableRow>
-											<TableCell
-												colSpan={5}
-												className='text-center text-muted-foreground'
-											>
-												No top-state payload returned.
-											</TableCell>
-										</TableRow>
-									)}
-								</TableBody>
-							</Table>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className='shadow-md ring-1 ring-foreground/5'>
-					<CardHeader className='border-b border-border/70'>
-						<CardTitle>Warnings and selected assets</CardTitle>
-						<CardDescription>Execution caveats worth carrying into investor-facing benchmark claims.</CardDescription>
-					</CardHeader>
-					<CardContent className='space-y-5 pt-6'>
-						<div className='grid gap-4 md:grid-cols-2'>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<div className='flex items-center gap-2'>
-									<TrendingUpIcon className='size-4 text-emerald-600' />
-									<p className='font-medium'>Classical selection</p>
-								</div>
-								<p className='mt-3 text-sm text-muted-foreground'>
-									{result.benchmark.classical.selected_assets.join(', ') || '-'}
-								</p>
-							</div>
-							<div className='rounded-3xl border border-border/70 bg-muted/20 p-4'>
-								<div className='flex items-center gap-2'>
-									<CpuIcon className='size-4 text-primary' />
-									<p className='font-medium'>Quantum selection</p>
-								</div>
-								<p className='mt-3 text-sm text-muted-foreground'>
-									{result.benchmark.quantum.selected_assets.join(', ') || '-'}
-								</p>
-							</div>
-						</div>
-						<Separator />
-						<div className='space-y-3'>
-							<div className='flex items-center gap-2'>
-								<AlertTriangleIcon className='size-4 text-amber-600' />
-								<p className='font-medium'>Warnings</p>
-							</div>
-							{result.warnings.length ? (
-								<div className='space-y-2'>
-									{result.warnings.map(warning => (
-										<div
-											key={warning}
-											className='rounded-3xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-muted-foreground'
-										>
-											{warning}
-										</div>
-									))}
-								</div>
-							) : (
-								<div className='rounded-3xl border border-dashed border-border bg-muted/15 p-4 text-sm text-muted-foreground'>
-									No warnings returned by the backend.
-								</div>
-							)}
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		</div>
-	);
-} */
 
 export function FinancialAnalyticsClient() {
 	const searchParams = useSearchParams();
@@ -1141,68 +927,58 @@ export function FinancialAnalyticsClient() {
 	);
 
 	const result = job?.result ?? null;
+	const displayedFileName = lastSubmittedFileName ?? job?.filename ?? 'No file submitted in this session.';
 
 	return (
-		<div className='space-y-6 p-4 pb-10 md:p-6'>
-			<Card className='overflow-hidden border-none bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.16),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.12),_transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.88))] text-white shadow-2xl'>
-				<CardContent className='grid gap-8 py-10 md:grid-cols-[1.2fr_0.8fr]'>
-					<div className='space-y-4'>
-						<Badge
-							variant='secondary'
-							className='w-fit border-white/10 bg-white/10 text-white'
-						>
-							Track B - Real portfolio optimization
-						</Badge>
-						<div className='space-y-3'>
-							<h1 className='text-3xl font-semibold tracking-tight md:text-4xl'>
-								Classical exact baseline vs routed quantum portfolio solve
-							</h1>
-							<p className='max-w-3xl text-sm leading-6 text-white/75 md:text-base'>
-								This page is now wired to the new `backend-v2` finance workflow. It no longer uses the
-								legacy analytics stub. The backend screens a portfolio universe, computes the exact
-								classical optimum, synthesizes a QAOA circuit, and routes that circuit through the
-								distributed quantum execution surfaces.
-							</p>
-						</div>
-						<div className='flex flex-wrap gap-2 text-xs text-white/70'>
-							<Badge className='border-white/10 bg-white/10 text-white'>exact classical search</Badge>
-							<Badge className='border-white/10 bg-white/10 text-white'>QAOA bitstring states</Badge>
-							<Badge className='border-white/10 bg-white/10 text-white'>distributed fragment routing</Badge>
-							<Badge className='border-white/10 bg-white/10 text-white'>OpenQASM surfaced</Badge>
+		<div className='space-y-8 p-4 pb-12 md:p-6 lg:p-8'>
+			<section className='clay-section overflow-hidden p-4 md:p-6'>
+				<div className='grid gap-4 xl:grid-cols-[1.15fr_0.85fr]'>
+					<div className='rounded-[2.6rem] border border-black/10 bg-[linear-gradient(135deg,rgba(248,204,101,0.9),rgba(255,255,255,0.62),rgba(193,176,255,0.32))] p-6 shadow-[var(--clay-shadow)] md:p-8'>
+						<p className='clay-label text-foreground'>Track B / quantum versus classical</p>
+						<h1 className='mt-4 max-w-4xl text-4xl font-semibold leading-[0.94] tracking-[-0.055em] text-foreground md:text-6xl'>
+							One market dataset. One exact baseline. One routed quantum solve.
+						</h1>
+						<p className='mt-5 max-w-3xl text-base leading-7 text-black/72'>
+							This finance page is wired to `backend-v2`. It screens the same portfolio universe, computes the
+							exact classical optimum, synthesizes a QAOA circuit, and surfaces the distributed quantum evidence
+							on the same run. No legacy analytics stub remains in this path.
+						</p>
+						<div className='mt-6 flex flex-wrap gap-2'>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>exact classical search</Badge>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>QAOA state ranking</Badge>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>distributed fragment routing</Badge>
+							<Badge className={SOFT_BADGE_CLASS_NAME}>OpenQASM surfaced</Badge>
 						</div>
 					</div>
-					<div className='grid gap-3 sm:grid-cols-2'>
-						<div className='rounded-[2rem] border border-white/10 bg-white/8 p-4 backdrop-blur'>
-							<div className='flex items-center gap-2 text-white/70'>
-								<CheckCircle2Icon className='size-4' />
-								<p className='text-xs uppercase tracking-[0.2em]'>Accepted inputs</p>
-							</div>
-							<p className='mt-3 text-sm text-white/85'>Long or wide market CSVs with dates and prices or returns.</p>
-						</div>
-						<div className='rounded-[2rem] border border-white/10 bg-white/8 p-4 backdrop-blur'>
-							<div className='flex items-center gap-2 text-white/70'>
-								<CpuIcon className='size-4' />
-								<p className='text-xs uppercase tracking-[0.2em]'>Quantum surface</p>
-							</div>
-							<p className='mt-3 text-sm text-white/85'>Compiled QASM, top states, plan fragments, and runtime quantum result.</p>
-						</div>
-						<div className='rounded-[2rem] border border-white/10 bg-white/8 p-4 backdrop-blur'>
-							<div className='flex items-center gap-2 text-white/70'>
-								<BarChart2Icon className='size-4' />
-								<p className='text-xs uppercase tracking-[0.2em]'>Benchmark output</p>
-							</div>
-							<p className='mt-3 text-sm text-white/85'>Objective gaps, overlap ratio, feasible probability mass, and timings.</p>
-						</div>
-						<div className='rounded-[2rem] border border-white/10 bg-white/8 p-4 backdrop-blur'>
-							<div className='flex items-center gap-2 text-white/70'>
-								<FileTextIcon className='size-4' />
-								<p className='text-xs uppercase tracking-[0.2em]'>Current file</p>
-							</div>
-							<p className='mt-3 text-sm text-white/85'>{lastSubmittedFileName ?? 'No file submitted in this session.'}</p>
-						</div>
+
+					<div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-2'>
+						<HeroSignalCard
+							icon={<CheckCircle2Icon className='size-5' />}
+							label='Accepted inputs'
+							description='Long or wide market CSVs with dates plus prices or returns. Override columns only when inference is ambiguous.'
+							toneClassName='clay-panel-matcha'
+						/>
+						<HeroSignalCard
+							icon={<CpuIcon className='size-5' />}
+							label='Quantum surface'
+							description='Compiled QASM, top states, plan fragments, runtime route, and observed basis-state evidence are all exposed downstream.'
+							toneClassName='clay-panel-ube'
+						/>
+						<HeroSignalCard
+							icon={<BarChart2Icon className='size-5' />}
+							label='Benchmark output'
+							description='Objective gaps, overlap ratio, feasible probability mass, frontier rank, and comparison-report language land in the same payload.'
+							toneClassName='clay-panel-slushie'
+						/>
+						<HeroSignalCard
+							icon={<FileTextIcon className='size-5' />}
+							label='Current file'
+							description={displayedFileName}
+							toneClassName='clay-panel-pomegranate'
+						/>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</section>
 
 			{uploadError ? (
 				<Alert variant='destructive'>
@@ -1212,7 +988,7 @@ export function FinancialAnalyticsClient() {
 				</Alert>
 			) : null}
 
-			<div className='grid gap-6 xl:grid-cols-[1.2fr_0.8fr]'>
+			<div className='grid gap-6 xl:grid-cols-[1.16fr_0.84fr]'>
 				<UploadPanel
 					form={form}
 					fileName={lastSubmittedFileName}

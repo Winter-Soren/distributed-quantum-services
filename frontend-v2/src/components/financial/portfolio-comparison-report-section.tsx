@@ -14,13 +14,18 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import type {
 	FinancialComparisonPitchPosition,
 	FinancialComparisonReport,
 	FinancialComparisonWinner
 } from '@/types/financial';
+
+const WHITE_CARD_CLASS_NAME =
+	'rounded-[1.9rem] border border-[var(--clay-oat)] bg-white p-5 text-foreground shadow-[var(--clay-shadow)]';
+const LABEL_CLASS_NAME = 'clay-label text-[var(--clay-charcoal)]';
+const BUTTON_CLASS_NAME =
+	'clay-hover-lift rounded-full border border-black/10 bg-white text-black shadow-[var(--clay-shadow)] hover:bg-[rgb(248_204_101_/_0.32)]';
 
 function formatSignedNumber(value: number | null | undefined, digits = 6) {
 	if (value == null || Number.isNaN(value)) {
@@ -83,63 +88,128 @@ function pitchLabel(position: FinancialComparisonPitchPosition) {
 	}
 }
 
-function pitchBadgeVariant(position: FinancialComparisonPitchPosition) {
+function pitchBadgeClassName(position: FinancialComparisonPitchPosition) {
 	switch (position) {
 		case 'numerical_advantage':
-			return 'default' as const;
+			return 'border-black/10 bg-[rgb(132_231_165_/_0.22)] text-[var(--clay-matcha-dark)]';
 		case 'mixed':
-			return 'secondary' as const;
+			return 'border-black/10 bg-[rgb(248_204_101_/_0.24)] text-black';
 		case 'workflow_evidence':
-			return 'outline' as const;
+			return 'border-black/10 bg-[rgb(59_211_253_/_0.2)] text-[var(--clay-blueberry)]';
 		default:
-			return 'destructive' as const;
+			return 'border-black/10 bg-[rgb(252_121_129_/_0.18)] text-[#842432]';
 	}
 }
 
-function readinessBadgeVariant(readiness: FinancialComparisonReport['verdict']['claim_readiness']) {
+function readinessBadgeClassName(readiness: FinancialComparisonReport['verdict']['claim_readiness']) {
 	switch (readiness) {
 		case 'ready':
-			return 'default' as const;
+			return 'border-black/10 bg-[rgb(132_231_165_/_0.22)] text-[var(--clay-matcha-dark)]';
 		case 'qualified':
-			return 'secondary' as const;
+			return 'border-black/10 bg-[rgb(193_176_255_/_0.24)] text-[var(--clay-ube-dark)]';
 		default:
-			return 'destructive' as const;
+			return 'border-black/10 bg-[rgb(252_121_129_/_0.18)] text-[#842432]';
 	}
 }
 
-function MetricCard({ label, value, detail, icon }: { label: string; value: string; detail: string; icon: ReactNode }) {
+function MetricCard({
+	label,
+	value,
+	detail,
+	icon,
+	iconClassName
+}: {
+	label: string;
+	value: string;
+	detail: string;
+	icon: ReactNode;
+	iconClassName: string;
+}) {
 	return (
-		<div className='rounded-3xl border border-border/70 bg-background/70 p-4 shadow-sm'>
+		<div className={WHITE_CARD_CLASS_NAME}>
 			<div className='flex items-start justify-between gap-3'>
 				<div className='space-y-1'>
-					<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>{label}</p>
-					<p className='text-xl font-semibold tracking-tight'>{value}</p>
+					<p className={LABEL_CLASS_NAME}>{label}</p>
+					<p className='text-[2rem] leading-[1.1] font-semibold tracking-[-0.04em] text-foreground'>{value}</p>
 				</div>
-				<div className='flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
-					{icon}
-				</div>
+				<div className={cn('clay-icon-chip border-black/10 text-foreground', iconClassName)}>{icon}</div>
 			</div>
-			<p className='mt-3 text-sm text-muted-foreground'>{detail}</p>
+			<p className='mt-3 text-sm leading-6 text-muted-foreground'>{detail}</p>
 		</div>
 	);
 }
 
-function ClaimList({ title, items, accent }: { title: string; items: string[]; accent: 'positive' | 'caution' }) {
-	const accentClassName =
-		accent === 'positive' ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5';
-
+function ClaimList({
+	title,
+	items,
+	icon,
+	iconClassName,
+	dashed = false
+}: {
+	title: string;
+	items: string[];
+	icon: ReactNode;
+	iconClassName: string;
+	dashed?: boolean;
+}) {
 	return (
-		<div className={`rounded-3xl border p-4 ${accentClassName}`}>
-			<p className='text-sm font-medium'>{title}</p>
-			<div className='mt-3 space-y-2'>
+		<div className={cn(WHITE_CARD_CLASS_NAME, dashed && 'clay-dashed')}>
+			<div className='flex items-center gap-3'>
+				<div className={cn('clay-icon-chip border-black/10 text-foreground', iconClassName)}>{icon}</div>
+				<div>
+					<p className={LABEL_CLASS_NAME}>Claim framing</p>
+					<p className='mt-1 text-2xl font-semibold tracking-[-0.04em] text-foreground'>{title}</p>
+				</div>
+			</div>
+			<div className='mt-5 space-y-3'>
 				{items.map(item => (
 					<div
 						key={item}
-						className='rounded-2xl border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground'
+						className='rounded-[1.35rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4 text-sm leading-6 text-muted-foreground'
 					>
 						{item}
 					</div>
 				))}
+			</div>
+		</div>
+	);
+}
+
+function CandidateCard({
+	title,
+	bitstring,
+	assetLine,
+	objectiveLine,
+	runtimeLine,
+	probabilityLine,
+	icon,
+	toneClassName
+}: {
+	title: string;
+	bitstring: string;
+	assetLine: string;
+	objectiveLine: string;
+	runtimeLine: string;
+	probabilityLine?: string;
+	icon: ReactNode;
+	toneClassName: string;
+}) {
+	return (
+		<div className={cn('rounded-[2rem] border border-black/10 p-5 shadow-[var(--clay-shadow)]', toneClassName)}>
+			<div className='flex items-center gap-3'>
+				<div className='clay-icon-chip bg-white/80 text-foreground'>{icon}</div>
+				<div>
+					<p className='clay-label text-foreground'>{title}</p>
+					<p className='mt-2 break-all font-mono text-lg font-semibold tracking-[-0.03em] text-foreground'>
+						{bitstring || '-'}
+					</p>
+				</div>
+			</div>
+			<div className='mt-5 space-y-2 text-sm leading-6 text-black/70'>
+				<p>{assetLine}</p>
+				<p>{objectiveLine}</p>
+				<p>{runtimeLine}</p>
+				{probabilityLine ? <p>{probabilityLine}</p> : null}
 			</div>
 		</div>
 	);
@@ -157,33 +227,46 @@ export function PortfolioComparisonReportSection({
 			id='comparison'
 			className='space-y-6'
 		>
-			<Card className='overflow-hidden shadow-md ring-1 ring-foreground/5'>
-				<div
-					aria-hidden
-					className='pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-primary/10 via-chart-2/10 to-chart-3/10'
-				/>
-				<CardHeader className='relative border-b border-border/70'>
+			<div className='rounded-[2.6rem] border border-black/10 bg-[var(--clay-matcha-dark)] p-4 text-white shadow-[var(--clay-shadow)] md:p-6'>
+				<div className='grid gap-6'>
 					<div className='flex flex-wrap items-start justify-between gap-4'>
-						<div className='space-y-3'>
-							<div className='flex flex-wrap items-center gap-2'>
-								<Badge variant={pitchBadgeVariant(report.verdict.pitch_position)}>
+						<div className='max-w-4xl space-y-4'>
+							<div className='flex flex-wrap gap-2'>
+								<Badge
+									variant='outline'
+									className={cn(
+										'rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] shadow-[var(--clay-shadow)]',
+										pitchBadgeClassName(report.verdict.pitch_position)
+									)}
+								>
 									{pitchLabel(report.verdict.pitch_position)}
 								</Badge>
-								<Badge variant={readinessBadgeVariant(report.verdict.claim_readiness)}>
+								<Badge
+									variant='outline'
+									className={cn(
+										'rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] shadow-[var(--clay-shadow)]',
+										readinessBadgeClassName(report.verdict.claim_readiness)
+									)}
+								>
 									{titleCaseFromKey(report.verdict.claim_readiness)}
 								</Badge>
 							</div>
-							<div className='space-y-1'>
-								<CardTitle>Quantum vs classical comparison report</CardTitle>
-								<CardDescription>
-									Investor-facing readout built from the same dataset, same screened universe, and
-									same objective.
-								</CardDescription>
+							<div className='space-y-2'>
+								<p className='clay-label text-white/70'>Investor comparison</p>
+								<h2 className='text-3xl font-semibold leading-[0.96] tracking-[-0.05em] text-white md:text-5xl'>
+									Quantum versus classical, framed for the same portfolio problem.
+								</h2>
+								<p className='max-w-3xl text-base leading-7 text-white/76'>
+									Investor-facing readout built from the same dataset, same screened universe, same
+									constraints, and same objective. This section is meant to be the honest claim surface for
+									Track B.
+								</p>
 							</div>
 						</div>
 						<Button
 							variant='outline'
 							asChild
+							className={cn('h-11 px-5', BUTTON_CLASS_NAME)}
 						>
 							<Link
 								href={`/api/finance/${encodeURIComponent(jobId)}/comparison`}
@@ -194,11 +277,13 @@ export function PortfolioComparisonReportSection({
 							</Link>
 						</Button>
 					</div>
-				</CardHeader>
-				<CardContent className='space-y-6 pt-6'>
-					<div className='rounded-[2rem] border border-border/70 bg-gradient-to-br from-background via-background to-primary/5 p-5'>
-						<p className='text-xl font-semibold tracking-tight'>{report.verdict.headline}</p>
-						<p className='mt-3 max-w-4xl text-sm leading-6 text-muted-foreground'>
+
+					<div className='rounded-[2rem] border border-black/10 bg-white p-5 text-foreground shadow-[var(--clay-shadow)] md:p-6'>
+						<p className={LABEL_CLASS_NAME}>Verdict</p>
+						<p className='mt-3 text-[2rem] leading-[1.1] font-semibold tracking-[-0.04em] text-foreground'>
+							{report.verdict.headline}
+						</p>
+						<p className='mt-4 max-w-4xl text-sm leading-7 text-muted-foreground md:text-base'>
 							{report.verdict.summary}
 						</p>
 					</div>
@@ -206,6 +291,7 @@ export function PortfolioComparisonReportSection({
 					<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
 						<MetricCard
 							icon={<ShieldCheckIcon className='size-5' />}
+							iconClassName='bg-[rgb(132_231_165_/_0.32)] text-[var(--clay-matcha-dark)]'
 							label='Fairness'
 							value={
 								report.fairness.same_dataset &&
@@ -214,43 +300,46 @@ export function PortfolioComparisonReportSection({
 									? 'Aligned'
 									: 'Check inputs'
 							}
-							detail='Same screened dataset, portfolio constraints, and objective on both sides of the comparison.'
+							detail='Same screened dataset, portfolio constraints, and objective were used on both sides of the comparison.'
 						/>
 						<MetricCard
 							icon={<ScaleIcon className='size-5' />}
-							label='Objective Winner'
+							iconClassName='bg-[rgb(248_204_101_/_0.34)] text-black'
+							label='Objective winner'
 							value={winnerLabel(report.scorecard.winner_by_objective)}
 							detail={`Gap ${formatSignedNumber(report.scorecard.objective_gap)} on ${report.problem.objective_label}.`}
 						/>
 						<MetricCard
 							icon={<TimerIcon className='size-5' />}
-							label='Runtime Winner'
+							iconClassName='bg-[rgb(193_176_255_/_0.34)] text-[var(--clay-ube-dark)]'
+							label='Runtime winner'
 							value={winnerLabel(report.scorecard.winner_by_runtime)}
-							detail={`Classical ${formatDuration(report.classical.duration_ms)} vs quantum ${formatDuration(report.quantum.duration_ms)}.`}
+							detail={`Classical ${formatDuration(report.classical.duration_ms)} versus quantum ${formatDuration(report.quantum.duration_ms)}.`}
 						/>
 						<MetricCard
 							icon={<CpuIcon className='size-5' />}
-							label='Feasible Mass'
+							iconClassName='bg-[rgb(59_211_253_/_0.28)] text-[var(--clay-blueberry)]'
+							label='Feasible mass'
 							value={formatPercent(report.quantum.feasible_probability_mass)}
 							detail={`Quantum candidate rank ${report.quantum.rank ?? '-'} and percentile ${formatPercent(report.quantum.percentile)}.`}
 						/>
 					</div>
 
-					<div className='grid gap-6 xl:grid-cols-[1.1fr_0.9fr]'>
-						<div className='rounded-3xl border border-border/70 bg-muted/15 p-5'>
-							<p className='text-sm font-medium'>Benchmark contract</p>
-							<div className='mt-4 space-y-3'>
+					<div className='grid gap-4 xl:grid-cols-[1.08fr_0.92fr]'>
+						<div className={WHITE_CARD_CLASS_NAME}>
+							<p className={LABEL_CLASS_NAME}>Benchmark contract</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>Same input, same target, same constraints.</p>
+							<div className='mt-5 space-y-3'>
 								{report.fairness.notes.map(note => (
 									<div
 										key={note}
-										className='rounded-2xl border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground'
+									className='rounded-[1.35rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4 text-sm leading-6 text-muted-foreground'
 									>
 										{note}
 									</div>
 								))}
 							</div>
-							<Separator className='my-5' />
-							<dl className='grid grid-cols-[10rem_minmax(0,1fr)] gap-y-2 text-sm'>
+							<dl className='mt-6 grid gap-x-6 gap-y-3 text-sm leading-6 text-foreground md:grid-cols-[10rem_minmax(0,1fr)]'>
 								<dt className='text-muted-foreground'>Dataset window</dt>
 								<dd>
 									{report.dataset.start_date} to {report.dataset.end_date}
@@ -270,57 +359,52 @@ export function PortfolioComparisonReportSection({
 							</dl>
 						</div>
 
-						<div className='rounded-3xl border border-border/70 bg-muted/15 p-5'>
-							<p className='text-sm font-medium'>Scorecard</p>
-							<div className='mt-4 grid gap-3 sm:grid-cols-2'>
-								<div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-										Return winner
-									</p>
-									<p className='mt-2 text-lg font-semibold'>
+						<div className={cn(WHITE_CARD_CLASS_NAME, 'clay-dashed')}>
+							<p className={LABEL_CLASS_NAME}>Scorecard</p>
+							<p className='mt-3 text-2xl font-semibold tracking-[-0.04em] text-foreground'>What the scoreboard actually says.</p>
+							<div className='mt-5 grid gap-3 sm:grid-cols-2'>
+								<div className='rounded-[1.4rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4'>
+									<p className={LABEL_CLASS_NAME}>Return winner</p>
+									<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground'>
 										{winnerLabel(report.scorecard.winner_by_return)}
 									</p>
-									<p className='mt-2 text-sm text-muted-foreground'>
+									<p className='mt-2 text-sm leading-6 text-muted-foreground'>
 										Gap {formatSignedNumber(report.scorecard.return_gap)}
 									</p>
 								</div>
-								<div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-										Risk winner
-									</p>
-									<p className='mt-2 text-lg font-semibold'>
+								<div className='rounded-[1.4rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4'>
+									<p className={LABEL_CLASS_NAME}>Risk winner</p>
+									<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground'>
 										{winnerLabel(report.scorecard.winner_by_risk)}
 									</p>
-									<p className='mt-2 text-sm text-muted-foreground'>
+									<p className='mt-2 text-sm leading-6 text-muted-foreground'>
 										Variance gap {formatSignedNumber(report.scorecard.variance_gap)}
 									</p>
 								</div>
-								<div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Overlap</p>
-									<p className='mt-2 text-lg font-semibold'>
+								<div className='rounded-[1.4rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4'>
+									<p className={LABEL_CLASS_NAME}>Overlap</p>
+									<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground'>
 										{formatPercent(report.scorecard.overlap_ratio)}
 									</p>
-									<p className='mt-2 text-sm text-muted-foreground'>
+									<p className='mt-2 text-sm leading-6 text-muted-foreground'>
 										{report.scorecard.overlap_count} shared assets between portfolios
 									</p>
 								</div>
-								<div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-									<p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-										Runtime evidence
-									</p>
-									<p className='mt-2 text-lg font-semibold'>
+								<div className='rounded-[1.4rem] border border-[var(--clay-oat-light)] bg-[rgb(250_249_247_/_0.9)] p-4'>
+									<p className={LABEL_CLASS_NAME}>Runtime evidence</p>
+									<p className='mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground'>
 										{report.quantum.fragments_executed} fragments
 									</p>
-									<p className='mt-2 text-sm text-muted-foreground'>
-										{report.quantum.distributed_nodes_used} nodes,{' '}
-										{report.evidence.observed_basis_state_count} basis states observed
+									<p className='mt-2 text-sm leading-6 text-muted-foreground'>
+										{report.quantum.distributed_nodes_used} nodes and{' '}
+										{report.evidence.observed_basis_state_count} observed basis states
 									</p>
 								</div>
 							</div>
 						</div>
 					</div>
 
-					<div className='grid gap-6 xl:grid-cols-2'>
+					<div className='grid gap-4 xl:grid-cols-2'>
 						<ClaimList
 							title='What this run supports'
 							items={
@@ -328,7 +412,8 @@ export function PortfolioComparisonReportSection({
 									? report.verdict.recommended_claims
 									: report.verdict.strengths
 							}
-							accent='positive'
+							icon={<CheckCircle2Icon className='size-5' />}
+							iconClassName='bg-[rgb(132_231_165_/_0.32)] text-[var(--clay-matcha-dark)]'
 						/>
 						<ClaimList
 							title='What not to claim'
@@ -337,75 +422,51 @@ export function PortfolioComparisonReportSection({
 									? report.verdict.avoid_claims
 									: report.verdict.limitations
 							}
-							accent='caution'
+							icon={<AlertTriangleIcon className='size-5' />}
+							iconClassName='bg-[rgb(252_121_129_/_0.22)] text-[#842432]'
+							dashed
 						/>
 					</div>
 
-					<div className='grid gap-6 xl:grid-cols-2'>
-						<div className='rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5'>
-							<div className='flex items-center gap-2'>
-								<CheckCircle2Icon className='size-4 text-emerald-600' />
-								<p className='font-medium'>Strengths</p>
-							</div>
-							<div className='mt-4 space-y-2'>
-								{report.verdict.strengths.map(item => (
-									<div
-										key={item}
-										className='rounded-2xl border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground'
-									>
-										{item}
-									</div>
-								))}
-							</div>
-						</div>
-
-						<div className='rounded-3xl border border-amber-500/20 bg-amber-500/5 p-5'>
-							<div className='flex items-center gap-2'>
-								<AlertTriangleIcon className='size-4 text-amber-600' />
-								<p className='font-medium'>Limitations</p>
-							</div>
-							<div className='mt-4 space-y-2'>
-								{report.verdict.limitations.map(item => (
-									<div
-										key={item}
-										className='rounded-2xl border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground'
-									>
-										{item}
-									</div>
-								))}
-							</div>
-						</div>
+					<div className='grid gap-4 xl:grid-cols-2'>
+						<ClaimList
+							title='Strengths'
+							items={report.verdict.strengths}
+							icon={<CheckCircle2Icon className='size-5' />}
+							iconClassName='bg-[rgb(59_211_253_/_0.28)] text-[var(--clay-blueberry)]'
+						/>
+						<ClaimList
+							title='Limitations'
+							items={report.verdict.limitations}
+							icon={<AlertTriangleIcon className='size-5' />}
+							iconClassName='bg-[rgb(248_204_101_/_0.34)] text-black'
+							dashed
+						/>
 					</div>
 
 					<div className='grid gap-4 md:grid-cols-2'>
-						<div className='rounded-3xl border border-border/70 bg-muted/15 p-4'>
-							<div className='flex items-center gap-2'>
-								<ScaleIcon className='size-4 text-primary' />
-								<p className='font-medium'>Classical optimum</p>
-							</div>
-							<p className='mt-3 font-mono text-lg'>{report.classical.bitstring || '-'}</p>
-							<div className='mt-3 space-y-1 text-sm text-muted-foreground'>
-								<p>Assets: {report.classical.selected_assets.join(', ') || '-'}</p>
-								<p>Objective: {formatSignedNumber(report.classical.objective)}</p>
-								<p>Runtime: {formatDuration(report.classical.duration_ms)}</p>
-							</div>
-						</div>
-						<div className='rounded-3xl border border-border/70 bg-muted/15 p-4'>
-							<div className='flex items-center gap-2'>
-								<CpuIcon className='size-4 text-primary' />
-								<p className='font-medium'>Quantum candidate</p>
-							</div>
-							<p className='mt-3 font-mono text-lg'>{report.quantum.bitstring || '-'}</p>
-							<div className='mt-3 space-y-1 text-sm text-muted-foreground'>
-								<p>Assets: {report.quantum.selected_assets.join(', ') || '-'}</p>
-								<p>Objective: {formatSignedNumber(report.quantum.objective)}</p>
-								<p>Runtime: {formatDuration(report.quantum.duration_ms)}</p>
-								<p>Probability: {formatPercent(report.quantum.probability)}</p>
-							</div>
-						</div>
+						<CandidateCard
+							title='Classical optimum'
+							icon={<ScaleIcon className='size-5' />}
+							toneClassName='bg-[linear-gradient(135deg,rgba(248,204,101,0.38),rgba(255,255,255,0.96))]'
+							bitstring={report.classical.bitstring || '-'}
+							assetLine={`Assets: ${report.classical.selected_assets.join(', ') || '-'}`}
+							objectiveLine={`Objective: ${formatSignedNumber(report.classical.objective)}`}
+							runtimeLine={`Runtime: ${formatDuration(report.classical.duration_ms)}`}
+						/>
+						<CandidateCard
+							title='Quantum candidate'
+							icon={<CpuIcon className='size-5' />}
+							toneClassName='bg-[linear-gradient(135deg,rgba(59,211,253,0.32),rgba(255,255,255,0.96))]'
+							bitstring={report.quantum.bitstring || '-'}
+							assetLine={`Assets: ${report.quantum.selected_assets.join(', ') || '-'}`}
+							objectiveLine={`Objective: ${formatSignedNumber(report.quantum.objective)}`}
+							runtimeLine={`Runtime: ${formatDuration(report.quantum.duration_ms)}`}
+							probabilityLine={`Probability: ${formatPercent(report.quantum.probability)}`}
+						/>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 		</section>
 	);
 }
