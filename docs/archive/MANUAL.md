@@ -68,8 +68,8 @@ Create or choose:
 Security group inbound rules:
 
 - `22/tcp` from your IP only
-- `80/tcp` from `0.0.0.0/0`
-- `443/tcp` from `0.0.0.0/0`
+- `80/tcp` from `0.0.0.$\frac{0}{0}$`
+- `443/tcp` from `0.0.0.$\frac{0}{0}$`
 
 Outbound access should stay enabled because the build pulls:
 
@@ -485,7 +485,7 @@ If Docker Compose fails with `failed to bind host port 127.0.0.1:3003`:
 docker compose -f docker-compose.yaml up -d --build --force-recreate
 ```
 
-- if you need legacy UI and Compose at the same time, keep Caddy on `80/443` and do not publish `127.0.0.1:3003:3003` from the Caddy container
+- if you need legacy UI and Compose at the same time, keep Caddy on `$\frac{80}{443}$` and do not publish `127.0.0.1:3003:3003` from the Caddy container
 - check current listener:
 
 ```bash

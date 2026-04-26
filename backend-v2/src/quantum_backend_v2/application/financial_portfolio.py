@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -13,11 +14,17 @@ from itertools import combinations
 from typing import Any
 
 import numpy as np
+from scipy.optimize import minimize as scipy_minimize
 from qiskit import qasm2, transpile
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit.library import QAOAAnsatz
 from qiskit.primitives import StatevectorEstimator
 from qiskit.quantum_info import SparsePauliOp, Statevector
+
+from quantum_backend_v2.application.qaoa_parameter_optimization import (
+    AdvancedQAOAOptimizer,
+    compute_parameter_shift_gradient,
+)
 
 
 _DATE_COLUMN_ALIASES = (
@@ -61,13 +68,21 @@ _DATE_FORMATS = (
 )
 _MIN_ASSET_COUNT = 2
 _MIN_OBSERVATIONS = 4
-_DEFAULT_MAX_ASSETS = 6
-_DEFAULT_PARAMETER_STEPS = 9
-_MAX_QAOA_REPS = 4
-_DEFAULT_LOCAL_REFINEMENT_ROUNDS = 3
-_LOCAL_REFINEMENT_POINTS = 5
+_DEFAULT_MAX_ASSETS = 16
+_DEFAULT_PARAMETER_STEPS = 5  # Reduced from 9 to 5 (bottleneck fix #1)
+_MAX_QAOA_REPS = 8
+_DEFAULT_LOCAL_REFINEMENT_ROUNDS = 2  # Reduced from 3 to 2 (bottleneck fix #2)
+_LOCAL_REFINEMENT_POINTS = 3  # Reduced from 5 to 3 (bottleneck fix #3)
 _QAOA_TOP_SEEDS = 4
 _QAOA_RANDOM_SEED = 19
+_SA_INITIAL_TEMPERATURE = 10.0
+_SA_COOLING_RATE = 0.995
+_SA_ITERATIONS = 50_000
+_SA_SEED = 42
+_CVAR_ALPHA = 0.25
+_STATEVECTOR_QUBIT_LIMIT = 18
+_USE_ADVANCED_OPTIMIZER = False  # DISABLED: L-BFGS-B slower than COBYLA for small problems (see GRADIENT_OPTIMIZATION_POSTMORTEM.md)
+_USE_PARAMETER_SHIFT_GRADIENTS = False  # DISABLED: 8× evaluation overhead too high for 4-parameter QAOA
 _MARKET_TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _METRIC_COLUMN_KEYWORDS = (
     "revenue",
@@ -262,6 +277,8 @@ def build_portfolio_optimization_artifacts(
     )
     shared_preparation_duration_ms = int((time.perf_counter() - started_at) * 1000)
     classical_started_at = time.perf_counter()
+    asset_count = len(selected_assets)
+    use_heuristic_classical = asset_count > 10
     classical_portfolios = _enumerate_feasible_portfolios(
         tickers=[asset.ticker for asset in selected_assets],
         mean_returns=mean_returns,
@@ -269,7 +286,19 @@ def build_portfolio_optimization_artifacts(
         risk_aversion=resolved_config.risk_aversion,
         budget=budget,
     )
-    classical_solution = _solve_classically(classical_portfolios=classical_portfolios)
+    if use_heuristic_classical:
+        sa_solution = _solve_simulated_annealing(
+            tickers=[asset.ticker for asset in selected_assets],
+            mean_returns=mean_returns,
+            covariance=covariance,
+            risk_aversion=resolved_config.risk_aversion,
+            budget=budget,
+        )
+        classical_solution = sa_solution
+        classical_strategy = "simulated_annealing"
+    else:
+        classical_solution = _solve_classically(classical_portfolios=classical_portfolios)
+        classical_strategy = "exact_enumeration"
     classical_duration_ms = int((time.perf_counter() - classical_started_at) * 1000)
 
     cost_operator, ising_offset, linear_fields, couplings = _qubo_to_ising(
@@ -325,6 +354,7 @@ def build_portfolio_optimization_artifacts(
         budget=budget,
         feasible_portfolios=classical_portfolios,
         quantum_solution=quantum_solution,
+        classical_strategy=classical_strategy,
     )
     warnings = _build_dataset_warnings(
         raw_asset_count=raw_asset_count,
@@ -467,8 +497,8 @@ def _normalize_config(config: PortfolioOptimizationConfig) -> PortfolioOptimizat
         raise ValueError("value_mode must be one of auto, prices, or returns.")
     if not (1 <= config.qaoa_reps <= _MAX_QAOA_REPS):
         raise ValueError(f"qaoa_reps must be between 1 and {_MAX_QAOA_REPS}.")
-    if not (2 <= config.max_assets_considered <= 8):
-        raise ValueError("max_assets_considered must be between 2 and 8.")
+    if not (2 <= config.max_assets_considered <= 100):
+        raise ValueError("max_assets_considered must be between 2 and 100.")
     if not (0.0 <= config.risk_aversion <= 10.0):
         raise ValueError("risk_aversion must be between 0.0 and 10.0.")
     if not (3 <= config.parameter_search_steps <= 25):
@@ -852,6 +882,65 @@ def _solve_classically(*, classical_portfolios: list[dict[str, Any]]) -> dict[st
     return classical_portfolios[0]
 
 
+def _solve_simulated_annealing(
+    *,
+    tickers: list[str],
+    mean_returns: Any,
+    covariance: Any,
+    risk_aversion: float,
+    budget: int,
+) -> dict[str, Any]:
+    n = len(tickers)
+    rng = random.Random(_SA_SEED)
+    current_mask = [0] * n
+    indices = list(range(n))
+    rng.shuffle(indices)
+    for i in indices[:budget]:
+        current_mask[i] = 1
+
+    def objective(mask: list[int]) -> float:
+        sel = np.array(mask, dtype=float)
+        ret = float(np.dot(mean_returns, sel))
+        var = float(sel.T @ covariance @ sel)
+        return ret - risk_aversion * var
+
+    current_obj = objective(current_mask)
+    best_mask = current_mask[:]
+    best_obj = current_obj
+    temperature = _SA_INITIAL_TEMPERATURE
+
+    for _ in range(_SA_ITERATIONS):
+        neighbor = current_mask[:]
+        ones = [i for i, v in enumerate(neighbor) if v == 1]
+        zeros = [i for i, v in enumerate(neighbor) if v == 0]
+        if ones and zeros:
+            drop = rng.choice(ones)
+            add = rng.choice(zeros)
+            neighbor[drop] = 0
+            neighbor[add] = 1
+        neighbor_obj = objective(neighbor)
+        delta = neighbor_obj - current_obj
+        if delta > 0 or rng.random() < math.exp(delta / max(temperature, 1e-12)):
+            current_mask = neighbor
+            current_obj = neighbor_obj
+            if current_obj > best_obj:
+                best_mask = current_mask[:]
+                best_obj = current_obj
+        temperature *= _SA_COOLING_RATE
+
+    result = _portfolio_summary(
+        tickers=tickers,
+        mask=best_mask,
+        mean_returns=mean_returns,
+        covariance=covariance,
+        risk_aversion=risk_aversion,
+        budget=budget,
+        probability=None,
+    )
+    result["rank"] = 1
+    return result
+
+
 def _build_frontier_summary(
     *,
     feasible_portfolios: list[dict[str, Any]],
@@ -916,21 +1005,35 @@ def _build_solver_diagnostics(
     budget: int,
     feasible_portfolios: list[dict[str, Any]],
     quantum_solution: dict[str, Any],
+    classical_strategy: str = "exact_enumeration",
 ) -> dict[str, Any]:
     optimizer = quantum_solution["optimizer"]
+    if classical_strategy == "simulated_annealing":
+        classical_solver_info = {
+            "strategy": "simulated_annealing",
+            "evaluated_portfolios": _SA_ITERATIONS,
+            "compute_model": "local_in_process_simulated_annealing",
+            "distributed": False,
+            "budget_matched_to_quantum": False,
+            "temperature": _SA_INITIAL_TEMPERATURE,
+            "cooling_rate": _SA_COOLING_RATE,
+            "iterations": _SA_ITERATIONS,
+        }
+    else:
+        classical_solver_info = {
+            "strategy": "exact_enumeration",
+            "evaluated_portfolios": len(feasible_portfolios),
+            "compute_model": "local_in_process_exact_enumeration",
+            "distributed": False,
+            "budget_matched_to_quantum": False,
+        }
     return {
         "allocation_model": "equal_weight_binary_selection",
         "screened_asset_count": asset_count,
         "budget": budget,
         "total_binary_states": 2**asset_count,
         "feasible_portfolio_count": len(feasible_portfolios),
-        "classical_solver": {
-            "strategy": "exact_enumeration",
-            "evaluated_portfolios": len(feasible_portfolios),
-            "compute_model": "local_in_process_exact_enumeration",
-            "distributed": False,
-            "budget_matched_to_quantum": False,
-        },
+        "classical_solver": classical_solver_info,
         "quantum_solver": {
             "ansatz": "QAOA",
             "reps": quantum_solution["reps"],
@@ -1002,6 +1105,59 @@ def _qubo_to_ising(
     )
 
 
+def _cvar_expectation(
+    *,
+    ansatz: QAOAAnsatz,
+    cost_operator: SparsePauliOp,
+    parameters: np.ndarray,
+    qaoa_reps: int,
+    alpha: float,
+    tickers_count: int,
+    budget: int,
+) -> float:
+    beta_values = parameters[:qaoa_reps]
+    gamma_values = parameters[qaoa_reps:]
+    bound_circuit = _assign_qaoa_parameters(ansatz, beta_values=beta_values, gamma_values=gamma_values)
+    state = Statevector.from_instruction(bound_circuit)
+    probs_dict = state.probabilities_dict()
+
+    feasible_energies: list[tuple[float, float]] = []
+    for bitstring, prob in probs_dict.items():
+        if prob < 1e-14:
+            continue
+        mask = _qiskit_bitstring_to_mask(bitstring, tickers_count)
+        if sum(mask) != budget:
+            continue
+        sel = np.array(mask, dtype=float)
+        pauli_labels = cost_operator.to_list()
+        energy = 0.0
+        for label, coeff in pauli_labels:
+            eigenvalue = 1.0
+            for qubit_idx, pauli_char in enumerate(reversed(label)):
+                if pauli_char == "Z":
+                    bit = int(mask[qubit_idx])
+                    eigenvalue *= 1.0 - 2.0 * bit
+            energy += float(coeff.real) * eigenvalue
+        feasible_energies.append((energy, prob))
+
+    if not feasible_energies:
+        estimator = StatevectorEstimator()
+        job = estimator.run([(ansatz, cost_operator, parameters.reshape(1, -1))])
+        return float(np.atleast_1d(np.asarray(job.result()[0].data.evs, dtype=float))[0])
+
+    feasible_energies.sort(key=lambda x: x[0])
+    cumulative = 0.0
+    cvar_sum = 0.0
+    target_mass = alpha
+    for energy, prob in feasible_energies:
+        take = min(prob, target_mass - cumulative)
+        cvar_sum += energy * take
+        cumulative += take
+        if cumulative >= target_mass - 1e-14:
+            break
+    return cvar_sum / max(cumulative, 1e-14)
+
+
 def _solve_quantum_qaoa(
     *,
     cost_operator: SparsePauliOp,
@@ -1028,21 +1184,165 @@ def _solve_quantum_qaoa(
         mixer_operator=_build_ring_xy_mixer(len(tickers)),
         flatten=True,
     )
-    estimator = StatevectorEstimator()
 
     parameter_search_started_at = time.perf_counter()
-    search_result = _search_qaoa_parameters(
-        ansatz=ansatz,
-        cost_operator=cost_operator,
-        estimator=estimator,
-        qaoa_reps=qaoa_reps,
-        parameter_search_steps=parameter_search_steps,
-    )
+
+    n_qubits = len(tickers)
+    use_cvar = n_qubits >= 8
+    # Only use advanced optimizer when gradients can be enabled (small circuits, no CVaR)
+    # For large circuits with CVaR, COBYLA is better (designed for derivative-free optimization)
+    use_advanced = _USE_ADVANCED_OPTIMIZER and not use_cvar
+    eval_count = 0
+
+    if use_advanced:
+        # Use advanced L-BFGS-B optimizer with transfer learning (2024 research)
+        # Use CVaR for large circuits (n >= 8), direct expectation for small circuits (enables gradients)
+        if use_cvar:
+            def objective_for_optimizer(params: np.ndarray) -> float:
+                return _cvar_expectation(
+                    ansatz=ansatz,
+                    cost_operator=cost_operator,
+                    parameters=params,
+                    qaoa_reps=qaoa_reps,
+                    alpha=_CVAR_ALPHA,
+                    tickers_count=n_qubits,
+                    budget=budget,
+                )
+        else:
+            # Direct expectation for small circuits (faster, gradient-friendly)
+            def objective_for_optimizer(params: np.ndarray) -> float:
+                bound_circuit = ansatz.assign_parameters(params)
+                state_vec = Statevector(bound_circuit)
+                expectation_value = state_vec.expectation_value(cost_operator).real
+                return expectation_value
+
+        # Optional: Define gradient function using parameter-shift rule
+        gradient_function = None
+        if _USE_PARAMETER_SHIFT_GRADIENTS and not use_cvar:
+            # Only use gradients for small circuits (< 8 qubits)
+            # CVaR gradient computation is too expensive for gradient methods
+            def gradient_for_optimizer(params: np.ndarray) -> np.ndarray:
+                return compute_parameter_shift_gradient(
+                    objective_function=objective_for_optimizer,
+                    parameters=params,
+                    shift=np.pi / 2,
+                )
+            gradient_function = gradient_for_optimizer
+
+        # Create problem signature for transfer learning
+        problem_signature = f"portfolio_cvar_reps{qaoa_reps}"
+
+        # Initialize advanced optimizer
+        advanced_optimizer = AdvancedQAOAOptimizer(
+            use_gradients=(_USE_PARAMETER_SHIFT_GRADIENTS and not use_cvar),
+            enable_transfer_learning=True,
+        )
+
+        # Run optimization
+        optimization_result = advanced_optimizer.optimize(
+            cost_operator=cost_operator,
+            qaoa_reps=qaoa_reps,
+            n_qubits=n_qubits,
+            budget=budget,
+            problem_signature=problem_signature,
+            objective_function=objective_for_optimizer,
+            gradient_function=gradient_function,
+            max_iterations=80,
+            n_multi_starts=max(3, min(parameter_search_steps, 6)),
+        )
+
+        best_parameters = optimization_result.best_parameters
+        best_energy = optimization_result.best_energy
+        eval_count = optimization_result.parameter_evaluations
+
+        # Build optimizer strategy string with all active features
+        strategy_parts = ["lbfgsb"]
+        if use_cvar:
+            strategy_parts.append("cvar")
+        else:
+            strategy_parts.append("expectation")
+        if gradient_function is not None:
+            strategy_parts.append("parameter_shift_gradients")
+        strategy_parts.append("transfer_learning")
+        strategy_parts.append(f"warm_start_{optimization_result.warm_start_used}")
+        optimizer_strategy = "_".join(strategy_parts)
+
+        optimizer_backend = "qiskit_statevector_cvar" if use_cvar else "qiskit_statevector"
+
+    elif use_cvar:
+        # Fallback to original COBYLA with caching (for comparison / if advanced optimizer disabled)
+        eval_cache: dict[tuple[float, ...], float] = {}
+
+        def cobyla_objective(params: np.ndarray) -> float:
+            nonlocal eval_count
+            clipped = _clip_qaoa_parameters(np.asarray(params, dtype=float), qaoa_reps=qaoa_reps)
+            cache_key = _parameter_cache_key(clipped)
+            if cache_key in eval_cache:
+                return eval_cache[cache_key]
+            eval_count += 1
+            energy = _cvar_expectation(
+                ansatz=ansatz,
+                cost_operator=cost_operator,
+                parameters=clipped,
+                qaoa_reps=qaoa_reps,
+                alpha=_CVAR_ALPHA,
+                tickers_count=n_qubits,
+                budget=budget,
+            )
+            eval_cache[cache_key] = energy
+            return energy
+
+        rng = np.random.default_rng(_QAOA_RANDOM_SEED)
+        best_parameters = None
+        best_energy = float("inf")
+        n_restarts = max(3, min(parameter_search_steps, 6))
+        initial_points: list[np.ndarray] = []
+        warm_beta = np.full(qaoa_reps, 0.18)
+        warm_gamma = np.full(qaoa_reps, 0.55)
+        initial_points.append(np.concatenate([warm_beta, warm_gamma]))
+        for _ in range(n_restarts - 1):
+            beta_init = rng.uniform(0.05, np.pi / 2.0, size=qaoa_reps)
+            gamma_init = rng.uniform(0.1, np.pi, size=qaoa_reps)
+            initial_points.append(np.concatenate([beta_init, gamma_init]))
+
+        for x0 in initial_points:
+            result = scipy_minimize(
+                cobyla_objective,
+                x0,
+                method="COBYLA",
+                options={"maxiter": 80, "rhobeg": 0.3},
+            )
+            if result.fun < best_energy:
+                best_energy = result.fun
+                best_parameters = _clip_qaoa_parameters(
+                    np.asarray(result.x, dtype=float), qaoa_reps=qaoa_reps
+                )
+
+        optimizer_strategy = "cvar_cobyla_multistart"
+        optimizer_backend = "qiskit_statevector_cvar"
+
+    else:
+        estimator = StatevectorEstimator()
+        search_result = _search_qaoa_parameters(
+            ansatz=ansatz,
+            cost_operator=cost_operator,
+            estimator=estimator,
+            qaoa_reps=qaoa_reps,
+            parameter_search_steps=parameter_search_steps,
+        )
+        best_parameters = search_result["best_parameters"]
+        best_energy = float(search_result["best_energy"])
+        eval_count = search_result["parameter_evaluations"]
+        optimizer_strategy = "constraint_preserving_multistart_coordinate_search"
+        optimizer_backend = "qiskit_statevector_estimator"
+
+    if best_parameters is None:
+        raise RuntimeError("QAOA parameter search did not converge.")
+
     parameter_search_duration_ms = int(
         (time.perf_counter() - parameter_search_started_at) * 1000
     )
 
-    best_parameters = search_result["best_parameters"]
     beta_values = best_parameters[:qaoa_reps]
     gamma_values = best_parameters[qaoa_reps:]
 
@@ -1052,13 +1352,27 @@ def _solve_quantum_qaoa(
         beta_values=beta_values,
         gamma_values=gamma_values,
     )
-    best_state = Statevector.from_instruction(best_circuit)
-    best_energy = float(search_result["best_energy"])
 
-    full_probabilities = {
-        str(bitstring): float(probability)
-        for bitstring, probability in best_state.probabilities_dict().items()
-    }
+    if n_qubits <= _STATEVECTOR_QUBIT_LIMIT:
+        best_state = Statevector.from_instruction(best_circuit)
+        full_probabilities = {
+            str(bitstring): float(probability)
+            for bitstring, probability in best_state.probabilities_dict().items()
+        }
+    else:
+        from qiskit_aer import AerSimulator
+        mps_backend = AerSimulator(method="matrix_product_state")
+        measured_for_sampling = best_circuit.copy()
+        measured_for_sampling.measure_all()
+        transpiled = transpile(measured_for_sampling, mps_backend, optimization_level=1)
+        mps_result = mps_backend.run(transpiled, shots=8192).result()
+        raw_counts = mps_result.get_counts()
+        total_shots = sum(raw_counts.values())
+        full_probabilities = {
+            str(bitstring): count / total_shots
+            for bitstring, count in raw_counts.items()
+        }
+
     ranked_states = sorted(
         full_probabilities.items(),
         key=lambda item: item[1],
@@ -1134,15 +1448,15 @@ def _solve_quantum_qaoa(
         "initial_state_strategy": "greedy_budget_basis_state",
         "warm_start_bitstring": _mask_to_qiskit_bitstring(warm_start_mask),
         "optimizer": {
-            "strategy": "constraint_preserving_multistart_coordinate_search",
-            "backend": "qiskit_statevector_estimator",
+            "strategy": optimizer_strategy,
+            "backend": optimizer_backend,
             "constraint_preserving": True,
-            "parameter_evaluations": search_result["parameter_evaluations"],
-            "candidate_count": search_result["candidate_count"],
-            "top_seed_count": search_result["top_seed_count"],
+            "parameter_evaluations": eval_count,
+            "candidate_count": eval_count,
+            "top_seed_count": min(_QAOA_TOP_SEEDS, eval_count),
             "coarse_grid_steps": parameter_search_steps,
-            "local_refinement_rounds": search_result["refinement_rounds"],
-            "local_refinement_points": 2,
+            "local_refinement_rounds": 0 if use_cvar else _DEFAULT_LOCAL_REFINEMENT_ROUNDS,
+            "local_refinement_points": 0 if use_cvar else 2,
         },
         "timings": {
             "parameter_search_duration_ms": parameter_search_duration_ms,

@@ -1,696 +1,402 @@
 # CONTEXT
 
-This file is the root-level context pack for agents working in this repository.
+Root-level context pack for AI agents (Claude Code, Cursor, Codex, etc.) working in this repository.
 
-It is meant to answer, quickly and accurately:
+Read this file first in every new session. It answers:
 
 - what this platform is
-- what exists today
-- how the main workflows work
-- where the important code lives
-- what is current implementation vs future roadmap
+- what exists today (not aspirational docs)
+- how the code is organized across backend-v2, frontend-v2, and legacy directories
+- where the important code lives, with exact file paths
 - what caveats matter before changing anything
 
-This summary is based on the current codebase and docs as of this workspace state, not just aspirational docs.
+Last verified against codebase state: April 2026.
 
-## One-Sentence Thesis
+---
 
-This repository is a research-oriented platform that treats quantum-style operations as discoverable network services, orchestrates them through a Python FastAPI coordinator over `py-libp2p`, exposes them through a modern Next.js operator console, persists execution state to SQLite, and augments completed runs with Qiskit-based analysis.
+## Thesis
 
-There is also a newer financial-analysis workflow in the same platform that reuses the operator console and backend infrastructure, even though the main docs still focus mostly on the quantum/distributed-orchestration story.
+A research-oriented platform that treats quantum-style operations as discoverable network services, orchestrates them through a Python FastAPI coordinator over real `py-libp2p`, exposes them through a Next.js operator console, persists state to Postgres + MongoDB, and augments completed runs with Qiskit-based quantum analysis.
 
-Important nuance: the richer finance engine currently lives in legacy `backend/`; `backend-v2/` currently exposes a narrower finance parity flow centered on CSV profiling.
-
-## What The Platform Does Today
-
-At a practical level, the platform currently provides:
-
-- a Python backend coordinator in `backend/`
-- a primary operator UI in `frontend-v2/`
-- a legacy Vite dashboard in `frontend/`
-- a documentation corpus in `docs/`
-- Docker + Caddy deployment support at the repo root
-- SQLite persistence for jobs, runtime events, service ads, reservations, and financial jobs
-- a demo libp2p fabric with embedded service nodes
-- a circuit submission and execution workflow
-- a financial CSV analysis workflow
+A secondary financial-analysis workflow uses QAOA-based portfolio optimization through the same infrastructure.
 
 ## What This Platform Is Not
 
-This is important because the docs intentionally mix current POC scope with long-term ambition.
+The docs mix current POC scope with long-term ambition. The codebase today is **not**:
 
-The current repository is **not**:
-
-- a real quantum hardware control stack
-- a full quantum internet implementation
-- a production multi-tenant platform
+- a real quantum hardware control stack (uses Qiskit statevector simulation)
+- a production multi-tenant platform (auth is dev-mode stubs)
 - a multi-coordinator consensus system
-- a complete bring-your-own-node marketplace
-- a finished experiment/baseline-comparison harness
+- a finished bring-your-own-node marketplace
+- a complete experiment/baseline-comparison harness
 
-Treat it as a serious proof-of-concept orchestration platform with a growing operator console, not as a complete production network.
+Treat it as a serious proof-of-concept orchestration platform with a growing operator console.
 
-## Current Product Identity
-
-The cleanest mental model is:
+---
 
-1. The backend treats quantum capabilities as services attached to nodes.
-2. Service nodes advertise capabilities and fidelity over libp2p.
-3. The coordinator compiles a circuit into dependency-aware fragments.
-4. The runtime reserves nodes, executes fragments, retries/falls back on failure, and stores runtime events.
-5. Qiskit reconstructs useful quantum analysis from the executed plan.
-6. The frontend gives operators a dashboard for health, services, runs, plans, and analysis.
+## Active Directories (where you should work)
 
-Separately:
-
-1. A CSV can be submitted as a financial analysis job.
-2. In legacy `backend/`, the finance path profiles columns, computes correlations and time-series insights, performs a simplified DCF path, detects anomalies, and derives a finance-themed quantum execution artifact.
-3. In `backend-v2/`, the current finance path is much narrower and stops at CSV profiling plus simple per-column statistics.
-4. The frontend displays the active finance payload in the same operator console.
-
-## Current State Vs Future State
-
-This repo has two different kinds of documentation:
-
-- `docs/ARCHITECTURE.md`, `docs/design.md`, `docs/requirements.md`, `docs/tasks.md`, `docs/PROGRESS.md`
-  - these describe the current proof-of-concept and near-term delivery
-- `docs/FUTURE_ROADMAP.md` and `docs/future-roadmap/*.md`
-  - these describe the multi-milestone future platform vision
-
-Future agents should not confuse the two.
-
-The roadmap envisions a progression from:
-
-- platform
-- node network
-- scientific/discovery engine
-- torrent-native swarm
-- self-healing distributed organism
-
-But the codebase today is still primarily in the current POC / platform-console stage.
-
-## Repository Map
-
-Top-level layout:
-
-- `backend/`
-  - Python FastAPI coordinator, planner, runtime, libp2p fabric, persistence, tests
-- `frontend-v2/`
-  - active Next.js operator console
-- `frontend/`
-  - legacy Vite dashboard
-- `docs/`
-  - current-state docs and long-horizon roadmap docs
-- `deploy/`
-  - Caddy configuration
-- `docker-compose.yaml`
-  - local/prod-style container orchestration
-- `MANUAL.md`
-  - EC2 + Docker + Caddy runbook
-
-## The Most Important Entrypoints
-
-Backend:
-
-- `backend/src/quantum_coordinator/asgi.py`
-  - ASGI app entrypoint
-- `backend/src/quantum_coordinator/application/bootstrap.py`
-  - loads config, configures logging, creates app
-- `backend/src/quantum_coordinator/api/app.py`
-  - main FastAPI assembly and route definitions
-
-Frontend:
-
-- `frontend-v2/src/app/page.tsx`
-  - redirects `/` to `/dashboard`
-- `frontend-v2/src/app/(main)/layout.tsx`
-  - main operator shell layout
-- `frontend-v2/src/lib/backend-client.ts`
-  - server-side BFF client for calling the backend
-- `frontend-v2/src/app/api/*`
-  - Next.js route handlers that proxy/reshape backend data
-
-Docs:
-
-- `README.md`
-  - best first stop for running the project
-- `docs/ARCHITECTURE.md`
-  - best narrative overview of how the quantum system is supposed to work
-- `docs/FINANCIAL_MODELING_FOUNDATIONS.md`
-  - best explanation of what "financial modeling" should mean for this repo and which finance track fits the platform
-- `docs/tasks.md`
-  - best view of completed vs incomplete near-term milestones
-- `docs/FUTURE_ROADMAP.md`
-  - big-picture future direction
-
-## Active Vs Legacy Frontend
-
-This matters a lot for UI work.
-
-- `frontend-v2/` is the active UI and should be treated as the primary frontend.
-- `frontend/` is the older Vite-based dashboard and is now legacy.
-- `frontend-v2/README.md` is mostly the default Next.js starter text and is not a reliable architectural guide.
-- `frontend/README.md` is actually more descriptive than `frontend-v2/README.md`, but it describes the legacy app.
-- `docs/PROGRESS.md` is the best current explanation of the frontend migration and why `frontend-v2/` is primary.
-
-## Main User-Facing Surfaces
-
-Current frontend-v2 pages:
-
-- `/dashboard`
-  - coordinator health, services, fidelity-oriented overview
-- `/runs`
-  - run history and status views
-- `/runs/new`
-  - circuit creation/submission
-- `/runs/[runId]`
-  - job detail, plan detail, fragment execution, quantum analysis
-- `/runs/[runId]/fragment-flow`
-  - dedicated plan/fragment visualization
-- `/finance`
-  - CSV upload and financial analysis UI
-- `/login`
-  - login page shell exists, but the backend auth model is still POC-level
-
-## Backend Architecture In Plain English
-
-The backend is organized around several cooperating subsystems:
-
-- API layer
-  - receives requests and exposes status/results
-- job manager
-  - owns job lifecycle and orchestration flow
-- planner
-  - parses circuits, creates dependencies, assigns fragments to nodes
-- reservation protocol
-  - checks whether a node can be used for a fragment right now
-- runtime executor
-  - runs fragments with retry/fallback behavior
-- service registry
-  - local freshness-aware cache of advertised services
-- libp2p fabric
-  - coordinator + embedded demo service network
-- persistence layer
-  - SQLite-backed job/runtime/registry/reservation storage
-- Qiskit result builder
-  - reconstructs probabilities, statevector, observables, etc.
-- financial engine
-  - analyses CSV files in a separate workflow
-
-## Core Quantum Execution Flow
-
-The primary quantum run flow is:
-
-1. Client submits a circuit to `POST /api/v1/circuits/submit`.
-2. `JobManager.submit()` creates a `QUEUED` job record in SQLite.
-3. Background processing moves the job through:
-   - `QUEUED`
-   - `COMPILING`
-   - `RESERVING`
-   - `EXECUTING`
-   - `COMPLETED` or `FAILED`
-4. `CircuitPlanner.compile()`:
-   - normalizes circuit input
-   - builds operation dependencies
-   - builds fragments
-   - queries the service registry
-   - scores candidate nodes
-   - creates an `ExecutionPlan`
-5. `RuntimeExecutor.execute()`:
-   - waits for dependencies
-   - reserves a node for each ready fragment
-   - invokes execution
-   - retries or switches to fallback nodes on failure
-   - stores fragment execution events
-6. After fragment execution completes, `build_quantum_result()` produces:
-   - counts
-   - probabilities
-   - measured probabilities
-   - statevector
-   - observables
-   - density matrices
-   - Bloch vectors
-   - entanglement entropy
-   - fidelity summary
-7. Final result is stored on the job record and returned through job detail APIs.
-
-## Circuit Input And Service Vocabulary
-
-Supported gate/service types are defined in `backend/src/quantum_coordinator/domain/models.py`:
-
-- `hadamard`
-- `cnot`
-- `cz`
-- `controlled_unitary`
-- `programmable_gate`
-- `qft`
-- `teleportation`
-- `bell_pair`
-- `syndrome_extraction`
-- `distillation`
-- `measurement_feedforward`
-
-Important aliases normalized by the parser:
-
-- `h` -> `hadamard`
-- `cx` or `cnot` -> `cnot`
-- `bell` -> `bell_pair`
-- `teleport` -> `teleportation`
-- `measure` -> `measurement_feedforward`
-- unknown gate names -> `programmable_gate`
-
-The parser supports OpenQASM-like inputs and some project-specific DSL features:
-
-- OpenQASM 2 style `qreg`
-- OpenQASM 3 style `qubit[]`
-- `for` loop expansion with integer expressions
-- controlled gate syntax
-- range-like qubit expressions
-
-## Important Implementation Detail: Fragmentation Is Currently Simple
-
-The architecture docs talk about fragments abstractly, but the current implementation is simpler:
-
-- each normalized operation becomes exactly one fragment
-- fragment IDs are derived from operation IDs
-- dependencies are based on qubit reuse ordering
-
-So the planner is not yet doing sophisticated multi-operation partitioning. It is currently planning at roughly one-operation-per-fragment granularity.
-
-## Planning Model
-
-The planner is deterministic and cost-based.
-
-Current cost components:
-
-- latency cost
-- failure risk cost
-- entanglement cost
-- load cost
-
-Important nuance:
-
-- these costs are currently based on deterministic pseudo-metrics, not live production telemetry
-- fidelity comes from service advertisements
-- ordering is deterministic for a fixed topology/config
-
-This is good for a research POC and testability, but future agents should not assume the planner is consuming rich real-world metrics yet.
-
-## Service Discovery And Registry
-
-Discovery is built around service advertisements.
-
-Each advertisement includes:
-
-- protocol version
-- `node_id`
-- `listen_addrs`
-- `service_type`
-- `fidelity`
-- `qubit_min`
-- `qubit_max`
-- `availability`
-- `updated_at`
-
-The `ServiceRegistry` is the local source of truth for planning/runtime decisions:
-
-- keeps current advertisements in memory
-- persists them to SQLite
-- filters by service type, fidelity, availability
-- marks stale entries unavailable
-
-On startup, if libp2p is enabled, cached ads are first marked unavailable until nodes re-advertise.
-
-## Libp2p Model
-
-The current implementation uses a real `py-libp2p` integration layer, but the runtime topology is still demo-oriented.
-
-When `QC_LIBP2P__ENABLED=true`:
-
-- the coordinator starts a libp2p node
-- embedded service nodes are created automatically
-- each embedded node advertises every `GateType`
-- the coordinator consumes ads from pubsub
-- gate execution happens over a stream protocol
-
-Important nuance:
-
-- embedded nodes all advertise the full gate set
-- their fidelity is mostly differentiated by node index
-- this is a controlled demo fabric, not yet an open heterogeneous node ecosystem
-
-When `QC_LIBP2P__ENABLED=false`:
-
-- the backend uses `LocalGateExecutionAdapter`
-- execution succeeds locally with a fixed observed fidelity
-- the API remains usable even without real libp2p transport
-
-## Reservation And Runtime Behavior
-
-Reservation states:
-
-- `REQUESTED`
-- `PREPARED`
-- `COMMITTED`
-- `REJECTED`
-- `EXECUTED`
-- `EXPIRED`
-- `CANCELED`
-
-Runtime behavior:
-
-- executes fragments once dependencies are satisfied
-- reserves before invoking
-- retries on timeout/rejection
-- can fail over to fallback nodes
-- records fragment execution events in SQLite
-
-Terminal fragment failure causes terminal job failure.
-
-## Qiskit Result Reconstruction
-
-This is one of the most important value-add layers in the backend.
-
-The backend does not stop at "fragment X succeeded."
-
-It also reconstructs a Qiskit circuit from the execution plan and exposes:
-
-- measurement counts
-- full probabilities
-- pre-measurement statevector
-- measured qubits
-- expectation values
-- reduced density matrices
-- Bloch vectors
-- entanglement entropy
-- fidelity metadata
-- top basis states
-
-Important approximations in the current implementation:
-
-- teleportation is modeled as `SWAP`
-- syndrome extraction and distillation are treated as logical orchestration steps, not extra unitary evolution
-- measurement feedforward mainly marks measured qubits
-- unsupported programmable operations may be treated conservatively
-
-So the quantum analysis is meaningful for this POC, but not equivalent to a full physical execution model.
-
-## Financial Analysis Workflow
-
-The backend also supports a separate financial-analysis path:
-
-The detailed behavior described below refers to the legacy `backend/` workflow. `backend-v2/` currently implements a reduced finance parity flow that stops at CSV profiling and simple per-column statistics.
-
-- `POST /api/v1/finance/submit`
-- `GET /api/v1/finance/{job_id}`
-- `GET /api/v1/finance`
-
-What it does:
-
-- accepts a CSV upload
-- profiles columns
-- computes correlations
-- performs time-series analysis
-- performs a simplified DCF valuation
-- detects anomalies
-- stores the resulting financial job in SQLite
-
-Important nuance:
-
-- this workflow is "distributed" more as a platform/demo abstraction than as real libp2p-executed fragments
-- the engine is implemented locally in Python
-- it records conceptual node execution segments, but does not run financial tasks over the libp2p runtime the same way circuit fragments do
-
-## API Surface
-
-Current quantum/system endpoints:
-
-- `GET /api/v1/health`
-- `POST /api/v1/circuits/submit`
-- `GET /api/v1/jobs`
-- `GET /api/v1/jobs/{job_id}`
-- `GET /api/v1/plans/{plan_id}`
-- `GET /api/v1/services`
-- `GET /api/v1/metrics/fidelity/{node_id}`
-- `WS /api/v1/jobs/{job_id}/ws`
-
-Current financial endpoints:
-
-- `POST /api/v1/finance/submit`
-- `GET /api/v1/finance/{job_id}`
-- `GET /api/v1/finance`
-
-Notes:
-
-- auth is optional and uses `X-API-Key`
-- in-memory rate limiting is optional
-- `GET /api/v1/jobs` is used by the Next frontend for run history
-- plan detail is exposed, but plans are cached in memory only
-
-## Very Important Caveat: Plan Storage Is In-Memory
-
-Compiled plans are cached in `JobManager._plans`.
-
-That means:
-
-- job records are persisted in SQLite
-- fragment execution events are persisted in SQLite
-- service ads are persisted in SQLite
-- reservations are persisted in SQLite
-- but `GET /api/v1/plans/{plan_id}` only works for plans known to the current backend process
-
-If the backend restarts, historical job records can still exist while their plan payloads are no longer available through the plan endpoint.
-
-## Persistence Model
-
-Main SQLite tables created by the backend:
-
-- `jobs`
-- `service_ads`
-- `reservations`
-- `fragment_execution_events`
-- `financial_jobs`
-- `schema_migrations`
-
-This persistence supports:
-
-- job recovery on startup
-- service registry snapshots
-- reservation history
-- fragment execution history
-- financial analysis history
+| Directory | Role | Tech |
+|---|---|---|
+| `backend-v2/` | **Primary backend** | Python 3.11, FastAPI, py-libp2p (Trio), Qiskit, SQLAlchemy (Postgres), Beanie (MongoDB) |
+| `frontend-v2/` | **Primary frontend** | Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui, Zustand, ReactFlow, Recharts |
+| `docs/` | Documentation corpus | Markdown |
+
+## Legacy Directories (reference only, do not extend)
+
+| Directory | Role | Notes |
+|---|---|---|
+| `backend/` | Old backend | SQLite-only, simpler libp2p, `quantum_coordinator` package. Kept for reference. |
+| `frontend/` | Old frontend | Vite SPA, single ~3900-line `App.tsx`. Replaced by `frontend-v2/`. |
+
+## Other Root Files
+
+| File | Purpose |
+|---|---|
+| `docker-compose.yaml` | Runs `backend-v2` + `frontend-v2` + Caddy. Uses Neon Postgres and Atlas MongoDB by default. |
+| `MANUAL.md` | EC2 + Docker + Caddy deployment runbook |
+| `.env.example` | Template for Docker/deployment env vars |
+| `deploy/Caddyfile` | Reverse proxy config |
+
+---
+
+## Backend-v2 Architecture
+
+Package: `src/quantum_backend_v2/`
+
+### Entrypoints
+
+- CLI: `quantum_backend_v2.main:main` (registered as `quantum-backend-v2` console script)
+- Bootstrap: `bootstrap/application.py` → `create_application()` builds the FastAPI app
+- Lifespan: `api/app.py` handles startup (init persistence, start discovery, run recovery) and shutdown
+
+### Layer Map
+
+| Layer | Path | Responsibility |
+|---|---|---|
+| **API** | `api/routers/`, `api/models/`, `api/deps/`, `api/errors/` | FastAPI routers, request/response models, auth deps, error contracts |
+| **Application** | `application/` | Business logic: `CircuitJobService`, `FinancialJobService`, `EnrollmentService`, distributed statevector execution |
+| **Identity** | `identity/` | User roles (ADMIN/OPERATOR/DEVELOPER/VIEWER), trust tiers, token claims, API keys |
+| **Persistence** | `persistence/postgres.py` | SQLAlchemy ORM: users, enrollments, workflow runs, execution plans, financial jobs, reservation events (append-only), execution events (append-only) |
+| **Persistence** | `persistence/mongodb.py` | Beanie documents: peer capabilities, topology projections, benchmark results, provenance bundles |
+| **Persistence** | `persistence/local_log.py` | JSONL append-only peer log (fsync) |
+| **Libp2p** | `libp2p/` | Real py-libp2p host (Ed25519), GossipSub pubsub, stream RPC, Trio thread bridged to asyncio, embedded dev worker swarm |
+| **Discovery** | `discovery/` | `DiscoveryService` + `PeerRegistry`: drain pubsub events → upsert MongoDB projections, stale-peer TTL, enrollment visibility |
+| **Protocols** | `protocols/` | Wire schemas: execution, reservation, quality, peersync |
+| **Reservations** | `reservations/` | Event-sourced state machine: REQUESTED → ACCEPTED → COMMITTED → CANCELLED/EXPIRED/REJECTED |
+| **Runtime** | `runtime/` | Execution state machine, crash recovery on startup |
+| **Quality** | `quality/` | Service quality catalog: transpiles each service circuit against Qiskit BasicSimulator for fidelity |
+| **Workflows** | `workflows/` | Benchmark models and service |
+| **Packages** | `packages/` | Package signing and replication |
+| **Planning** | `planning/` | DAG planning models |
+| **Provenance** | `provenance/` | Provenance bundle models |
+
+### Configuration
+
+All config flows through `QB2_*` environment variables → `AppSettings.from_env()` Pydantic model.
+
+Critical env vars:
+
+| Variable | Purpose |
+|---|---|
+| `QB2_ENVIRONMENT` | development / staging / production / test |
+| `QB2_API_HOST` / `QB2_API_PORT` | Bind address (default 0.0.0.0:8081) |
+| `QB2_AUTH_REQUIRED` | Auth toggle (false for local dev) |
+| `QB2_POSTGRES_TARGET` | `local` or `neon` |
+| `QB2_POSTGRES_LOCAL_DSN` / `QB2_POSTGRES_NEON_*_DSN` | Postgres connection strings |
+| `QB2_MONGODB_TARGET` | `local` or `remote` |
+| `QB2_MONGODB_*_URI` | MongoDB connection strings |
+| `QB2_LIBP2P_ENABLED` | Enable/disable real libp2p |
+| `QB2_LIBP2P_DEV_SERVICE_PEER_COUNT` | Embedded worker peers (default 4) |
+
+### API Endpoints (28+)
+
+**System**: `GET /`, `GET /api/v1/health`, `GET /api/v1/ready`
+
+**Bootstrap**: `GET /api/v1/bootstrap/libp2p`, `GET /api/v1/bootstrap/libp2p/runtime`
+
+**Discovery**: `GET /api/v1/discovery/peers`, `GET /api/v1/discovery/peers/{peer_id}`, `GET /api/v1/discovery/topology`, `GET /api/v1/discovery/network/topology`
+
+**Enrollment**: `POST /api/v1/enrollment/peers`, `GET /api/v1/enrollment/peers`, `GET /api/v1/enrollment/peers/{peer_id}`, `POST /api/v1/enrollment/peers/{peer_id}/action`
+
+**Circuits**: `POST /api/v1/circuits/submit`
+
+**Jobs**: `GET /api/v1/jobs`, `GET /api/v1/jobs/{job_id}`
+
+**Plans**: `GET /api/v1/plans/{plan_id}`
+
+**Services**: `GET /api/v1/services`
+
+**Metrics**: `GET /api/v1/metrics/fidelity/{node_id}`
+
+**Finance**: `POST /api/v1/finance/submit`, `GET /api/v1/finance/{job_id}`, `GET /api/v1/finance/{job_id}/comparison`, `GET /api/v1/finance`
+
+**Workflows**: `POST /api/v1/workflows/runs`, `GET /api/v1/workflows/runs/{run_id}`, `POST /api/v1/workflows/benchmarks`, `GET /api/v1/workflows/benchmarks/{benchmark_id}`
+
+**Reservations**: `POST /api/v1/reservations`, `GET /api/v1/reservations/{reservation_id}`, `POST /api/v1/reservations/{reservation_id}/cancel`
+
+### Auth Model (dev-mode)
+
+- `QB2_AUTH_REQUIRED=false` → all requests become a local dev-admin with ADMIN + DEVELOPER roles
+- `QB2_ALLOW_DEV_BEARER_TOKENS=true` → accepts `Bearer dev-<user_id>` tokens
+- Production JWT surface exists as a stub
+
+### Quantum Execution Flow
+
+1. Client submits OpenQASM to `POST /api/v1/circuits/submit`
+2. `CircuitJobService` creates a `WorkflowRunRecord` (QUEUED)
+3. Background: waits for service peers → compiles execution plan → distributes fragments via libp2p RPC → streams results → assembles final quantum state
+4. Status: QUEUED → COMPILING → EXECUTING → COMPLETED / FAILED
+5. Qiskit builds the quantum result: counts, probabilities, statevector, Bloch vectors, entanglement entropy, density matrices, fidelity, observable expectations
+
+### Quantum Gate/Service Types (11)
+
+`hadamard`, `cnot`, `cz`, `controlled_unitary`, `programmable_gate`, `qft`, `teleportation`, `bell_pair`, `syndrome_extraction`, `distillation`, `measurement_feedforward`
+
+Aliases: `h` → hadamard, `cx`/`cnot` → cnot, `bell` → bell_pair, `teleport` → teleportation, `measure` → measurement_feedforward, unknown → programmable_gate
+
+### Libp2p Runtime
+
+- Coordinator runs a real py-libp2p host with Ed25519 keypair
+- GossipSub pubsub for peer advertisement and heartbeat topics
+- Stream-based RPC for reservation prepare/commit/cancel and fragment dispatch
+- Runs in a daemon **Trio** thread, bridged to asyncio via `queue.SimpleQueue`
+- **Embedded dev swarm**: configurable N worker peers (default 4) run alongside the coordinator, each with their own libp2p host and fragment execution capability
+
+### Persistence
+
+**Postgres** (transactional, event-sourced): users, enrollments, workflow runs, execution plans, financial jobs, reservation events, execution events
+
+**MongoDB** (projections/documents): peer capabilities, topology projections, benchmark results, provenance bundles
+
+**Local JSONL** (append-only peer log): protocol events, reservation/execution transitions, package installs, sync checkpoints
+
+### Running Locally
+
+```bash
+cd backend-v2
+make install    # uv sync --extra dev
+make run        # scripts/demo-start.sh
+make run-clean  # scripts/demo-start.sh --clean (flush runtime artifacts first)
+make test       # uv run pytest
+make lint       # ruff + mypy
+```
+
+### Tests
+
+20 unit tests in `tests/unit/` covering: health, config, auth, discovery (API + bootstrap + registry + service), distributed execution, execution service, reservations, financial (API + comparison + portfolio + summary), benchmarks, persistence, DAG planning, package manifests/signing, libp2p peerstore.
+
+---
 
 ## Frontend-v2 Architecture
 
-The active frontend is a Next.js App Router app that acts as an operator console plus BFF layer.
+Framework: Next.js 16 (App Router), React 19, TypeScript, Bun package manager.
 
-Key ideas:
+### IMPORTANT for AI agents
 
-- browser UI does not call the Python backend directly everywhere
-- Next route handlers under `frontend-v2/src/app/api/` proxy and reshape backend data
-- `src/lib/backend-client.ts` centralizes backend access
-- the frontend uses typed models and transformer functions to build UI-friendly snapshots
+`frontend-v2/AGENTS.md` warns: this uses a newer version of Next.js with breaking changes. Read `node_modules/next/dist/docs/` before writing any Next.js code.
 
-Important backend integration env vars:
+### Routing
 
-- `QUANTUM_BACKEND_URL`
-- `QUANTUM_BACKEND_API_KEY`
+| Route | File | Description |
+|---|---|---|
+| `/` | `src/app/page.tsx` | Redirects to `/dashboard` |
+| `/login` | `src/app/login/page.tsx` | Login shell (no backend integration) |
+| `/dashboard` | `src/app/(main)/dashboard/page.tsx` | 3D network graph, stats, charts, data table |
+| `/runs` | `src/app/(main)/runs/page.tsx` | Unified run list (circuit + financial) |
+| `/runs/new` | `src/app/(main)/runs/new/page.tsx` | Visual circuit builder + OpenQASM editor |
+| `/runs/[runId]` | `src/app/(main)/runs/[runId]/page.tsx` | Run detail, quantum analysis, fragment flow |
+| `/runs/[runId]/fragment-flow` | `.../fragment-flow/page.tsx` | Full-page fragment DAG canvas |
+| `/finance` | `src/app/(main)/finance/page.tsx` | CSV upload, portfolio optimization, quantum-vs-classical comparison |
 
-Frontend-v2 current role:
+### BFF Proxy Pattern
 
-- dashboard for health/services/fidelity
-- run list and run detail
-- plan/fragment visualizations
-- circuit submission
-- quantum analysis views
-- financial analytics UI
+The browser **never** calls the Python backend directly. Next.js API routes (`src/app/api/`) proxy all requests:
 
-## Legacy Frontend
+- `src/lib/backend-client.ts` — server-only HTTP client, reads `QUANTUM_BACKEND_URL` (default `http://127.0.0.1:8080`)
+- `src/lib/backend-normalizers.ts` — defensively normalizes backend responses
+- `src/lib/dashboard-transformers.ts`, `src/lib/run-transformers.ts` — reshape data into frontend snapshots
 
-`frontend/` is the old Vite React dashboard.
+### State Management
 
-It still matters if:
+Zustand stores:
+- `src/store/dashboard-store.ts` — dashboard snapshot, loading/error, selected node
+- `src/store/runs-store.ts` — run list + per-run detail, optimistic updates
 
-- you are fixing legacy behavior
-- you need earlier visualization logic
-- you are comparing old and new UI contracts
+Custom hooks with polling:
+- `useDashboardData` — `/api/dashboard`, refreshes every 30s
+- `useRunsList` — `/api/runs`, refreshes every 5s
+- `useRunDetail` — `/api/runs/[id]`, refreshes every 2s (stops on terminal state)
+- `useRunQuantumFullDetail` — fetches full detail on demand
+- `useCreateRun` — POST + optimistic update + navigate
+- `useCircuitComposer` — OpenQASM editor state, templates, snippets
 
-But for new platform work, default to `frontend-v2/`.
+### Key Interactive Components
 
-## Tests And Confidence Areas
+1. **3D Peer Network Graph** (`dashboard-network-3d.tsx`) — `react-force-graph-3d`, WebGL, orbit controls, collision physics
+2. **Bloch Sphere** (`bloch-sphere.tsx`) — `@qctrl/visualizer`, paginated multi-qubit display
+3. **Fragment Flow DAG** (`fragment-flow-canvas.tsx`) — `@xyflow/react` (ReactFlow), animated edges, service type badges
+4. **Visual Circuit Builder** (`visual-circuit-builder.tsx`) — `@dnd-kit` drag-and-drop grid, real-time OpenQASM generation
+5. **Quantum Analysis Section** (`run-quantum-analysis-section.tsx`) — ~1150 lines: measurement histograms, probability distributions, observable expectations, entanglement entropy, Bloch vectors, statevector tables, density matrices
 
-The backend test suite covers the main coordination layers.
+### Styling
 
-There are unit tests for:
+- Tailwind CSS 4 with oklch color space (light + dark themes)
+- shadcn/ui v4 (radix-luma style, olive base color)
+- Custom "Clay" design system documented in `DESIGN.md`
 
-- config loading
-- health endpoint
-- job list/detail summary behavior
-- planner and planner properties
-- parser and DAG behavior
-- reservation protocol
-- runtime store and job store
-- service advertisement and registry
-- libp2p fabric
-- Qiskit results
+### Running Locally
 
-There are integration tests for:
+```bash
+cd frontend-v2
+bun install
+bun run dev     # default: http://localhost:3000
+```
 
-- service discovery
-- job API flow
-- runtime failure behavior
+Set `QUANTUM_BACKEND_URL` if backend is not at `http://127.0.0.1:8080`.
 
-This means the backend is not just sketched out; many core behaviors have executable coverage.
+---
 
-## Running The Platform
-
-Recommended quick start:
+## Docker Compose (full stack)
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Default local surfaces:
+Services: `backend-v2` (port 8080), `frontend-v2` (port 3000), `caddy` (ports 80/443).
 
-- frontend: `http://localhost:3000`
-- backend docs: `http://localhost:8080/docs`
-- health: `http://localhost:8080/api/v1/health`
+Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB_TARGET=remote`), libp2p enabled with 4 dev worker peers.
 
-Local dev split:
+---
 
-Backend:
+## Documentation Corpus (`docs/`)
 
-```bash
-make -C backend install
-make -C backend demo
-```
+### Current-state (trust these)
 
-Frontend-v2:
+| File | Content |
+|---|---|
+| `ARCHITECTURE.md` | ~740-line deep architecture walkthrough with Mermaid diagrams |
+| `design.md` | Design rationale, cost model, failure model, protocol contracts |
+| `requirements.md` | 14 functional + 5 non-functional requirements |
+| `tasks.md` | M0-M6 milestone checklist |
+| `PROGRESS.md` | Frontend migration status |
+| `FINANCIAL_MODELING_FOUNDATIONS.md` | Track A (corporate) vs Track B (quantum finance) analysis |
 
-```bash
-bun --cwd frontend-v2 install
-bun --cwd frontend-v2 run dev
-```
+### Future-state (aspirational, not implemented)
 
-Optional docs site:
+| File | Vision |
+|---|---|
+| `FUTURE_ROADMAP.md` | 5-milestone evolution overview |
+| `future-roadmap/01-*` | M1: Production SDK & Platform |
+| `future-roadmap/02-*` | M2: Bring Your Own Node |
+| `future-roadmap/03-*` | M3: Autonomous Research & Drug Discovery |
+| `future-roadmap/04-*` | M4: Torrent-Native Service Network |
+| `future-roadmap/05-*` | M5: Hydra Self-Healing Network |
 
-```bash
-npm --prefix docs install
-npm --prefix docs run dev
-```
+**Do not confuse future-roadmap docs with current implementation.**
 
-## Operational Caveats
+### Delivery Status
 
-These are easy to miss and matter during development.
+- **M0-M4**: Implemented (foundation, discovery, planning, coordination, API + persistence)
+- **M5** (Evaluation Plane): Not started
+- **M6** (Hardening): Not started
 
-- `backend/scripts/demo-start.sh` kills processes on ports `8080`, `9100`, `9200`, `9201`, and `9202`
-- `make -C backend demo-clean` removes the local SQLite DB before start
-- Docker currently starts backend with `demo-clean-docker`, which resets the DB on container startup
-- the default backend DB path in editable/source mode resolves to `backend/data/quantum_coordinator.db`
-- the root `.env.example` is mainly for Docker/Caddy deployment
-- `backend/config/config.example.yaml` is the main backend config template for local backend runs
+---
 
-## Configuration Model
+## Key Differences: backend-v2 vs legacy backend
 
-Configuration is loaded from:
+| Aspect | `backend/` (legacy) | `backend-v2/` (active) |
+|---|---|---|
+| Package name | `quantum_coordinator` | `quantum_backend_v2` |
+| Persistence | SQLite only | Postgres + MongoDB + local JSONL |
+| Config prefix | `QC_*` | `QB2_*` |
+| Config format | YAML file + env overrides | Pure env vars → Pydantic |
+| Reservations | Simple state machine | Event-sourced append-only log |
+| Executions | Runtime events in SQLite | Event-sourced append-only log |
+| Discovery | Pubsub → in-memory registry + SQLite | Pubsub → registry → MongoDB projections |
+| Enrollment | None | Full enrollment workflow with trust tiers |
+| Auth | Optional API key (`X-API-Key`) | Role-based (ADMIN/OPERATOR/DEVELOPER/VIEWER) + trust tiers |
+| Finance | Full profiling + DCF + correlations + anomalies | QAOA portfolio optimization + quantum-vs-classical comparison |
+| Plan storage | In-memory cache only | Persisted in Postgres (`ExecutionPlanRecord`) |
+| Workers | Embedded libp2p nodes | Embedded dev swarm with per-worker peerstore + fragment execution |
 
-- optional YAML/TOML config file
-- `QC_...` environment overrides
+## Key Differences: frontend-v2 vs legacy frontend
 
-Important config groups:
+| Aspect | `frontend/` (legacy) | `frontend-v2/` (active) |
+|---|---|---|
+| Framework | Vite SPA | Next.js 16 App Router |
+| Structure | Single `App.tsx` (~3900 lines) | 25+ focused components + pages |
+| State | All local `useState` | Zustand stores |
+| API calls | Direct `fetch()` to backend (CORS) | BFF proxy via Next.js API routes |
+| Routing | Tab state in component | File-based routing |
+| Types | Inline in api client | Dedicated `types/` directory (6 modules) |
 
-- `api`
-- `logging`
-- `database`
-- `discovery`
-- `runtime`
-- `libp2p`
+---
 
-Key toggles:
+## Where To Start By Task
 
-- `QC_API__ENABLE_AUTH`
-- `QC_API__API_KEY`
-- `QC_API__ENABLE_CORS`
-- `QC_DATABASE__PATH`
-- `QC_LIBP2P__ENABLED`
+**Backend API or orchestration**:
+→ `backend-v2/src/quantum_backend_v2/api/routers/` then `application/`
 
-## Docs You Should Trust First
+**Circuit parsing or planning**:
+→ `backend-v2/src/quantum_backend_v2/planning/` and `application/distributed_statevector.py`
 
-For future agents, the best reading order is:
+**Libp2p or peer discovery**:
+→ `backend-v2/src/quantum_backend_v2/libp2p/` then `discovery/`
 
-1. `CONTEXT.md`
-2. `README.md`
-3. `docs/ARCHITECTURE.md`
-4. `docs/tasks.md`
-5. `docs/PROGRESS.md`
-6. relevant code in `backend/src/quantum_coordinator/...` or `frontend-v2/src/...`
+**Persistence or data models**:
+→ `backend-v2/src/quantum_backend_v2/persistence/postgres.py` (ORM) and `persistence/mongodb.py` (Beanie docs)
 
-The least useful high-level docs are:
+**Alembic migrations**:
+→ `backend-v2/alembic/`
 
-- `backend/README.md`
-  - currently very minimal
-- `frontend-v2/README.md`
-  - currently generic starter text
+**Frontend pages or components**:
+→ `frontend-v2/src/app/(main)/` for pages, `frontend-v2/src/components/` for components
 
-## Where To Start Depending On The Task
+**Frontend API layer**:
+→ `frontend-v2/src/app/api/` (route handlers) and `frontend-v2/src/lib/backend-client.ts`
 
-If the task is backend API or orchestration:
+**Frontend state or hooks**:
+→ `frontend-v2/src/store/` and `frontend-v2/src/hooks/`
 
-- start in `backend/src/quantum_coordinator/api/app.py`
-- then `application/job_manager.py`
-- then planner/runtime/reservation modules
+**Frontend types**:
+→ `frontend-v2/src/types/`
 
-If the task is planning or circuit parsing:
+**Docker or deployment**:
+→ `docker-compose.yaml`, `backend-v2/Dockerfile`, `frontend-v2/Dockerfile`, `MANUAL.md`
 
-- start in `backend/src/quantum_coordinator/planning/`
+**Docs or roadmap**:
+→ `docs/README.md` — separate current-state docs from future-roadmap docs before making claims
 
-If the task is service discovery or libp2p:
+---
 
-- start in `backend/src/quantum_coordinator/service_discovery/`
-- then `backend/src/quantum_coordinator/infra/libp2p/`
+## Caveats That Matter
 
-If the task is persistence or job history:
+1. **Trio/asyncio bridge**: The libp2p layer runs in a Trio thread. Communication with the asyncio FastAPI world happens through `queue.SimpleQueue` (events) and `trio.from_thread.run` (RPC). Do not mix Trio and asyncio primitives.
 
-- start in `backend/src/quantum_coordinator/infra/persistence/`
-- also inspect `financial/store.py` for the finance path
+2. **No WebSockets**: Neither backend-v2 nor frontend-v2 uses WebSockets. The legacy backend had a WS endpoint (`/api/v1/jobs/{job_id}/ws`), but backend-v2 relies on polling from the frontend and libp2p pubsub for peer communication.
 
-If the task is frontend/operator console:
+3. **Auth is dev-mode**: `QB2_AUTH_REQUIRED=false` by default. Production JWT is a stub. Do not build features that assume real auth exists.
 
-- start in `frontend-v2/src/app/`
-- then `frontend-v2/src/app/api/`
-- then `frontend-v2/src/components/`
-- then `frontend-v2/src/lib/` and `frontend-v2/src/types/`
+4. **Next.js version**: frontend-v2 uses Next.js 16 which has breaking changes from AI training data. Always check `node_modules/next/dist/docs/` before writing Next.js code.
 
-If the task is docs or roadmap alignment:
+5. **Embedded dev swarm**: The libp2p "network" in local dev is a coordinator + N worker peers all running in the same process. This is a controlled demo fabric, not an open heterogeneous node ecosystem.
 
-- start in `docs/README.md`
-- separate current-state docs from future-roadmap docs before making claims
+6. **Quantum modeling simplifications**: Teleportation = ancilla-free SWAP. Syndrome extraction and distillation = orchestration steps (no stabilizer measurement). Fidelity = consistency reference against ideal compiled state, not hardware tomography.
 
-## Current Delivery Status
+7. **Financial workflow**: backend-v2 implements QAOA-based portfolio optimization with quantum-vs-classical comparison reports. This is different from the legacy backend's simpler profiling + DCF + anomaly detection approach.
 
-Based on `docs/tasks.md` and the codebase:
+8. **Bun, not npm**: frontend-v2 uses Bun as its package manager. Use `bun install` and `bun run dev`, not npm/yarn.
 
-- M0 through M4 are largely implemented in the current POC
-- M5 Evaluation Plane is not complete
-- M6 Hardening/closeout is not complete
+9. **uv, not pip**: backend-v2 uses `uv` for Python package management. Use `uv sync` and `uv run`, not pip.
 
-In plain terms:
+---
 
-- end-to-end orchestration exists
-- persistence exists
-- APIs exist
-- frontend-v2 operator surfaces exist
-- but baseline comparison, broader benchmarking, and deeper hardening remain unfinished
+## Reading Order For New Sessions
 
-## Summary For Future Agents
-
-If you only remember a few things, remember these:
-
-- this repo is primarily a distributed quantum-services orchestration POC with a real FastAPI + libp2p + SQLite backbone
-- `frontend-v2/` is the active UI; `frontend/` is legacy
-- the docs are richer than some component READMEs, but some docs are aspirational, so verify against code
-- the backend also contains a financial-analysis workflow that the main docs under-emphasize
-- plans are cached in memory, not durably persisted as full API-readable payloads
-- the current planner/runtime are real and test-backed, but still demo-oriented in topology and cost inputs
-
+1. **This file** (`CONTEXT.md`)
+2. `README.md` (quick start)
+3. `docs/ARCHITECTURE.md` (system architecture)
+4. `docs/tasks.md` (delivery status)
+5. Then the specific code area relevant to the task

@@ -1,0 +1,27 @@
+{
+  "20_assets": {
+    "max_assets": 20,
+    "budget": 6,
+    "classical_configurations": 38760,
+    "classical_feasible": "feasible",
+    "total_benchmark_time_seconds": 2668.503,
+    "classical_end_to_end_ms": 621,
+    "quantum_distributed_end_to_end_ms": 1410627,
+    "quantum_parameter_search_ms": 663355,
+    "parameter_search_percentage": 47.0,
+    "distributed_execution_ms": 745604,
+    "fragments_executed": 803,
+    "nodes_used": 50,
+    "winner_by_runtime": "classical",
+    "objective_gap": -0.095292196851,
+    "quantum_advantage_detected": false
+  },
+  "30_assets": {
+    "max_assets": 30,
+    "error": "max_assets_considered must be between 2 and 20."
+  },
+  "50_assets": {
+    "max_assets": 50,
+    "error": "max_assets_considered must be between 2 and 20."
+  }
+}

@@ -22,7 +22,7 @@ for latency, success rate, and final circuit fidelity under degraded network and
 
 ### 2.1 In Scope (POC)
 
-- Circuit ingestion from OpenQASM 2/3 (and optional Qiskit object input)
+- Circuit ingestion from OpenQASM $\frac{2}{3}$ (and optional Qiskit object input)
 - Service advertisement and discovery over libp2p
 - Distributed circuit planning with an explicit cost model
 - Reservation protocol for remote gate execution windows

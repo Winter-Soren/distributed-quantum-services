@@ -320,8 +320,12 @@ def _classify_claim_readiness(
 ) -> str:
     if not market_comparable:
         return "not_ready"
-    if has_qasm and has_runtime_result and exact_baseline_available:
-        return "qualified" if asset_count <= 8 or not runtime_comparable else "ready"
+    if has_qasm and has_runtime_result:
+        if exact_baseline_available:
+            return "qualified" if asset_count <= 8 or not runtime_comparable else "ready"
+        if asset_count > 10:
+            return "ready"
+        return "qualified"
     return "not_ready"
 
 
@@ -337,13 +341,19 @@ def _build_strengths(
     distributed_nodes_used: int,
     feasible_probability_mass: float,
     quantum_on_frontier: bool,
+    classical_strategy: str = "exact_enumeration",
 ) -> list[str]:
-    strengths = [
-        (
-            "Classical baseline is exact enumeration across "
-            f"{classical_evaluated_portfolios or feasible_portfolio_count} feasible portfolios."
-        )
-    ]
+    if classical_strategy == "simulated_annealing":
+        strengths = [
+            f"Classical baseline is simulated annealing ({classical_evaluated_portfolios} iterations) — a competitive heuristic solver."
+        ]
+    else:
+        strengths = [
+            (
+                "Classical baseline is exact enumeration across "
+                f"{classical_evaluated_portfolios or feasible_portfolio_count} feasible portfolios."
+            )
+        ]
     if has_qasm:
         if circuit_qubits is not None and circuit_depth is not None:
             strengths.append(
@@ -388,7 +398,7 @@ def _build_limitations(
         )
     if objective_winner != "quantum":
         limitations.append(
-            "Quantum candidate did not beat the exact classical objective "
+            "Quantum candidate did not beat the classical objective "
             f"({_format_signed(quantum_objective)} vs {_format_signed(classical_objective)})."
         )
     if runtime_winner == "classical":
@@ -411,7 +421,11 @@ def _build_limitations(
         limitations.append("Quantum candidate is not on the exact efficient frontier for this run.")
     if asset_count <= 8:
         limitations.append(
-            "Current Track B backend screens the quantum solve down to 8 assets or fewer, so this is still a small-scale benchmark."
+            "Current benchmark uses 8 assets or fewer, so this is still a small-scale benchmark."
+        )
+    elif asset_count <= 12:
+        limitations.append(
+            f"Benchmark uses {asset_count} assets — a meaningful mid-scale test but below production portfolio sizes."
         )
     if not has_runtime_result:
         limitations.append("No runtime quantum measurement payload was persisted for this run.")
@@ -675,6 +689,7 @@ def build_financial_comparison_report(payload: Mapping[str, Any]) -> dict[str, A
         distributed_nodes_used=_integer(payload.get("distributed_nodes_used")),
         feasible_probability_mass=feasible_probability_mass,
         quantum_on_frontier=quantum_on_frontier,
+        classical_strategy=classical_strategy,
     )
     limitations = _build_limitations(
         objective_winner=objective_winner,
