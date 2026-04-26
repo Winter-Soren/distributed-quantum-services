@@ -476,7 +476,7 @@ If you use this work, please cite:
 ```bibtex
 @article{bhoir2026quantum,
   title={Quantum Portfolio Optimization: Bottleneck Analysis and Scaling Studies},
-  author={Bhoir, Soham},
+  author={Bhoir, Soham and Gupta, Manusheel},
   journal={[Pending submission]},
   year={2026},
   note={Comprehensive analysis of QAOA performance in financial optimization}
