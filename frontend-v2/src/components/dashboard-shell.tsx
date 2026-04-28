@@ -84,6 +84,10 @@ export type DashboardShellProps = {
 	children: ReactNode;
 };
 
+const WORKSPACE_NAME = 'Quantum Gates';
+const WORKSPACE_INITIALS = 'QG';
+const WORKSPACE_SUBTITLE = 'Distributed Quantum Network';
+
 const navItems = [
 	{
 		key: 'home',
@@ -342,49 +346,23 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const statusFilter = searchParams.get('status');
 	const fragmentBreadcrumbId = searchParams.get('fragment');
 	const routeState = useMemo(() => {
-		if (pathname.startsWith('/runs')) {
-			return {
-				activeItem: 'runs-projects' as const,
-				activePanelItem:
-					pathname === '/runs'
-						? statusFilter === 'running' || statusFilter === 'current'
-							? 'Active Run'
-							: 'Run History'
-						: null
-			};
+		// Detect active nav item based on pathname
+		if (pathname.startsWith('/network')) return { activeItem: 'network' as const };
+		if (pathname.startsWith('/analytics')) return { activeItem: 'analytics' as const };
+		if (pathname.startsWith('/docs')) return { activeItem: 'docs' as const };
+		if (pathname.startsWith('/settings')) return { activeItem: 'settings' as const };
+		if (pathname.startsWith('/runs') || pathname.startsWith('/finance')) {
+			return { activeItem: 'runs-projects' as const };
 		}
-
-		if (pathname.startsWith('/finance')) {
-			return {
-				activeItem: 'runs-projects' as const,
-				activePanelItem: null
-			};
-		}
-
 		if (pathname === '/dashboard' || pathname === '/') {
-			return {
-				activeItem: 'home' as const,
-				activePanelItem: null
-			};
+			return { activeItem: 'home' as const };
 		}
-
 		return null;
-	}, [pathname, statusFilter]);
-	const activeItem = routeState?.activeItem ?? manualActiveItem;
-	const activePanelItem = routeState?.activePanelItem ?? manualActivePanelItem;
+	}, [pathname]);
+	const activeItem = routeState?.activeItem ?? 'home';
 	const activeNav = navItems.find(item => item.key === activeItem) ?? navItems[0];
 	const ActiveNavIcon = activeNav.icon;
 	const activeGroups = panelData[activeItem] ?? [];
-
-	const homeRailActive = (pathname === '/dashboard' || pathname === '/') && activeItem === 'home';
-	const runsRailActive =
-		(pathname.startsWith('/runs') || pathname.startsWith('/finance')) && activeItem === 'runs-projects';
-
-	const railItemActive = (key: (typeof navItems)[number]['key']) => {
-		if (key === 'home') return homeRailActive;
-		if (key === 'runs-projects') return runsRailActive;
-		return activeItem === key;
-	};
 
 	return (
 		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-plane-bg-base text-foreground'>
