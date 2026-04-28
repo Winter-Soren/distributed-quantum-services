@@ -320,8 +320,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	};
 
 	return (
-		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-[#f5f5f5] text-foreground'>
-			<header className='relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-white px-4'>
+		<div className='flex h-svh max-h-svh flex-col overflow-hidden bg-plane-bg-base text-foreground'>
+			<header className='relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-plane-bg-elevated px-4'>
 				<div className='flex items-center gap-3'>
 					<span className='flex size-8 items-center justify-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground shadow-sm'>
 						QG
@@ -381,7 +381,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 			</header>
 
 			<div className='flex min-h-0 min-w-0 flex-1 gap-0 overflow-hidden'>
-				<aside className='relative z-0 flex min-h-0 w-14 shrink-0 flex-col items-center overflow-hidden border-r border-border/60 bg-[#fafafa] py-3'>
+				<aside className='relative z-0 flex min-h-0 w-14 shrink-0 flex-col items-center overflow-hidden border-r border-border/60 bg-plane-rail py-3'>
 					<div className='mb-4 flex size-8 items-center justify-center rounded-lg bg-primary text-[10px] font-bold text-primary-foreground shadow-sm'>
 						QG
 					</div>
@@ -479,13 +479,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
 				</aside>
 
 				<SidebarProvider className='!min-h-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent has-data-[variant=inset]:bg-transparent'>
-					<div className='relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-l border-border/60 bg-white'>
+					<div className='relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-l border-border/60 bg-plane-bg-elevated'>
 						<div className='relative flex min-h-0 min-w-0 flex-1 overflow-hidden'>
 							<Sidebar
 								collapsible='none'
-								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-border/60 bg-[#fafafa] text-sidebar-foreground'
+								className='relative h-full min-h-0 shrink-0 overflow-hidden border-r border-border/60 bg-plane-rail text-sidebar-foreground'
 							>
-								<SidebarHeader className='relative gap-2 border-b border-border bg-background px-4 py-3'>
+								<SidebarHeader className='relative gap-2 border-b border-border bg-plane-bg-elevated px-4 py-3'>
 									<div className='flex items-start justify-between gap-3'>
 										<div className='flex min-w-0 flex-1 items-start gap-3'>
 											<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10'>
@@ -668,8 +668,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 								</SidebarContent>
 							</Sidebar>
 
-							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background'>
-								<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3'>
+							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-plane-bg-elevated'>
+								<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-plane-bg-elevated px-4 py-3'>
 									<Breadcrumb>
 										<BreadcrumbList>
 											<BreadcrumbItem>
