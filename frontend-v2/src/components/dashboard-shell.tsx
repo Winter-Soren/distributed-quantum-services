@@ -340,8 +340,6 @@ export function DashboardShell({ children }: DashboardShellProps) {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const hash = useHash();
-	const [manualActiveItem, setManualActiveItem] = useState<(typeof navItems)[number]['key']>('home');
-	const [manualActivePanelItem, setManualActivePanelItem] = useState<string | null>(null);
 	const { runId, isFragmentFlow } = useMemo(() => parseRunsRoute(pathname), [pathname]);
 	const statusFilter = searchParams.get('status');
 	const fragmentBreadcrumbId = searchParams.get('fragment');
@@ -434,82 +432,26 @@ export function DashboardShell({ children }: DashboardShellProps) {
 					<nav className='flex flex-1 flex-col items-center gap-1 px-1.5'>
 						{navItems.map(item => {
 							const Icon = item.icon;
-							const isActive = railItemActive(item.key);
-
-							if (item.key === 'home') {
-								return (
-									<Link
-										key={item.key}
-										href='/dashboard'
-										aria-label={item.label}
-										aria-current={isActive ? 'page' : undefined}
-										onClick={() => {
-											setManualActiveItem('home');
-											setManualActivePanelItem(null);
-										}}
-										className={cn(
-											'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
-											isActive
-												? 'bg-background text-primary shadow-sm'
-												: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-										)}
-									>
-										<Icon className='size-4 shrink-0' />
-										<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
-											{item.railLabel}
-										</span>
-									</Link>
-								);
-							}
-
-							if (item.key === 'runs-projects') {
-								return (
-									<Link
-										key={item.key}
-										href='/runs'
-										aria-label={item.label}
-										aria-current={isActive ? 'page' : undefined}
-										onClick={() => {
-											setManualActiveItem('runs-projects');
-											setManualActivePanelItem('Run History');
-										}}
-										className={cn(
-											'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
-											isActive
-												? 'bg-background text-primary shadow-sm'
-												: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-										)}
-									>
-										<Icon className='size-4 shrink-0' />
-										<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
-											{item.railLabel}
-										</span>
-									</Link>
-								);
-							}
+							const isActive = activeItem === item.key;
 
 							return (
-								<button
+								<Link
 									key={item.key}
-									type='button'
+									href={item.href}
 									aria-label={item.label}
-									aria-pressed={isActive}
-									onClick={() => {
-										setManualActiveItem(item.key);
-										setManualActivePanelItem(null);
-									}}
+									aria-current={isActive ? 'page' : undefined}
 									className={cn(
-										'flex w-full flex-col items-center gap-1 rounded-md px-1 py-2 transition-all duration-150',
+										'relative flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 transition-all duration-150',
 										isActive
-											? 'bg-primary/10 text-primary'
-											: 'text-muted-foreground hover:bg-muted hover:text-foreground'
+											? 'bg-background text-primary shadow-sm'
+											: 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
 									)}
 								>
 									<Icon className='size-4 shrink-0' />
 									<span className='max-w-full truncate text-[9px] font-medium leading-tight'>
 										{item.railLabel}
 									</span>
-								</button>
+								</Link>
 							);
 						})}
 					</nav>
