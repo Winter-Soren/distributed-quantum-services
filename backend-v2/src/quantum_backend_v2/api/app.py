@@ -21,6 +21,7 @@ from quantum_backend_v2.api.routers.plans import build_plans_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
 from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
+from quantum_backend_v2.api.benchmark import router as benchmark_router
 from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
@@ -127,5 +128,8 @@ def create_app(
                 session_factory=postgres_session_factory,
             )
         )
+
+    # Benchmark endpoint - no dependencies, uses core portfolio optimization
+    app.include_router(benchmark_router)
 
     return app

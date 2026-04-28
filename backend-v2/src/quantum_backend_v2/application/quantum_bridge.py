@@ -3,15 +3,29 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Any, AsyncIterator
 
 from quantum_backend_v2.api.routers.service_quality import ServiceQualityTracker
+from quantum_backend_v2.planning.dag import build_operation_dependencies, topological_order
+from quantum_backend_v2.planning.fragments import build_fragments
+from quantum_backend_v2.planning.models import (
+    CandidateScore,
+    ExecutionPlan,
+    FragmentAssignment,
+)
+from quantum_backend_v2.planning.parser import (
+    CircuitNormalizationError,
+    normalize_circuit_input,
+)
+from quantum_backend_v2.runtime.execution_models import (
+    FragmentExecutionResult,
+    FragmentExecutionStatus,
+)
+from quantum_backend_v2.runtime.qiskit_results import build_quantum_result
 from quantum_backend_v2.application.distributed_statevector import (
     combine_handoffs,
     fidelity_between_handoffs,
@@ -45,48 +59,6 @@ from quantum_backend_v2.runtime.service import ExecutionService
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
-
-
-def _load_backend_bridge() -> dict[str, Any]:
-    backend_src = _repo_root() / "backend" / "src"
-    backend_src_str = str(backend_src)
-    if backend_src_str not in sys.path:
-        sys.path.insert(0, backend_src_str)
-
-    from quantum_coordinator.planning.dag import build_operation_dependencies, topological_order
-    from quantum_coordinator.planning.fragments import build_fragments
-    from quantum_coordinator.planning.models import (
-        CandidateScore,
-        ExecutionPlan,
-        FragmentAssignment,
-    )
-    from quantum_coordinator.planning.parser import (
-        CircuitNormalizationError,
-        normalize_circuit_input,
-    )
-    from quantum_coordinator.runtime.models import (
-        FragmentExecutionResult,
-        FragmentExecutionStatus,
-    )
-    from quantum_coordinator.runtime.qiskit_results import build_quantum_result
-
-    return {
-        "CandidateScore": CandidateScore,
-        "CircuitNormalizationError": CircuitNormalizationError,
-        "ExecutionPlan": ExecutionPlan,
-        "FragmentAssignment": FragmentAssignment,
-        "FragmentExecutionResult": FragmentExecutionResult,
-        "FragmentExecutionStatus": FragmentExecutionStatus,
-        "build_fragments": build_fragments,
-        "build_operation_dependencies": build_operation_dependencies,
-        "build_quantum_result": build_quantum_result,
-        "normalize_circuit_input": normalize_circuit_input,
-        "topological_order": topological_order,
-    }
 
 
 def sanitize_json(value: Any) -> Any:
@@ -295,7 +267,6 @@ class QuantumExecutionBridge:
         self._reservation_service = reservation_service
         self._execution_service = execution_service
         self._quality = ServiceQualityTracker()
-        self._bridge = _load_backend_bridge()
         self._protocol_ids = build_execution_protocol_ids(
             libp2p_runtime.settings.rendezvous_namespace
         )
@@ -305,11 +276,6 @@ class QuantumExecutionBridge:
         await self._discovery_service.wait_for_service_peers(timeout_seconds=timeout_seconds)
 
     def compile_plan(self, circuit_text: str) -> CompiledExecutionPlan:
-        normalize_circuit_input = self._bridge["normalize_circuit_input"]
-        build_operation_dependencies = self._bridge["build_operation_dependencies"]
-        build_fragments = self._bridge["build_fragments"]
-        topological_order = self._bridge["topological_order"]
-
         circuit = normalize_circuit_input(circuit_text)
         dependencies = build_operation_dependencies(circuit)
         fragments = build_fragments(circuit, dependencies)
@@ -498,8 +464,8 @@ class QuantumExecutionBridge:
         workflow_run_id: str,
         plan: CompiledExecutionPlan,
     ) -> AsyncIterator[DistributedFragmentExecution]:
-        fragment_result_type = self._bridge["FragmentExecutionResult"]
-        fragment_status_type = self._bridge["FragmentExecutionStatus"]
+        fragment_result_type = FragmentExecutionResult
+        fragment_status_type = FragmentExecutionStatus
         component_states: dict[tuple[int, ...], DistributedStateHandoff] = {
             (qubit,): make_initial_state_handoff(1, qubit_ids=(qubit,))
             for qubit in range(plan.num_qubits)
@@ -578,7 +544,7 @@ class QuantumExecutionBridge:
         fragment_results: tuple[Any, ...],
         final_state: DistributedStateHandoff | None = None,
     ) -> dict[str, Any]:
-        raw_result = self._bridge["build_quantum_result"](
+        raw_result = build_quantum_result(
             plan,
             fragment_results=fragment_results,
         )

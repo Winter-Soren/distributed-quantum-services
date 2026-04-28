@@ -7,10 +7,10 @@
 
 ## 🎯 Problem Statement
 
-**Original Bottleneck**: QAOA parameter optimization dominated 77% of quantum runtime ($\sim$1200ms out of 1600ms)
+**Original Bottleneck**: QAOA parameter optimization dominated 77% of quantum runtime ( $\sim$ 1200ms out of 1600ms)
 
 **Root Cause**: COBYLA (1994 algorithm) is derivative-free and slow:
-- O(n$²$) function evaluations for convergence
+- O($n^2$) function evaluations for convergence
 - No gradient information $→$ wastes circuit evaluations
 - Single initialization $→$ gets stuck in local minima
 - Not designed for QAOA parameter landscapes

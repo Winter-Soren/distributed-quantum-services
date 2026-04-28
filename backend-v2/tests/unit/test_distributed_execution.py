@@ -459,7 +459,9 @@ async def test_quantum_bridge_preserves_validation_fidelity_for_overlapping_comp
         fragment_results=tuple(execution.fragment_result for execution in executions),
         final_state=final_state,
     )
-    analytic_result = bridge._bridge["build_quantum_result"](
+    # Import the function directly for analytic comparison
+    from quantum_backend_v2.runtime.qiskit_results import build_quantum_result
+    analytic_result = build_quantum_result(
         plan,
         fragment_results=tuple(execution.fragment_result for execution in executions),
     )

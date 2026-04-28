@@ -16,7 +16,6 @@ COPY backend-v2/alembic ./alembic
 COPY backend-v2/alembic.ini ./alembic.ini
 COPY backend-v2/scripts ./scripts
 COPY backend-v2/src ./src
-COPY backend/src /workspace/backend/src
 RUN uv sync --frozen --no-dev
 
 
@@ -37,7 +36,6 @@ COPY backend-v2/Makefile backend-v2/README.md backend-v2/pyproject.toml backend-
 COPY backend-v2/alembic ./alembic
 COPY backend-v2/scripts ./scripts
 COPY backend-v2/src ./src
-COPY backend/src /workspace/backend/src
 
 RUN mkdir -p /workspace/backend-v2/quantum-backend-v2/peer-logs \
     /workspace/backend-v2/quantum-backend-v2/libp2p
