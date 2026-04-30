@@ -1,10 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-import { NavDocuments } from '@/components/nav-documents';
-import { NavMain } from '@/components/nav-main';
-import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
 import {
 	Sidebar,
@@ -13,146 +12,78 @@ import {
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
-	SidebarMenuItem
+	SidebarMenuItem,
+	SidebarGroup,
+	SidebarGroupLabel,
+	SidebarGroupContent,
+	SidebarMenuSub,
+	SidebarMenuSubItem,
+	SidebarMenuSubButton
 } from '@/components/ui/sidebar';
 import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger
+} from '@/components/ui/collapsible';
+import {
 	LayoutDashboardIcon,
-	ListIcon,
-	ChartBarIcon,
-	FolderIcon,
-	UsersIcon,
-	CameraIcon,
-	FileTextIcon,
+	PlayCircleIcon,
+	NetworkIcon,
+	BarChart3Icon,
 	Settings2Icon,
-	CircleHelpIcon,
-	SearchIcon,
-	DatabaseIcon,
-	FileChartColumnIcon,
-	FileIcon,
+	ChevronRightIcon,
+	WalletIcon,
 	CommandIcon
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const data = {
 	user: {
-		name: 'shadcn',
-		email: 'm@example.com',
-		avatar: '/avatars/shadcn.jpg'
-	},
-	navMain: [
-		{
-			title: 'Dashboard',
-			url: '#',
-			icon: <LayoutDashboardIcon />
-		},
-		{
-			title: 'Lifecycle',
-			url: '#',
-			icon: <ListIcon />
-		},
-		{
-			title: 'Analytics',
-			url: '#',
-			icon: <ChartBarIcon />
-		},
-		{
-			title: 'Projects',
-			url: '#',
-			icon: <FolderIcon />
-		},
-		{
-			title: 'Team',
-			url: '#',
-			icon: <UsersIcon />
-		}
-	],
-	navClouds: [
-		{
-			title: 'Capture',
-			icon: <CameraIcon />,
-			isActive: true,
-			url: '#',
-			items: [
-				{
-					title: 'Active Proposals',
-					url: '#'
-				},
-				{
-					title: 'Archived',
-					url: '#'
-				}
-			]
-		},
-		{
-			title: 'Proposal',
-			icon: <FileTextIcon />,
-			url: '#',
-			items: [
-				{
-					title: 'Active Proposals',
-					url: '#'
-				},
-				{
-					title: 'Archived',
-					url: '#'
-				}
-			]
-		},
-		{
-			title: 'Prompts',
-			icon: <FileTextIcon />,
-			url: '#',
-			items: [
-				{
-					title: 'Active Proposals',
-					url: '#'
-				},
-				{
-					title: 'Archived',
-					url: '#'
-				}
-			]
-		}
-	],
-	navSecondary: [
-		{
-			title: 'Settings',
-			url: '#',
-			icon: <Settings2Icon />
-		},
-		{
-			title: 'Get Help',
-			url: '#',
-			icon: <CircleHelpIcon />
-		},
-		{
-			title: 'Search',
-			url: '#',
-			icon: <SearchIcon />
-		}
-	],
-	documents: [
-		{
-			name: 'Data Library',
-			url: '#',
-			icon: <DatabaseIcon />
-		},
-		{
-			name: 'Reports',
-			url: '#',
-			icon: <FileChartColumnIcon />
-		},
-		{
-			name: 'Word Assistant',
-			url: '#',
-			icon: <FileIcon />
-		}
-	]
+		name: 'Winter-Soren',
+		email: 'winter@quantum.dev',
+		avatar: '/avatars/default.jpg'
+	}
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+	const pathname = usePathname();
+	const [dashboardOpen, setDashboardOpen] = React.useState(pathname === '/dashboard' || pathname.startsWith('/dashboard'));
+	const [runsOpen, setRunsOpen] = React.useState(pathname === '/runs' || pathname.startsWith('/runs') || pathname === '/finance');
+
+	// Auto-open sections based on current path
+	React.useEffect(() => {
+		if (pathname === '/dashboard' || pathname.startsWith('/dashboard')) {
+			setDashboardOpen(true);
+		}
+		if (pathname === '/runs' || pathname.startsWith('/runs') || pathname === '/finance') {
+			setRunsOpen(true);
+		}
+	}, [pathname]);
+
+	const scrollToSection = (sectionId: string) => {
+		const element = document.getElementById(sectionId);
+		if (element) {
+			const offset = 80; // Account for sticky header
+			const elementPosition = element.getBoundingClientRect().top;
+			const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+			window.scrollTo({
+				top: offsetPosition,
+				behavior: 'smooth'
+			});
+		}
+	};
+
+	const isDashboardActive = pathname === '/dashboard' || pathname.startsWith('/dashboard');
+	const isRunsActive = pathname === '/runs' || pathname.startsWith('/runs');
+	const isFinanceActive = pathname === '/finance' || pathname.startsWith('/finance');
+	const isNetworkActive = pathname.startsWith('/network');
+	const isAnalyticsActive = pathname.startsWith('/analytics');
+	const isSettingsActive = pathname.startsWith('/settings');
+
 	return (
 		<Sidebar
-			collapsible='offcanvas'
+			collapsible='icon'
 			{...props}
 		>
 			<SidebarHeader>
@@ -160,24 +91,192 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton
 							asChild
-							className='data-[slot=sidebar-menu-button]:p-1.5!'
+							size='lg'
+							className='data-[slot=sidebar-menu-button]:h-12'
 						>
-							<a href='#'>
-								<CommandIcon className='size-5!' />
-								<span className='text-base font-semibold'>Acme Inc.</span>
-							</a>
+							<Link href='/dashboard'>
+								<div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground'>
+									<CommandIcon className='size-4' />
+								</div>
+								<div className='grid flex-1 text-left text-sm leading-tight'>
+									<span className='truncate font-semibold'>Quantum Network</span>
+									<span className='truncate text-xs text-muted-foreground'>py-libp2p</span>
+								</div>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
+
 			<SidebarContent>
-				<NavMain items={data.navMain} />
-				<NavDocuments items={data.documents} />
-				<NavSecondary
-					items={data.navSecondary}
-					className='mt-auto'
-				/>
+				{/* Dashboard with scroll-to sections */}
+				<SidebarGroup>
+					<Collapsible
+						open={dashboardOpen}
+						onOpenChange={setDashboardOpen}
+						className='group/collapsible'
+					>
+						<SidebarMenuItem>
+							<CollapsibleTrigger asChild>
+								<SidebarMenuButton
+									tooltip='Dashboard'
+									className={cn(isDashboardActive && 'bg-sidebar-accent text-sidebar-accent-foreground')}
+								>
+									<LayoutDashboardIcon className='size-4' />
+									<span>Dashboard</span>
+									<ChevronRightIcon className='ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+								</SidebarMenuButton>
+							</CollapsibleTrigger>
+						</SidebarMenuItem>
+						<CollapsibleContent>
+							<SidebarMenuSub>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										onClick={() => scrollToSection('network-topology')}
+									>
+										<button type='button'>
+											<span>Network Topology</span>
+										</button>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										onClick={() => scrollToSection('service-registry')}
+									>
+										<button type='button'>
+											<span>Service Registry</span>
+										</button>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										onClick={() => scrollToSection('metrics')}
+									>
+										<button type='button'>
+											<span>Metrics</span>
+										</button>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										onClick={() => scrollToSection('overview')}
+									>
+										<button type='button'>
+											<span>Overview</span>
+										</button>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+							</SidebarMenuSub>
+						</CollapsibleContent>
+					</Collapsible>
+				</SidebarGroup>
+
+				{/* Runs with Finance accordion */}
+				<SidebarGroup>
+					<Collapsible
+						open={runsOpen}
+						onOpenChange={setRunsOpen}
+						className='group/collapsible'
+					>
+						<SidebarMenuItem>
+							<CollapsibleTrigger asChild>
+								<SidebarMenuButton
+									tooltip='Runs'
+									className={cn((isRunsActive || isFinanceActive) && 'bg-sidebar-accent text-sidebar-accent-foreground')}
+								>
+									<PlayCircleIcon className='size-4' />
+									<span>Runs</span>
+									<ChevronRightIcon className='ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+								</SidebarMenuButton>
+							</CollapsibleTrigger>
+						</SidebarMenuItem>
+						<CollapsibleContent>
+							<SidebarMenuSub>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										isActive={isRunsActive}
+									>
+										<Link href='/runs'>
+											<span>All Runs</span>
+										</Link>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+								<SidebarMenuSubItem>
+									<SidebarMenuSubButton
+										asChild
+										isActive={isFinanceActive}
+									>
+										<Link href='/finance'>
+											<WalletIcon className='size-3' />
+											<span>Finance</span>
+										</Link>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+							</SidebarMenuSub>
+						</CollapsibleContent>
+					</Collapsible>
+				</SidebarGroup>
+
+				{/* Network */}
+				<SidebarGroup>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								asChild
+								tooltip='Network'
+								className={cn(isNetworkActive && 'bg-sidebar-accent text-sidebar-accent-foreground')}
+							>
+								<Link href='/network'>
+									<NetworkIcon className='size-4' />
+									<span>Network</span>
+								</Link>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
+
+				{/* Analytics */}
+				<SidebarGroup>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								asChild
+								tooltip='Analytics'
+								className={cn(isAnalyticsActive && 'bg-sidebar-accent text-sidebar-accent-foreground')}
+							>
+								<Link href='/analytics'>
+									<BarChart3Icon className='size-4' />
+									<span>Analytics</span>
+								</Link>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
+
+				{/* Settings */}
+				<SidebarGroup className='mt-auto'>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								asChild
+								tooltip='Settings'
+								className={cn(isSettingsActive && 'bg-sidebar-accent text-sidebar-accent-foreground')}
+							>
+								<Link href='/settings'>
+									<Settings2Icon className='size-4' />
+									<span>Settings</span>
+								</Link>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
 			</SidebarContent>
+
 			<SidebarFooter>
 				<NavUser user={data.user} />
 			</SidebarFooter>

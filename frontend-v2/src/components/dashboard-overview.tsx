@@ -47,11 +47,12 @@ export function DashboardOverview() {
 	return (
 		<div className='flex flex-1 flex-col'>
 			<div className='@container/main flex flex-1 flex-col gap-2'>
-				<div className='flex flex-col gap-4 py-4 md:gap-6 md:py-6'>
+				<div className='flex flex-col gap-6 py-6'>
+					{/* Header */}
 					<div className='flex flex-col gap-3 px-4 lg:flex-row lg:items-center lg:justify-between lg:px-6'>
 						<div className='space-y-1'>
 							<div className='flex flex-wrap items-center gap-2'>
-								<h1 className='text-lg font-semibold'>Coordinator overview</h1>
+								<h1 className='text-lg font-semibold tracking-tight'>Coordinator overview</h1>
 								{snapshot?.health ? (
 									<Badge variant='outline'>{snapshot.health.environment}</Badge>
 								) : null}
@@ -87,6 +88,7 @@ export function DashboardOverview() {
 						</div>
 					</div>
 
+					{/* Alerts */}
 					{error && snapshot ? (
 						<div className='px-4 lg:px-6'>
 							<Alert variant='destructive'>
@@ -107,42 +109,86 @@ export function DashboardOverview() {
 						</div>
 					) : null}
 
-					<div className='grid gap-4 px-4 lg:px-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch'>
-						<DashboardNetwork3D
-							network={snapshot?.network ?? null}
+					{/* Section: Overview Cards */}
+					<section
+						id='overview'
+						className='scroll-mt-20 px-4 lg:px-6'
+					>
+						<div className='mb-4'>
+							<h2 className='text-base font-semibold tracking-tight'>Overview</h2>
+							<p className='text-sm text-muted-foreground'>Key metrics at a glance</p>
+						</div>
+						<SectionCards
+							cards={snapshot?.summaryCards ?? []}
 							isLoading={isLoading}
-							selectedNodeId={selectedNodeId}
-							onSelectNode={handleNodeSelection}
 						/>
-						<DashboardNetworkStats
-							network={snapshot?.network ?? null}
-							health={snapshot?.health ?? null}
-							selectedNodeId={selectedNodeId}
-							isLoading={isLoading}
-						/>
-					</div>
+					</section>
 
-					<SectionCards
-						cards={snapshot?.summaryCards ?? []}
-						isLoading={isLoading}
-					/>
+					{/* Section: Network Topology */}
+					<section
+						id='network-topology'
+						className='scroll-mt-20 px-4 lg:px-6'
+					>
+						<div className='mb-4'>
+							<h2 className='text-base font-semibold tracking-tight'>Network Topology</h2>
+							<p className='text-sm text-muted-foreground'>
+								Live 3D visualization of peer network with coordinator connections
+							</p>
+						</div>
+						<div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch'>
+							<DashboardNetwork3D
+								network={snapshot?.network ?? null}
+								isLoading={isLoading}
+								selectedNodeId={selectedNodeId}
+								onSelectNode={handleNodeSelection}
+							/>
+							<DashboardNetworkStats
+								network={snapshot?.network ?? null}
+								health={snapshot?.health ?? null}
+								selectedNodeId={selectedNodeId}
+								isLoading={isLoading}
+							/>
+						</div>
+					</section>
 
-					<div className='px-4 lg:px-6'>
+					{/* Section: Metrics */}
+					<section
+						id='metrics'
+						className='scroll-mt-20 px-4 lg:px-6'
+					>
+						<div className='mb-4'>
+							<h2 className='text-base font-semibold tracking-tight'>Metrics</h2>
+							<p className='text-sm text-muted-foreground'>
+								Interactive charts showing fidelity, services, and qubit capacity
+							</p>
+						</div>
 						<ChartAreaInteractive
 							nodes={snapshot?.chart ?? []}
 							isLoading={isLoading}
 							selectedNodeId={selectedNodeId}
 							onSelectNode={handleNodeSelection}
 						/>
-					</div>
+					</section>
 
-					<DataTable
-						rows={snapshot?.services ?? []}
-						isLoading={isLoading}
-						selectedNodeId={selectedNodeId}
-						onSelectNode={selectNode}
-						onClearSelectedNode={clearSelectedNode}
-					/>
+					{/* Section: Service Registry */}
+					<section
+						id='service-registry'
+						className='scroll-mt-20'
+					>
+						<div className='mb-4 px-4 lg:px-6'>
+							<h2 className='text-base font-semibold tracking-tight'>Service Registry</h2>
+							<p className='text-sm text-muted-foreground'>
+								Complete service discovery table with search and filtering
+							</p>
+						</div>
+						<DataTable
+							rows={snapshot?.services ?? []}
+							isLoading={isLoading}
+							selectedNodeId={selectedNodeId}
+							onSelectNode={selectNode}
+							onClearSelectedNode={clearSelectedNode}
+						/>
+					</section>
 				</div>
 			</div>
 		</div>

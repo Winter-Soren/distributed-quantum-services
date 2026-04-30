@@ -1,3 +1,5 @@
+'use client';
+
 import { BlochSphere } from '@/components/bloch-sphere';
 
 export default function DeepStatePage() {
@@ -10,7 +12,11 @@ export default function DeepStatePage() {
 				</p>
 			</div>
 
-			<BlochSphere />
+			<div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+				<BlochSphere vector={[1, 0, 0]} label='|0⟩ State' />
+				<BlochSphere vector={[0, 1, 0]} label='|+⟩ State' />
+				<BlochSphere vector={[0, 0, 1]} label='|+i⟩ State' />
+			</div>
 		</div>
 	);
 }

@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo } from 'react';
-import { AlertCircleIcon, Loader2Icon, PlusIcon, RefreshCcwIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertCircleIcon, ChevronDownIcon, Loader2Icon, PlusIcon, RefreshCcwIcon, WalletIcon } from 'lucide-react';
 
 import { SectionCards } from '@/components/section-cards';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,18 +12,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useRunsList } from '@/hooks/use-runs-list';
 import { RunStatusBadge } from '@/components/run-status-badge';
 import { cn } from '@/lib/utils';
 import type { DashboardSummaryCard } from '@/types/dashboard';
 import type { RunStatusFilter } from '@/types/runs';
 
-const FILTER_TABS: Array<{ value: RunStatusFilter; label: string }> = [
-	{ value: 'all', label: 'All' },
-	{ value: 'queued', label: 'Queued' },
-	{ value: 'running', label: 'Running' },
-	{ value: 'completed', label: 'Completed' },
-	{ value: 'failed', label: 'Failed' }
+const FILTER_TABS: Array<{ value: RunStatusFilter; label: string; description: string }> = [
+	{ value: 'running', label: 'Current', description: 'Queued and actively running' },
+	{ value: 'completed', label: 'Done', description: 'Successfully completed' },
+	{ value: 'all', label: 'All', description: 'Complete history' }
 ];
 
 /** Shown when the list API fails so the grid still matches the dashboard layout */
@@ -68,7 +67,6 @@ const RUNS_ERROR_PLACEHOLDER_CARDS: DashboardSummaryCard[] = [
 function normalizeFilter(value: string | null): RunStatusFilter {
 	switch (value) {
 		case 'queued':
-			return 'queued';
 		case 'current':
 		case 'running':
 			return 'running';
@@ -88,8 +86,15 @@ export function RunsPageClient() {
 	const searchParams = useSearchParams();
 	const filter = normalizeFilter(searchParams.get('status'));
 	const { snapshot, error, isLoading, isRefreshing, refresh } = useRunsList();
+	const [financeOpen, setFinanceOpen] = useState(false);
+
 	const jobsListUnavailable = Boolean(snapshot?.jobsListUnavailable);
-	const rows = (snapshot?.runs ?? []).filter(run => (filter === 'all' ? true : run.statusGroup === filter));
+	const rows = (snapshot?.runs ?? []).filter(run => {
+		if (filter === 'all') return true;
+		if (filter === 'running') return run.statusGroup === 'queued' || run.statusGroup === 'running';
+		return run.statusGroup === filter;
+	});
+
 	const counts = snapshot?.counts ?? {
 		total: 0,
 		queued: 0,
@@ -160,7 +165,7 @@ export function RunsPageClient() {
 		return (
 			<div className='flex flex-1 flex-col'>
 				<div className='@container/main flex flex-1 flex-col gap-2'>
-					<div className='flex flex-col gap-4 py-4 md:gap-6 md:py-6'>
+					<div className='flex flex-col gap-6 py-6'>
 						<div className='flex flex-wrap items-start justify-between gap-4 px-4 lg:px-6'>
 							<div className='space-y-1'>
 								<h1 className='text-lg font-semibold tracking-tight'>Runs</h1>
@@ -221,8 +226,8 @@ export function RunsPageClient() {
 						/>
 
 						<div className='px-4 lg:px-6'>
-							<Card className='border-border/80 border-dashed shadow-sm'>
-								<CardContent className='pt-8 pb-8'>
+							<Card className='border-dashed border-border/80 shadow-sm'>
+								<CardContent className='pb-8 pt-8'>
 									<Empty className='border-0'>
 										<EmptyHeader>
 											<EmptyMedia variant='icon'>
@@ -247,7 +252,8 @@ export function RunsPageClient() {
 	return (
 		<div className='flex flex-1 flex-col'>
 			<div className='@container/main flex flex-1 flex-col gap-2'>
-				<div className='flex flex-col gap-4 py-4 md:gap-6 md:py-6'>
+				<div className='flex flex-col gap-6 py-6'>
+					{/* Header */}
 					<div className='flex flex-wrap items-start justify-between gap-4 px-4 lg:px-6'>
 						<div className='space-y-1'>
 							<div className='flex flex-wrap items-center gap-2'>
@@ -286,6 +292,7 @@ export function RunsPageClient() {
 						</div>
 					</div>
 
+					{/* Alerts */}
 					{error && snapshot ? (
 						<div className='px-4 lg:px-6'>
 							<Alert variant='destructive'>
@@ -336,43 +343,106 @@ export function RunsPageClient() {
 						</div>
 					) : null}
 
-					<SectionCards
-						cards={summaryCards}
-						isLoading={isLoading}
-					/>
-
-					<div className='flex flex-wrap gap-2 border-b border-border px-4 pb-2 lg:px-6'>
-						{FILTER_TABS.map(tab => {
-							const isActive = tab.value === filter;
-							const count =
-								tab.value === 'all'
-									? counts.total
-									: tab.value === 'queued'
-										? counts.queued
-										: tab.value === 'running'
-											? counts.running
-											: tab.value === 'completed'
-												? counts.completed
-												: counts.failed;
-
-							return (
-								<button
-									key={tab.value}
-									type='button'
-									onClick={() => setFilter(tab.value)}
-									className={cn(
-										'relative rounded-md px-3 py-2 text-sm font-medium transition-colors',
-										isActive
-											? 'text-foreground after:absolute after:right-2 after:bottom-0 after:left-2 after:h-0.5 after:rounded-full after:bg-primary'
-											: 'text-muted-foreground hover:text-foreground'
-									)}
-								>
-									{tab.label} <span className='text-muted-foreground'>({count})</span>
-								</button>
-							);
-						})}
+					{/* Summary Cards */}
+					<div className='px-4 lg:px-6'>
+						<SectionCards
+							cards={summaryCards}
+							isLoading={isLoading}
+						/>
 					</div>
 
+					{/* Tabs */}
+					<div className='border-b border-border px-4 lg:px-6'>
+						<div className='flex flex-wrap gap-1'>
+							{FILTER_TABS.map(tab => {
+								const isActive = tab.value === filter;
+								const count =
+									tab.value === 'all'
+										? counts.total
+										: tab.value === 'running'
+											? counts.queued + counts.running
+											: counts.completed;
+
+								return (
+									<button
+										key={tab.value}
+										type='button'
+										onClick={() => setFilter(tab.value)}
+										className={cn(
+											'group relative flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+											isActive
+												? 'border-primary text-foreground'
+												: 'border-transparent text-muted-foreground hover:text-foreground'
+										)}
+									>
+										<span>{tab.label}</span>
+										<span
+											className={cn(
+												'rounded-full px-2 py-0.5 text-xs font-medium tabular-nums',
+												isActive
+													? 'bg-primary/10 text-primary'
+													: 'bg-muted text-muted-foreground group-hover:bg-muted/80'
+											)}
+										>
+											{count}
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+
+					{/* Finance Accordion */}
+					<div className='px-4 lg:px-6'>
+						<Collapsible
+							open={financeOpen}
+							onOpenChange={setFinanceOpen}
+						>
+							<Card className='border-border/80 shadow-sm'>
+								<CollapsibleTrigger asChild>
+									<CardHeader className='cursor-pointer hover:bg-muted/30'>
+										<div className='flex items-center justify-between'>
+											<div className='flex items-center gap-3'>
+												<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-chart-2/10 text-chart-2'>
+													<WalletIcon className='size-5' />
+												</div>
+												<div>
+													<CardTitle className='text-base'>Finance</CardTitle>
+													<CardDescription>
+														Portfolio analysis and benchmark reports for CSV-based financial jobs
+													</CardDescription>
+												</div>
+											</div>
+											<ChevronDownIcon
+												className={cn(
+													'size-5 text-muted-foreground transition-transform duration-200',
+													financeOpen && 'rotate-180'
+												)}
+											/>
+										</div>
+									</CardHeader>
+								</CollapsibleTrigger>
+								<CollapsibleContent>
+									<CardContent className='pt-0'>
+										<div className='rounded-lg border border-border/60 bg-muted/20 p-4'>
+											<p className='text-sm text-muted-foreground'>
+												Financial analytics components will appear here. For detailed analysis, visit{' '}
+												<Link
+													href='/finance'
+													className='font-medium text-primary hover:underline'
+												>
+													the Finance page
+												</Link>
+												.
+											</p>
+										</div>
+									</CardContent>
+								</CollapsibleContent>
+							</Card>
+						</Collapsible>
+					</div>
+
+					{/* Run History Table */}
 					<div className='px-4 lg:px-6'>
 						<Card className='border-border/80 shadow-sm'>
 							<CardHeader>
