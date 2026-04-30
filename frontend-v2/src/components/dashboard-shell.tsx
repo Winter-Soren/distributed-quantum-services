@@ -177,7 +177,7 @@ const panelData: Record<string, { group: string; items: { label: string; href: s
 		},
 		{
 			group: 'Projects',
-			items: [{ label: 'Financial', href: '/finance' }]
+			items: []
 		}
 	],
 	analytics: [
