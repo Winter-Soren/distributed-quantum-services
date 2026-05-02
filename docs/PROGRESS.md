@@ -16,12 +16,14 @@ The [Future Roadmap](FUTURE_ROADMAP.md) spans five milestones (M1–M5). The fro
 
 Relevant M1 themes from that milestone:
 
-| Roadmap area | What M1 calls for (summary) | Status after `frontend-v2` |
-| --- | --- | --- |
-| **M1-C Operator platform** — “build platform console”, “workflow and run management surfaces” | Cohesive console: job list, run detail, execution visibility | **In progress at UI layer**: runs list, run detail, new run, fragment flow, dashboard over services/health/fidelity |
-| **Frontend platform console** — workspace shell | Navigable shell (sidebar, structure for future account/org/project switching) | **Partially met**: `DashboardShell` with multi-section navigation, breadcrumbs, responsive layout |
-| **Job and workflow surfaces** | Job list with filters, run detail, live execution / plan explorer | **Largely met** for the current POC API: filtered jobs list, paginated plan fragments, execution results, peer flow, quantum analysis views |
-| **Stable contracts toward SDKs** | Typed API usage, predictable client behavior | **Foundation**: shared TypeScript types (`types/backend.ts`, `types/runs.ts`, etc.), server-side proxy to coordinator, Zod-friendly patterns where used |
+
+| Roadmap area                                                                                  | What M1 calls for (summary)                                                   | Status after `frontend-v2`                                                                                                                              |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M1-C Operator platform** — “build platform console”, “workflow and run management surfaces” | Cohesive console: job list, run detail, execution visibility                  | **In progress at UI layer**: runs list, run detail, new run, fragment flow, dashboard over services/health/fidelity                                     |
+| **Frontend platform console** — workspace shell                                               | Navigable shell (sidebar, structure for future account/org/project switching) | **Partially met**: `DashboardShell` with multi-section navigation, breadcrumbs, responsive layout                                                       |
+| **Job and workflow surfaces**                                                                 | Job list with filters, run detail, live execution / plan explorer             | **Largely met** for the current POC API: filtered jobs list, paginated plan fragments, execution results, peer flow, quantum analysis views             |
+| **Stable contracts toward SDKs**                                                              | Typed API usage, predictable client behavior                                  | **Foundation**: shared TypeScript types (`types/backend.ts`, `types/runs.ts`, etc.), server-side proxy to coordinator, Zod-friendly patterns where used |
+
 
 M1 **exit criteria** in the roadmap (stable platform APIs, durable artifacts, full auth/audit, documented deploy) are **not** claimed complete here; they depend on backend, SDK, and operations work beyond this frontend migration.
 
@@ -49,12 +51,14 @@ Documented environment variables live in `frontend-v2/.env.example`.
 
 **Proxy routes** aggregate and normalize backend data for the UI:
 
-| Route | Role |
-| --- | --- |
-| `GET /api/dashboard` | Health (`/api/v1/health`), services (`/api/v1/services`), per-node fidelity (`/api/v1/metrics/fidelity/{node_id}`), merged into a dashboard snapshot with warnings when partial data fails |
-| `GET /api/runs` | Jobs list (`/api/v1/jobs`) with `limit` and repeated `status` query params; resilient empty state when jobs API is missing or backend is unreachable in development |
-| `POST /api/runs` | Circuit submission (`POST /api/v1/circuits/submit`) with validation against known backend job statuses |
-| `GET /api/runs/[runId]` | Single job / run detail for the run page |
+
+| Route                   | Role                                                                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/dashboard`    | Health (`/api/v1/health`), services (`/api/v1/services`), per-node fidelity (`/api/v1/metrics/fidelity/{node_id}`), merged into a dashboard snapshot with warnings when partial data fails |
+| `GET /api/runs`         | Jobs list (`/api/v1/jobs`) with `limit` and repeated `status` query params; resilient empty state when jobs API is missing or backend is unreachable in development                        |
+| `POST /api/runs`        | Circuit submission (`POST /api/v1/circuits/submit`) with validation against known backend job statuses                                                                                     |
+| `GET /api/runs/[runId]` | Single job / run detail for the run page                                                                                                                                                   |
+
 
 This aligns with M1’s direction toward a **clear separation** between browser clients and the coordinator, even before a full “versioned public platform API” ships.
 
@@ -62,13 +66,15 @@ This aligns with M1’s direction toward a **clear separation** between browser 
 
 Primary operator flows under `src/app/(main)/`:
 
-| Area | Route / entry | Capabilities |
-| --- | --- | --- |
-| **Dashboard** | `/dashboard` | Overview of coordinator health, registered services, and fidelity-oriented metrics (via dashboard transformers and overview components) |
-| **Runs list** | `/runs` | Table/list of jobs with status filtering, integration with runs store and list hooks |
-| **New run** | `/runs/new` | Circuit composition and submission path (`new-run-page-client`, circuit composer hooks/types) |
-| **Run detail** | `/runs/[runId]` | Deep view: status, plan fragments (with pagination), execution results, peer execution flow, quantum analysis section, fragment DAG / canvas where applicable |
-| **Fragment flow** | `/runs/[runId]/fragment-flow` | Dedicated fragment flow page client and canvas for plan visualization |
+
+| Area              | Route / entry                 | Capabilities                                                                                                                                                  |
+| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**     | `/dashboard`                  | Overview of coordinator health, registered services, and fidelity-oriented metrics (via dashboard transformers and overview components)                       |
+| **Runs list**     | `/runs`                       | Table/list of jobs with status filtering, integration with runs store and list hooks                                                                          |
+| **New run**       | `/runs/new`                   | Circuit composition and submission path (`new-run-page-client`, circuit composer hooks/types)                                                                 |
+| **Run detail**    | `/runs/[runId]`               | Deep view: status, plan fragments (with pagination), execution results, peer execution flow, quantum analysis section, fragment DAG / canvas where applicable |
+| **Fragment flow** | `/runs/[runId]/fragment-flow` | Dedicated fragment flow page client and canvas for plan visualization                                                                                         |
+
 
 Additional UI includes **login** (`/login`) and a **visual circuit builder** component for interactive circuit construction.
 
@@ -109,7 +115,7 @@ The following remain **out of scope** for “migration complete” but are expli
 - [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) — multi-milestone product direction  
 - [future-roadmap/01-production-sdk-and-platform.md](future-roadmap/01-production-sdk-and-platform.md) — M1 detail including frontend console pillars  
 - [future-roadmap/00-sequencing-and-program-plan.md](future-roadmap/00-sequencing-and-program-plan.md) — milestone dependencies  
-- [ARCHITECTURE.md](ARCHITECTURE.md), [tasks.md](tasks.md) — current POC architecture and near-term tasks  
+- [ARCHITECTURE.md](ARCHITECTURE.md), [tasks.md](tasks.md) — current POC architecture and near-term tasks
 
 ---
 
