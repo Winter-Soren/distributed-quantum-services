@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, Response
 
 from quantum_backend_v2 import __version__
-from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService
+from quantum_backend_v2.application.parity import CircuitJobService, FinancialJobService, RiskJobService
 from quantum_backend_v2.api.deps.auth import configure_auth
 from quantum_backend_v2.api.errors import register_exception_handlers
 from quantum_backend_v2.api.routers import discovery_router, system_router
@@ -18,6 +18,7 @@ from quantum_backend_v2.api.routers.circuits import build_circuits_router
 from quantum_backend_v2.api.routers.enrollment import build_enrollment_router
 from quantum_backend_v2.api.routers.financial import build_financial_router
 from quantum_backend_v2.api.routers.options import build_options_router
+from quantum_backend_v2.api.routers.risk import build_risk_router
 from quantum_backend_v2.api.routers.plans import build_plans_router
 from quantum_backend_v2.api.routers.reservations import build_reservations_router
 from quantum_backend_v2.api.routers.services import build_services_router
@@ -41,6 +42,7 @@ def create_app(
     circuit_job_service: CircuitJobService | None,
     financial_job_service: FinancialJobService | None,
     options_job_service: Any | None = None,
+    risk_job_service: RiskJobService | None = None,
     reservation_service: ReservationService | None = None,
     runtime_recovery_service: RuntimeRecoveryService | None = None,
 ) -> FastAPI:
@@ -124,6 +126,8 @@ def create_app(
         app.include_router(build_financial_router(financial_job_service=financial_job_service))
     if options_job_service is not None:
         app.include_router(build_options_router(options_job_service=options_job_service))
+    if risk_job_service is not None:
+        app.include_router(build_risk_router(risk_job_service=risk_job_service))
 
     if reservation_service is not None and postgres_session_factory is not None:
         app.include_router(

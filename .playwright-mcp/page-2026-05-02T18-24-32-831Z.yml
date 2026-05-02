@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - heading "Quantum Platform" [level=2] [ref=e8]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "Tell us about yourself" [level=1] [ref=e32]
+        - paragraph [ref=e14]: We'll send an OTP to verify your email
+      - generic [ref=e33]:
+        - group [ref=e34]:
+          - generic [ref=e35]: First Name
+          - textbox "First Name" [ref=e36]:
+            - /placeholder: John
+        - group [ref=e37]:
+          - generic [ref=e38]: Last Name
+          - textbox "Last Name" [ref=e39]:
+            - /placeholder: Doe
+      - group [ref=e18]:
+        - generic [ref=e40]: Organization
+        - textbox "Organization" [ref=e41]:
+          - /placeholder: Company Inc.
+      - group [ref=e42]:
+        - generic [ref=e43]: Designation
+        - textbox "Designation" [ref=e44]:
+          - /placeholder: Software Engineer
+      - generic [ref=e45]:
+        - button "Back" [ref=e46]
+        - button "Send OTP" [ref=e47]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e27] [cursor=pointer]:
+    - img [ref=e28]
+  - alert [ref=e31]

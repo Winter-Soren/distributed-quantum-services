@@ -24,6 +24,7 @@ from quantum_backend_v2.persistence.postgres import (
     FinancialJobRecord,
     OptionsJobRecord,
     PlatformUserRecord,
+    RiskJobRecord,
     WorkflowRunRecord,
 )
 from quantum_backend_v2.reservations.service import ReservationService
@@ -725,5 +726,112 @@ class OptionsJobService:
             )
             if not current_user.is_admin():
                 stmt = stmt.where(OptionsJobRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Track D — Quantum Risk Engine service
+# ---------------------------------------------------------------------------
+
+_RISK_STATUS_QUEUED = "queued"
+_RISK_STATUS_RUNNING = "running"
+_RISK_STATUS_COMPLETED = "completed"
+_RISK_STATUS_FAILED = "failed"
+_TERMINAL_RISK_STATUSES = {_RISK_STATUS_COMPLETED, _RISK_STATUS_FAILED}
+
+
+class RiskJobService:
+    """Durable Track D quantum risk engine service (IQAE VaR/CVaR)."""
+
+    def __init__(self, *, session_factory: Any) -> None:
+        if session_factory is None:
+            raise RuntimeError("RiskJobService requires a configured Postgres session factory")
+        self._session_factory = session_factory
+
+    async def submit(
+        self,
+        *,
+        risk_model: str,
+        portfolio_size: int,
+        owner_user_id: str,
+        request_payload: dict[str, Any],
+    ) -> RiskJobRecord:
+        job_id = f"risk-{uuid.uuid4()}"
+        async with self._session_factory() as session:
+            await _ensure_platform_user(session, owner_user_id)
+            record = RiskJobRecord(
+                id=job_id,
+                owner_user_id=owner_user_id,
+                risk_model=risk_model,
+                portfolio_size=portfolio_size,
+                status=_RISK_STATUS_QUEUED,
+                error=None,
+                result_payload=None,
+            )
+            session.add(record)
+            await session.commit()
+            await session.refresh(record)
+            return record
+
+    async def process(self, *, job_id: str, request_payload: dict[str, Any]) -> None:
+        from quantum_backend_v2.application.risk_engine import price_risk
+
+        async with self._session_factory() as session:
+            record = await session.get(RiskJobRecord, job_id)
+            if record is None or record.status in _TERMINAL_RISK_STATUSES:
+                return
+            record.status = _RISK_STATUS_RUNNING
+            await session.commit()
+
+        try:
+            payload_with_id = dict(request_payload)
+            payload_with_id["job_id"] = job_id
+            result = price_risk(payload_with_id)
+
+            async with self._session_factory() as session:
+                record = await session.get(RiskJobRecord, job_id)
+                if record is None:
+                    return
+                record.status = _RISK_STATUS_COMPLETED
+                record.error = None
+                record.result_payload = result
+                await session.commit()
+        except Exception as exc:
+            async with self._session_factory() as session:
+                record = await session.get(RiskJobRecord, job_id)
+                if record is None:
+                    return
+                record.status = _RISK_STATUS_FAILED
+                record.error = str(exc)
+                await session.commit()
+
+    async def get_job(
+        self,
+        job_id: str,
+        *,
+        current_user: UserTokenClaims,
+    ) -> RiskJobRecord | None:
+        async with self._session_factory() as session:
+            stmt = select(RiskJobRecord).where(RiskJobRecord.id == job_id)
+            if not current_user.is_admin():
+                stmt = stmt.where(RiskJobRecord.owner_user_id == current_user.user_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+
+    async def list_jobs(
+        self,
+        *,
+        current_user: UserTokenClaims,
+        limit: int = 20,
+    ) -> list[RiskJobRecord]:
+        async with self._session_factory() as session:
+            stmt = (
+                select(RiskJobRecord)
+                .order_by(RiskJobRecord.created_at.desc())
+                .limit(limit)
+            )
+            if not current_user.is_admin():
+                stmt = stmt.where(RiskJobRecord.owner_user_id == current_user.user_id)
             result = await session.execute(stmt)
             return list(result.scalars().all())

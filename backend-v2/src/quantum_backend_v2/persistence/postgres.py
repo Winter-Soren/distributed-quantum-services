@@ -170,6 +170,22 @@ class OptionsJobRecord(TimestampedRecordMixin, PostgresBase):
     result_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
 
+class RiskJobRecord(TimestampedRecordMixin, PostgresBase):
+    """Durable Track D quantum risk engine job state."""
+
+    __tablename__ = "risk_jobs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("platform_users.id"), nullable=True, index=True
+    )
+    risk_model: Mapped[str] = mapped_column(String(32), nullable=False)
+    portfolio_size: Mapped[int] = mapped_column(nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+
+
 class ReservationEventRecord(PostgresBase):
     """Append-only reservation event log — never updated, only inserted.
 

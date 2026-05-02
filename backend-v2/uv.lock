@@ -3000,6 +3000,7 @@ dependencies = [
     { name = "structlog" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "yfinance" },
 ]
 
 [package.optional-dependencies]
@@ -3050,6 +3051,7 @@ requires-dist = [
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.20250822" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
+    { name = "yfinance", specifier = ">=0.2.0" },
 ]
 provides-extras = ["dev"]
 

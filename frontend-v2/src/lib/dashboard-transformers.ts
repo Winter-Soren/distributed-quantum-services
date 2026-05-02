@@ -115,6 +115,8 @@ function getNetworkNodeStatus(availableServices: number, totalServices: number) 
 }
 
 function getNetworkNodeColor(status: 'healthy' | 'degraded' | 'offline', kind: 'coordinator' | 'peer' = 'peer') {
+	// Colors passed directly to the 3D canvas renderer — CSS variables cannot be used here.
+	// Values that align with design tokens: #f59e0b = --ds-accent-yellow, #8b5cf6 = --ds-accent-purple.
 	if (kind === 'coordinator') {
 		return status === 'offline' ? '#64748b' : '#f97316';
 	}
@@ -123,7 +125,7 @@ function getNetworkNodeColor(status: 'healthy' | 'degraded' | 'offline', kind: '
 		case 'healthy':
 			return '#14b8a6';
 		case 'degraded':
-			return '#f59e0b';
+			return '#f59e0b'; /* --ds-accent-yellow */
 		default:
 			return '#94a3b8';
 	}
@@ -363,7 +365,7 @@ function buildNetworkSnapshot({
 					source: sourceNode.id,
 					target: targetNode.id,
 					kind: 'peer' as const,
-					color: '#7c3aed',
+					color: '#8b5cf6', /* ds-accent-purple */
 					availableServices: sharedAvailableServices,
 					totalServices: totalServiceCapacity,
 					serviceTypes: sharedServiceTypes,
