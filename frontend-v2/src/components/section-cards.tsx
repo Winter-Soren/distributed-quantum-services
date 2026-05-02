@@ -13,8 +13,8 @@ type SectionCardsProps = {
 export function SectionCards({ cards, isLoading = false }: SectionCardsProps) {
 	if (isLoading) {
 		return (
-			<div className='grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4'>
-				{Array.from({ length: 4 }, (_, index) => (
+			<div className='grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @4xl/main:grid-cols-3 @6xl/main:grid-cols-5'>
+				{Array.from({ length: 5 }, (_, index) => (
 					<Card
 						key={index}
 						className='@container/card'
@@ -36,30 +36,52 @@ export function SectionCards({ cards, isLoading = false }: SectionCardsProps) {
 		);
 	}
 
+	const isFiveCards = cards.length === 5;
+
 	return (
-		<div className='grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card'>
-			{cards.map(card => (
-				<Card
-					key={card.id}
-					className='@container/card'
-				>
-					<CardHeader>
-						<CardDescription>{card.title}</CardDescription>
-						<CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-							{card.value}
-						</CardTitle>
-						{card.badge ? (
-							<CardAction>
-								<Badge variant={card.badge.variant}>{card.badge.label}</Badge>
-							</CardAction>
-						) : null}
-					</CardHeader>
-					<CardFooter className='flex-col items-start gap-1.5 text-sm'>
-						<div className='line-clamp-2 font-medium'>{card.description}</div>
-						<div className='text-muted-foreground'>{card.footnote}</div>
-					</CardFooter>
-				</Card>
-			))}
+		<div
+			className={
+				isFiveCards
+					? 'grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @4xl/main:grid-cols-3 @6xl/main:grid-cols-5 dark:*:data-[slot=card]:bg-card'
+					: 'grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card'
+			}
+		>
+			{cards.map((card, index) => {
+				const isFirstCard = isFiveCards && index === 0;
+
+				return (
+					<Card
+						key={card.id}
+						className={
+							isFirstCard
+								? '@container/card @xl/main:col-span-2 @4xl/main:col-span-1'
+								: '@container/card'
+						}
+					>
+						<CardHeader>
+							<CardDescription>{card.title}</CardDescription>
+							<CardTitle
+								className={
+									isFirstCard
+										? 'text-3xl font-semibold tabular-nums @[250px]/card:text-4xl'
+										: 'text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'
+								}
+							>
+								{card.value}
+							</CardTitle>
+							{card.badge ? (
+								<CardAction>
+									<Badge variant={card.badge.variant}>{card.badge.label}</Badge>
+								</CardAction>
+							) : null}
+						</CardHeader>
+						<CardFooter className='flex-col items-start gap-1.5 text-sm'>
+							<div className='line-clamp-2 font-medium'>{card.description}</div>
+							<div className='text-muted-foreground'>{card.footnote}</div>
+						</CardFooter>
+					</Card>
+				);
+			})}
 		</div>
 	);
 }
