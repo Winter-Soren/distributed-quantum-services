@@ -11,7 +11,7 @@ async function sendOTPEmail(email: string, otp: string) {
   const { Resend } = await import("resend");
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: process.env.EMAIL_FROM || "noreply@quantumplatform.com",
+    from: process.env.OTP_EMAIL_FROM || "noreply@quantumplatform.com",
     to: email,
     subject: `Your verification code: ${otp}`,
     html: `

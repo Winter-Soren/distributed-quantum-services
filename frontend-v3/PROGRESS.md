@@ -33,9 +33,9 @@ Keep the Summary Dashboard in sync with milestone statuses. Add entries to the K
 | # | Milestone | Status | % Complete | Blockers |
 |---|-----------|--------|------------|---------|
 | 0 | Architecture & Agent Guidance | 🟢 Completed | 100% | — |
-| 1 | Project Scaffolding & Tooling | ⚪ Pending | 0% | — |
+| 1 | Project Scaffolding & Tooling | 🟡 In Progress | 40% | — |
 | 2 | Auth Feature | ⚪ Pending | 0% | — |
-| 3 | Shared Layout & Navigation | ⚪ Pending | 0% | — |
+| 3 | Shared Layout & Navigation | 🟡 In Progress | 85% | — |
 | 4 | Dashboard Feature | ⚪ Pending | 0% | — |
 | 5 | Runs Feature | ⚪ Pending | 0% | — |
 | 6 | Options Feature | ⚪ Pending | 0% | — |
