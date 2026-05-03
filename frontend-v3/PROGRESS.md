@@ -42,7 +42,7 @@ Keep the Summary Dashboard in sync with milestone statuses. Add entries to the K
 | 7 | Risk Feature | ⚪ Pending | 0% | — |
 | 8 | Financial Feature | ⚪ Pending | 0% | — |
 | 9 | Quantum Visualizations | ⚪ Pending | 0% | — |
-| 10 | Network & Analytics Features | ⚪ Pending | 0% | — |
+| 10 | Network Feature | ⚪ Pending | 0% | — |
 | 11 | Docs & Settings Features | ⚪ Pending | 0% | — |
 | 12 | Performance Audit & Bundle Optimization | ⚪ Pending | 0% | — |
 | 13 | E2E Verification | ⚪ Pending | 0% | — |
@@ -166,17 +166,41 @@ _None yet._
 ### Started: —
 ### Completed: —
 
+### Design Spec: See `frontend-v3/SPEC.md` for full UI & navigation architecture.
+
 ### Tasks
 
-- [ ] `shared/components/layout/app-sidebar.tsx` — main collapsible sidebar with nav groups
-- [ ] `shared/components/layout/dashboard-shell.tsx` — main content shell with sidebar + header
-- [ ] `shared/components/layout/nav-main.tsx` — primary nav items (Dashboard, Runs, Options, Risk, Finance)
-- [ ] `shared/components/layout/nav-user.tsx` — user avatar/name/plan badge + dropdown menu
-- [ ] `shared/components/layout/nav-secondary.tsx` — secondary nav (Network, Analytics)
-- [ ] `shared/components/layout/nav-documents.tsx` — docs/settings nav group
-- [ ] `shared/components/layout/site-header.tsx` — top header bar with breadcrumbs
-- [ ] `app/(main)/layout.tsx` — main authenticated layout wrapping DashboardShell
-- [ ] `app/layout.tsx` — root layout with all providers (QueryProvider, ThemeProvider, AuthProvider)
+#### Constants & Config
+- [ ] `constants/navigation.ts` — typed `NAV_CONFIG` with 5 rail items (Dashboard, Network, Lab, Docs, Settings)
+- [ ] `constants/breadcrumbs.ts` — `BREADCRUMB_LABELS` map for auto-breadcrumb resolution
+
+#### Shell Components
+- [ ] `shared/components/layout/dashboard-shell.tsx` — main shell reads `NAV_CONFIG`, renders rail + sidebar + content
+- [ ] `shared/components/layout/icon-rail.tsx` — 5-icon vertical rail (68px wide)
+- [ ] `shared/components/layout/rail-item.tsx` — single rail icon + label with active state
+- [ ] `shared/components/layout/workspace-switcher.tsx` — static "QG" monogram (future: dropdown)
+- [ ] `shared/components/layout/sidebar-panel.tsx` — conditional sidebar renderer (static vs dynamic)
+
+#### Static Sidebar Components
+- [ ] `shared/components/layout/static-sidebar.tsx` — renders `NavGroupConfig[]` (for Network, Docs, Settings)
+- [ ] `shared/components/layout/sidebar-group.tsx` — group heading + list of links
+- [ ] `shared/components/layout/sidebar-link.tsx` — single nav link with active state indicator
+
+#### Dynamic Sidebar Components (Lab)
+- [ ] `shared/components/layout/dynamic-sidebar.tsx` — renders `NavToolConfig[]` with history items
+- [ ] `shared/components/layout/lab-tool-group.tsx` — collapsible group: header + [+ New] + history items + "View all"
+- [ ] `shared/components/layout/lab-history-item.tsx` — single history entry (status badge + label + time)
+
+#### Header & Breadcrumbs
+- [ ] `shared/components/layout/site-header.tsx` — top header bar container
+- [ ] `shared/components/layout/auto-breadcrumbs.tsx` — config-driven breadcrumbs (reads URL + NAV_CONFIG + BREADCRUMB_LABELS)
+
+#### User Navigation
+- [ ] `shared/components/layout/nav-user.tsx` — user avatar + plan badge + dropdown (trial status from auth context)
+
+#### Root Layouts
+- [ ] `app/layout.tsx` — root layout with providers: `ThemeProvider` > `AuthProvider` > `QueryProvider`
+- [ ] `app/(main)/layout.tsx` — main authenticated layout wrapping `DashboardShell`
 
 ### Issues
 
@@ -184,9 +208,13 @@ _None yet._
 
 ### Notes
 
-- The sidebar uses shadcn `Sidebar` primitives. Reference v2's `dashboard-shell.tsx` and `nav-user.tsx` for the data structure.
+- **Design spec:** Full architecture documented in `frontend-v3/SPEC.md` and on Notion.
+- The sidebar uses shadcn `Sidebar` primitives (Collapsible, SidebarGroup, SidebarMenuItem, etc.).
+- Dashboard rail item has `hasSidebar: false` — sidebar collapses, main content gets full width.
+- Lab sidebar fetches recent jobs via 4 parallel TanStack Query hooks (one per tool).
 - `nav-user.tsx` must display trial status from auth context.
-- The `app/layout.tsx` provider order matters: `ThemeProvider` > `AuthProvider` > `QueryProvider`.
+- `app/layout.tsx` provider order matters: `ThemeProvider` > `AuthProvider` > `QueryProvider`.
+- **No Analytics rail icon** — analytics content is placed contextually (Bloch sphere in run detail, fidelity in network, etc.).
 
 ---
 
@@ -197,17 +225,20 @@ _None yet._
 ### Started: —
 ### Completed: —
 
+### Design Spec: See `SPEC.md` §7.1 for block map.
+
 ### Tasks
 
 - [ ] `features/dashboard/types.ts` — dashboard data types
 - [ ] `features/dashboard/server/dashboard-service.ts` — RSC data fetcher using `React.cache()`
 - [ ] `features/dashboard/lib/dashboard-transformers.ts` — data transformation utilities (ported from v2)
 - [ ] `features/dashboard/hooks/use-dashboard-data.ts` — TanStack Query hook for dashboard stats
-- [ ] `features/dashboard/components/dashboard-overview.tsx` — KPI cards row
-- [ ] `features/dashboard/components/dashboard-network-stats.tsx` — network health stats panel
-- [ ] `features/dashboard/components/chart-area-interactive.tsx` — interactive area chart (dynamic import if heavy)
-- [ ] `features/dashboard/components/section-cards.tsx` — section stat cards
-- [ ] `app/(main)/dashboard/page.tsx` — RSC page with server-side initial data
+- [ ] `features/dashboard/hooks/use-activity-feed.ts` — TanStack Query hook for recent activity (limit 5)
+- [ ] `features/dashboard/components/dashboard-kpi-cards.tsx` — 4 KPI summary cards (Nodes, Services, Fidelity, Qubits)
+- [ ] `features/dashboard/components/dashboard-health-status.tsx` — 2 mini-cards (health badge + environment info)
+- [ ] `features/dashboard/components/dashboard-activity-feed.tsx` — recent 5 jobs across all Lab tools
+- [ ] `features/dashboard/components/dashboard-quick-actions.tsx` — static action buttons linking to Lab tools
+- [ ] `app/(main)/dashboard/page.tsx` — RSC page, full-width (no sidebar), server-side KPI data
 
 ### Issues
 
@@ -215,9 +246,11 @@ _None yet._
 
 ### Notes
 
+- **Full-width layout** — Dashboard has `hasSidebar: false` in NAV_CONFIG, so no sidebar.
 - `dashboard-transformers.ts` exists in v2 at `src/lib/dashboard-transformers.ts` — port it directly, do not rewrite.
-- Dashboard page should use RSC for initial data load (no loading spinner on first paint).
-- Chart components should be wrapped in `next/dynamic` with `ssr: false` if they use browser APIs.
+- Dashboard page should use RSC for KPI cards (no loading spinner on first paint).
+- Activity feed is client-side (TanStack Query) — shows shimmer skeleton while loading.
+- **NOT on Dashboard:** 3D network graph (→ Network > Topology), area charts (→ Network > Fidelity), service table (→ Network > Services), Bloch spheres (→ Run detail).
 
 ---
 
@@ -409,12 +442,14 @@ _None yet._
 
 ---
 
-## Milestone 10 — Network & Analytics Features
+## Milestone 10 — Network Feature
 
 ### Status: ⚪ Pending
 ### Owner: —
 ### Started: —
 ### Completed: —
+
+### Design Spec: See `SPEC.md` §7.4 for block map.
 
 ### Tasks
 
@@ -422,29 +457,22 @@ _None yet._
 - [ ] `features/network/types.ts` — Node, Peer, Circuit, Zone, Mesh types
 - [ ] `features/network/server/network-service.ts`
 - [ ] `features/network/hooks/use-network-topology.ts`
+- [ ] `features/network/hooks/use-network-nodes.ts`
+- [ ] `features/network/hooks/use-network-fidelity.ts`
 - [ ] `features/network/components/network-3d-graph.tsx` — force-directed 3D graph (**dynamic import, ssr: false**)
-- [ ] `features/network/components/node-table.tsx`
-- [ ] `features/network/components/peer-list.tsx`
-- [ ] `app/(main)/network/circuits/page.tsx`
-- [ ] `app/(main)/network/dag/page.tsx`
-- [ ] `app/(main)/network/fidelity/page.tsx`
+- [ ] `features/network/components/node-table.tsx` — full data table with search/filter/sort
+- [ ] `features/network/components/service-table.tsx` — service registry table
+- [ ] `features/network/components/fidelity-chart.tsx` — interactive area chart (**dynamic import**)
+- [ ] `features/network/components/dag-viewer.tsx` — DAG visualization
+- [ ] `features/network/components/circuit-path-viewer.tsx` — circuit path viewer
+- [ ] `features/network/components/zone-map.tsx` — zone map
 - [ ] `app/(main)/network/mesh/page.tsx`
 - [ ] `app/(main)/network/nodes/page.tsx`
 - [ ] `app/(main)/network/services/page.tsx`
+- [ ] `app/(main)/network/fidelity/page.tsx`
+- [ ] `app/(main)/network/circuits/page.tsx`
+- [ ] `app/(main)/network/dag/page.tsx`
 - [ ] `app/(main)/network/zones/page.tsx`
-
-#### Analytics Feature
-- [ ] `features/analytics/types.ts`
-- [ ] `features/analytics/server/analytics-service.ts`
-- [ ] `features/analytics/hooks/use-analytics.ts`
-- [ ] `features/analytics/components/` (charts, tables)
-- [ ] `app/(main)/analytics/performance/page.tsx`
-- [ ] `app/(main)/analytics/throughput/page.tsx`
-- [ ] `app/(main)/analytics/latency/page.tsx`
-- [ ] `app/(main)/analytics/fidelity/page.tsx`
-- [ ] `app/(main)/analytics/errors/page.tsx`
-- [ ] `app/(main)/analytics/quantum/page.tsx`
-- [ ] `app/(main)/analytics/reports/page.tsx`
 
 ### Issues
 
@@ -452,8 +480,13 @@ _None yet._
 
 ### Notes
 
+- **No standalone Analytics section** — analytics content is placed contextually:
+  - Bloch Spheres → Run detail page (Quantum State tab, M5/M9)
+  - Fidelity trends → Network > Fidelity page (this milestone)
+  - Financial analytics → Financial job result pages (M8)
+  - Run-specific analytics → Run detail page (Overview tab, M5)
 - 3D network graph likely uses `three-forcegraph` or `react-force-graph-3d` — confirm package before implementing.
-- Analytics pages are primarily read-only data visualization — prioritize after interactive features.
+- Each network page has ONE block. No overlap with other pages.
 
 ---
 
@@ -608,6 +641,12 @@ _None yet._
 | 2026-05-02 | All constants in `src/constants/` (routes, api, backend, query-keys, auth, config, ui) | No magic strings anywhere in feature code; compiler-safe refactors; single source of truth for URLs, keys, and config | Every route, API endpoint, and query key must be imported from `src/constants/` — never hardcoded |
 | 2026-05-02 | Heavy visualization components use `next/dynamic` with `ssr: false` | Three.js, ReactFlow, and 3D graph libs are browser-only and large; SSR would crash and bloat the initial bundle | `bloch-sphere.tsx`, `fragment-flow-canvas.tsx`, `visual-circuit-builder.tsx`, `network-3d-graph.tsx` all dynamically imported |
 | 2026-05-02 | Bun as package manager (not npm or pnpm) | Speed; already used in frontend-v2; consistent developer environment | Use `bun install`, `bun run dev`, `bun run build` — never `npm` or `npx` in this project |
+| 2026-05-03 | 5-icon rail navigation (Dashboard, Network, Lab, Docs, Settings) — no standalone Analytics | v2 analytics pages were empty placeholders; analytics content placed contextually (Bloch sphere in run detail, fidelity in network, financial analytics in finance results) | Removes 7+ empty analytics routes; every block exists in exactly one place |
+| 2026-05-03 | Lab sidebar uses ChatGPT-style dynamic history pattern | Researchers need quick access to recent jobs; mirrors mental model of "sessions" like ChatGPT threads; prepares for Workspace 2 (Autonomous Labs) agent conversations | Lab sidebar fetches last 5 jobs per tool via TanStack Query; collapsible groups with [+ New] buttons |
+| 2026-05-03 | Config-driven navigation via `NAV_CONFIG` in `constants/navigation.ts` | v2's monolithic 860-line `dashboard-shell.tsx` required editing 5+ places to add a page; config-driven approach requires only 2 files | Adding a page: edit `navigation.ts` + create route file. Shell and breadcrumbs auto-update |
+| 2026-05-03 | Dashboard has no sidebar (full-width layout) | Dashboard is a single page answering "is everything healthy?"; sub-navigation adds no value; full width gives KPI cards room to breathe | Dashboard rail item has `hasSidebar: false`; sidebar collapses when dashboard is active |
+| 2026-05-03 | Workspace switcher slot built into rail from day one | H2 vision adds "Autonomous Labs" workspace (ChatGPT-like agent interface); retrofitting a workspace switcher would require shell rewrite | `WorkspaceSwitcher` component exists at top of rail; currently static; future: dropdown to switch workspaces |
+| 2026-05-03 | Run detail page uses tabs (Overview, Quantum State, Fragment Flow) instead of separate routes | Keeps all run context in one place; eliminates 2 extra route entries; Bloch sphere and Fragment Flow are per-run analytics, not standalone pages | Tabs use `?tab=` query param; Fragment Flow and Quantum State are `next/dynamic` loaded on tab switch |
 
 ---
 
