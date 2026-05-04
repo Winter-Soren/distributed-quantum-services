@@ -19,12 +19,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
     ) ?? null;
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-surface-soft">
       <IconRail />
-      <SidebarPanel activeRailItem={activeRailItem} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <SiteHeader />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+
+      <div className="my-2 mr-2 ml-1.5 flex flex-1 overflow-hidden rounded-2xl bg-background shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_2px_12px_-2px_rgba(0,0,0,0.06)] ring-1 ring-black/3">
+        <SidebarPanel activeRailItem={activeRailItem} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <SiteHeader />
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
       </div>
     </div>
   );

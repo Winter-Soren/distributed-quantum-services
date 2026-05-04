@@ -18,7 +18,7 @@ export function SidebarPanel({ activeRailItem }: SidebarPanelProps) {
 
   return (
     <SidebarProvider defaultOpen>
-      <aside className="flex w-[220px] flex-col border-r bg-background">
+      <aside className="flex w-[220px] flex-col border-r border-hairline">
         <SidebarContent>
           {sidebar.type === "static" ? (
             <StaticSidebar groups={sidebar.groups} />

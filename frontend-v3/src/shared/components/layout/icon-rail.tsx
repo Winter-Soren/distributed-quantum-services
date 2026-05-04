@@ -9,7 +9,7 @@ export function IconRail() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex w-[68px] flex-col items-center border-r bg-[var(--surface-soft)] py-3">
+    <nav className="flex w-[68px] flex-col items-center bg-transparent py-3">
       <WorkspaceSwitcher />
       <div className="mt-4 flex flex-col items-center gap-1">
         {NAV_CONFIG.map((item) => {

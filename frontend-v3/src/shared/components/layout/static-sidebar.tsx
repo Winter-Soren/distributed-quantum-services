@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { NavUser } from "./nav-user";
 
 interface StaticSidebarProps {
   groups: NavGroupConfig[];
@@ -48,6 +49,9 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       ))}
+      <div className="mt-auto border-t border-hairline p-3">
+        <NavUser />
+      </div>
     </>
   );
 }

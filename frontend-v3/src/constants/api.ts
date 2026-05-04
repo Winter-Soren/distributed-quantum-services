@@ -3,7 +3,11 @@ export const API = {
     ALL: "/api/auth/*",
     CHECK_EMAIL: "/api/auth/check-email",
   },
-  DASHBOARD: "/api/dashboard",
+  DASHBOARD: {
+    ROOT: "/api/dashboard",
+    STATS: "/api/dashboard/stats",
+    ACTIVITY: "/api/dashboard/activity",
+  },
   RUNS: {
     LIST: "/api/runs",
     CREATE: "/api/runs",
@@ -16,12 +20,23 @@ export const API = {
     JOB: (jobId: string) => `/api/options/${jobId}` as const,
   },
   RISK: {
+    LIST: "/api/risk",
     CREATE: "/api/risk",
     JOB: (jobId: string) => `/api/risk/${jobId}` as const,
   },
   FINANCE: {
+    LIST: "/api/finance",
     CREATE: "/api/finance",
     JOB: (jobId: string) => `/api/finance/${jobId}` as const,
-    COMPARISON: (jobId: string) => `/api/finance/${jobId}/comparison` as const,
+    COMPARISON: (jobId: string) =>
+      `/api/finance/${jobId}/comparison` as const,
+  },
+  NETWORK: {
+    TOPOLOGY: "/api/network/topology",
+    PEERS: "/api/network/peers",
+    PEER: (id: string) => `/api/network/peers/${id}` as const,
+    SERVICES: "/api/network/services",
+    FIDELITY: (nodeId: string) =>
+      `/api/network/fidelity/${nodeId}` as const,
   },
 } as const;

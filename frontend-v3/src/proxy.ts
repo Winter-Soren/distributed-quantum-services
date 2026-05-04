@@ -2,27 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { ROUTES } from "@/constants";
 
-const PUBLIC_PATHS = [
-  ROUTES.SIGNIN,
-  ROUTES.SIGNUP,
-  "/api/auth",
-];
+const AUTH_PATHS = [ROUTES.SIGNIN, ROUTES.SIGNUP];
+
+const PUBLIC_PATHS = [...AUTH_PATHS, "/api/auth"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 }
 
+function isAuthPath(pathname: string): boolean {
+  return AUTH_PATHS.some((p) => pathname.startsWith(p));
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const sessionCookie = getSessionCookie(request);
+
+  if (isAuthPath(pathname) && sessionCookie) {
+    return NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url));
+  }
 
   if (isPublic(pathname)) {
     return NextResponse.next();
   }
 
-  const sessionCookie = getSessionCookie(request);
-
   if (!sessionCookie) {
-    return NextResponse.redirect(new URL(ROUTES.SIGNIN, request.url));
+    const url = new URL(ROUTES.SIGNIN, request.url);
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
