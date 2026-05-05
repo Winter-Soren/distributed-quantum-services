@@ -33,17 +33,17 @@ Keep the Summary Dashboard in sync with milestone statuses. Add entries to the K
 | # | Milestone | Status | % Complete | Blockers |
 |---|-----------|--------|------------|---------|
 | 0 | Architecture & Agent Guidance | 🟢 Completed | 100% | — |
-| 1 | Project Scaffolding & Tooling | 🟡 In Progress | 40% | — |
-| 2 | Auth Feature | ⚪ Pending | 0% | — |
-| 3 | Shared Layout & Navigation | 🟡 In Progress | 85% | — |
-| 4 | Dashboard Feature | ⚪ Pending | 0% | — |
-| 5 | Runs Feature | ⚪ Pending | 0% | — |
-| 6 | Options Feature | ⚪ Pending | 0% | — |
-| 7 | Risk Feature | ⚪ Pending | 0% | — |
-| 8 | Financial Feature | ⚪ Pending | 0% | — |
+| 1 | Project Scaffolding & Tooling | 🟢 Completed | 100% | — |
+| 2 | Auth Feature | 🟢 Completed | 100% | — |
+| 3 | Shared Layout & Navigation | 🟢 Completed | 100% | — |
+| 4 | Dashboard Feature | 🟢 Completed | 100% | — |
+| 5 | Runs Feature | 🟢 Completed | 100% | — |
+| 6 | Options Feature | 🟢 Completed | 100% | — |
+| 7 | Risk Feature | 🟢 Completed | 100% | — |
+| 8 | Financial Feature | 🟢 Completed | 100% | — |
 | 9 | Quantum Visualizations | ⚪ Pending | 0% | — |
-| 10 | Network Feature | ⚪ Pending | 0% | — |
-| 11 | Docs & Settings Features | ⚪ Pending | 0% | — |
+| 10 | Network Feature | 🟢 Completed | 100% | — |
+| 11 | Docs & Settings Features | 🟢 Completed | 100% | — |
 | 12 | Performance Audit & Bundle Optimization | ⚪ Pending | 0% | — |
 | 13 | E2E Verification | ⚪ Pending | 0% | — |
 
@@ -76,10 +76,10 @@ All planning and architecture documents are in place. The Next.js 16 scaffold (`
 
 ## Milestone 1 — Project Scaffolding & Tooling
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-03
+### Completed: 2026-05-04
 
 ### Tasks
 
@@ -120,10 +120,10 @@ _None yet._
 
 ## Milestone 2 — Auth Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-03
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -161,10 +161,10 @@ _None yet._
 
 ## Milestone 3 — Shared Layout & Navigation
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-03
+### Completed: 2026-05-05
 
 ### Design Spec: See `frontend-v3/SPEC.md` for full UI & navigation architecture.
 
@@ -220,10 +220,10 @@ _None yet._
 
 ## Milestone 4 — Dashboard Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-04
+### Completed: 2026-05-05
 
 ### Design Spec: See `SPEC.md` §7.1 for block map.
 
@@ -256,10 +256,10 @@ _None yet._
 
 ## Milestone 5 — Runs Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -300,10 +300,10 @@ _None yet._
 
 ## Milestone 6 — Options Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -338,10 +338,10 @@ _None yet._
 
 ## Milestone 7 — Risk Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -374,10 +374,10 @@ _None yet._
 
 ## Milestone 8 — Financial Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -444,10 +444,10 @@ _None yet._
 
 ## Milestone 10 — Network Feature
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Design Spec: See `SPEC.md` §7.4 for block map.
 
@@ -492,10 +492,10 @@ _None yet._
 
 ## Milestone 11 — Docs & Settings Features
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-05
+### Completed: 2026-05-05
 
 ### Tasks
 
@@ -670,4 +670,4 @@ _None yet._
 
 ---
 
-_Last updated: 2026-05-03_
+_Last updated: 2026-05-05_
