@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS, API, CONFIG } from "@/constants";
+import { useTrialEnabled } from "@/shared/hooks/use-trial-enabled";
 import type { BackendRiskJobResponse, RiskJobDetail, VaRResult } from "../types";
 
 function transform(raw: BackendRiskJobResponse): RiskJobDetail {
@@ -42,6 +43,7 @@ function transform(raw: BackendRiskJobResponse): RiskJobDetail {
 }
 
 export function useRiskJob(jobId: string) {
+  const enabled = useTrialEnabled();
   return useQuery<RiskJobDetail>({
     queryKey: QUERY_KEYS.risk.job(jobId),
     queryFn: async () => {
@@ -56,5 +58,6 @@ export function useRiskJob(jobId: string) {
       return 2000;
     },
     staleTime: 0,
+    enabled,
   });
 }

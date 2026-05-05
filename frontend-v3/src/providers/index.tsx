@@ -7,10 +7,10 @@ import { AuthProvider } from "./auth-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <QueryProvider>
-      <ThemeProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </ThemeProvider>
-    </QueryProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <QueryProvider>{children}</QueryProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

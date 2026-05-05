@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { ROUTES } from "@/constants";
-import { BookOpen, Code2, Map, Database, Layers, FileText } from "lucide-react";
+import { Code2, Map, Database, Layers, FileText } from "lucide-react";
 
 const DOC_SECTIONS = [
   { title: "API Reference", href: ROUTES.DOCS_API, icon: Code2, desc: "All backend endpoints, request/response schemas, and auth headers." },

@@ -1,5 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const ENDPOINTS = [
   { method: "POST", path: "/api/v1/circuits/submit", desc: "Submit a QASM circuit for distributed execution. Returns job_id." },

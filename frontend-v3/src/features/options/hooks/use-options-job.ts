@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS, API, CONFIG } from "@/constants";
+import { useTrialEnabled } from "@/shared/hooks/use-trial-enabled";
 import type {
   BackendOptionsJobResponse,
   OptionsJobDetail,
@@ -46,6 +47,7 @@ function transform(raw: BackendOptionsJobResponse): OptionsJobDetail {
 }
 
 export function useOptionsJob(jobId: string) {
+  const enabled = useTrialEnabled();
   return useQuery<OptionsJobDetail>({
     queryKey: QUERY_KEYS.options.job(jobId),
     queryFn: async () => {
@@ -60,5 +62,6 @@ export function useOptionsJob(jobId: string) {
       return 2000;
     },
     staleTime: 0,
+    enabled,
   });
 }

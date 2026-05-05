@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS, API, CONFIG } from "@/constants";
+import { useTrialEnabled } from "@/shared/hooks/use-trial-enabled";
 import type { BackendFinancialJobResponse, FinanceJobDetail } from "../types";
 
 function transform(raw: BackendFinancialJobResponse): FinanceJobDetail {
@@ -19,6 +20,7 @@ function transform(raw: BackendFinancialJobResponse): FinanceJobDetail {
 }
 
 export function useFinanceJob(jobId: string) {
+  const enabled = useTrialEnabled();
   return useQuery<FinanceJobDetail>({
     queryKey: QUERY_KEYS.finance.job(jobId),
     queryFn: async () => {
@@ -33,5 +35,6 @@ export function useFinanceJob(jobId: string) {
       return 2000;
     },
     staleTime: 0,
+    enabled,
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS, API } from "@/constants";
+import { useTrialEnabled } from "@/shared/hooks/use-trial-enabled";
 import type { DashboardNetworkStats, DashboardSnapshot } from "../types";
 
 export type DashboardStatsResult = Pick<
@@ -15,6 +16,7 @@ export type DashboardStatsResult = Pick<
 };
 
 export function useDashboardStats() {
+  const enabled = useTrialEnabled();
   return useQuery<DashboardStatsResult>({
     queryKey: QUERY_KEYS.dashboard.stats(),
     queryFn: async () => {
@@ -24,5 +26,6 @@ export function useDashboardStats() {
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+    enabled,
   });
 }

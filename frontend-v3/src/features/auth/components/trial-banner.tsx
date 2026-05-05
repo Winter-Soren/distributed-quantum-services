@@ -1,72 +1,50 @@
 "use client";
-
-import { AlertCircle, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { getTrialDaysLeft } from "@/features/auth/types";
-import { UI } from "@/constants";
+import { useTrial } from "@/features/auth/hooks/use-trial";
+
+function formatTimeLeft(msLeft: number): string {
+  if (msLeft <= 0) return "Trial ended";
+
+  const hoursLeft = Math.ceil(msLeft / (1000 * 60 * 60));
+  if (hoursLeft <= 1) return "Trial ends in less than 1 hour";
+  if (hoursLeft < 24) return `${hoursLeft} hours left in trial`;
+
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+  return daysLeft === 1 ? "Trial ends today" : `${daysLeft} days left in trial`;
+}
 
 export function TrialBanner() {
-  const { user } = useAuth();
+  const { trialStatus, trialEndsAt, msLeft, isLoading } = useTrial();
 
-  if (!user) return null;
+  if (isLoading) return null;
+  if (trialStatus !== "active") return null;
+  if (!trialEndsAt || msLeft === null) return null;
 
-  const profile = user as typeof user & {
-    hasSubscription?: boolean;
-    trialEndsAt?: string;
-  };
-
-  if (profile.hasSubscription) return null;
-
-  const daysLeft = getTrialDaysLeft(profile.trialEndsAt);
-  const isExpiring = daysLeft <= 3 && daysLeft > 0;
-  const hasExpired = daysLeft <= 0;
-
-  if (hasExpired) {
-    return (
-      <div className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="text-destructive" />
-            <p className="text-sm text-foreground">{UI.TRIAL.expired}</p>
-          </div>
-          <Button asChild size="sm">
-            <Link href="/subscription">{UI.TRIAL.SUBSCRIBE_CTA}</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isExpiring) {
-    return (
-      <div className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Clock className="text-signature-mustard" />
-            <p className="text-sm text-foreground">
-              {UI.TRIAL.expiring(daysLeft)}
-            </p>
-          </div>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/subscription">{UI.TRIAL.VIEW_PLANS_CTA}</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const label = formatTimeLeft(msLeft);
+  const isExpiringSoon = msLeft < 6 * 60 * 60 * 1000;
 
   return (
     <div className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2">
         <div className="flex items-center gap-3">
-          <Badge variant="secondary">{UI.TRIAL.BADGE_LABEL}</Badge>
-          <p className="text-sm text-muted-foreground">
-            {UI.TRIAL.remaining(daysLeft)}
-          </p>
+          <Clock
+            className={
+              isExpiringSoon
+                ? "text-destructive size-4"
+                : "text-muted-foreground size-4"
+            }
+          />
+          <Badge variant="secondary" className="text-xs">
+            Free Trial
+          </Badge>
+          <p className="text-sm text-muted-foreground">{label}</p>
         </div>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/settings">Upgrade</Link>
+        </Button>
       </div>
     </div>
   );

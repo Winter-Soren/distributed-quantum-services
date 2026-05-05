@@ -2,7 +2,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { RunDetail } from "../types";
 
-export function FragmentFlowCanvas({ run: _run }: { run: RunDetail }) {
+export function FragmentFlowCanvas({ run }: { run: RunDetail }) {
+  void run;
   return (
     <Card className="border-hairline">
       <CardContent className="flex h-64 items-center justify-center">

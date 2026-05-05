@@ -5,6 +5,7 @@ import { NAV_CONFIG } from "@/constants";
 import { IconRail } from "./icon-rail";
 import { SidebarPanel } from "./sidebar-panel";
 import { SiteHeader } from "./site-header";
+import { TrialGate } from "./trial-gate";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -26,7 +27,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <SidebarPanel activeRailItem={activeRailItem} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <SiteHeader />
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <TrialGate>
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </TrialGate>
         </div>
       </div>
     </div>
