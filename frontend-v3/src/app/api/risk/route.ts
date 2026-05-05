@@ -15,10 +15,21 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const res = await fetch(BACKEND.RISK.SUBMIT_CSV, {
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await request.formData();
+      const res = await fetch(BACKEND.RISK.SUBMIT_CSV, {
+        method: "POST",
+        body: formData,
+      });
+      const data: unknown = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    }
+    const body: unknown = await request.json();
+    const res = await fetch(BACKEND.RISK.SUBMIT, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
     const data: unknown = await res.json();
     return NextResponse.json(data, { status: res.status });

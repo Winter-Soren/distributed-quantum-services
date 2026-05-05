@@ -20,10 +20,28 @@ export function DashboardShell({ children }: DashboardShellProps) {
     ) ?? null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-soft">
+    <div className="relative flex h-screen overflow-hidden" style={{ background: "#0d0f14" }}>
+      {/* Ambient blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute -top-40 -left-40 h-96 w-96 rounded-full opacity-20 blur-3xl"
+          style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute top-1/2 right-0 h-80 w-80 rounded-full opacity-15 blur-3xl"
+          style={{ background: "radial-gradient(circle, #22d3ee 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-10 blur-3xl"
+          style={{ background: "radial-gradient(circle, #a78bfa 0%, transparent 70%)" }}
+        />
+        <div className="absolute inset-0 dot-grid opacity-40" />
+      </div>
+
       <IconRail />
 
-      <div className="my-2 mr-2 ml-1.5 flex flex-1 overflow-hidden rounded-2xl bg-background shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_2px_12px_-2px_rgba(0,0,0,0.06)] ring-1 ring-black/3">
+      <div className="relative my-2 mr-2 ml-1.5 flex flex-1 overflow-hidden rounded-2xl ring-1 ring-white/6"
+        style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(2px)" }}>
         <SidebarPanel activeRailItem={activeRailItem} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <SiteHeader />

@@ -1,12 +1,4 @@
 "use client";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNetworkNodes } from "../hooks/use-network-nodes";
@@ -29,7 +21,7 @@ export function NodeTable() {
     return (
       <div className="flex flex-col gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
+          <Skeleton key={i} className="h-12 w-full rounded-xl bg-white/5" />
         ))}
       </div>
     );
@@ -37,44 +29,46 @@ export function NodeTable() {
 
   if (!nodes?.length) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        No nodes discovered yet.
-      </p>
+      <div
+        className="flex flex-col items-center gap-3 rounded-2xl py-16 ring-1 ring-white/8"
+        style={{ background: "rgba(255,255,255,0.04)" }}
+      >
+        <p className="text-sm text-white/30">No nodes discovered yet.</p>
+      </div>
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Peer ID</TableHead>
-          <TableHead>Health</TableHead>
-          <TableHead>Trust Tier</TableHead>
-          <TableHead className="text-right">Services</TableHead>
-          <TableHead className="text-right">Active Exec.</TableHead>
-          <TableHead>Last Seen</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {nodes.map((node) => (
-          <TableRow key={node.peerId} className={node.isStale ? "opacity-50" : ""}>
-            <TableCell className="font-mono text-xs">
-              {node.peerId.slice(0, 24)}…
-            </TableCell>
-            <TableCell>
-              <Badge variant={getHealthBadgeVariant(node.healthStatus)}>
-                {node.healthStatus}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-sm capitalize">{node.trustTier}</TableCell>
-            <TableCell className="text-right tabular-nums">{node.serviceCount}</TableCell>
-            <TableCell className="text-right tabular-nums">{node.activeExecutions}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {formatRelativeTime(node.lastSeenAt)}
-            </TableCell>
-          </TableRow>
+    <div
+      className="overflow-hidden rounded-2xl ring-1 ring-white/8"
+      style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)" }}
+    >
+      {/* Header row */}
+      <div className="grid grid-cols-6 gap-4 border-b border-white/6 px-4 py-2.5">
+        {["Peer ID", "Health", "Trust Tier", "Services", "Active Exec.", "Last Seen"].map((h) => (
+          <p key={h} className="text-[10px] font-semibold uppercase tracking-widest text-white/25">{h}</p>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+      {nodes.map((node, i) => (
+        <div
+          key={node.peerId}
+          className={`grid grid-cols-6 gap-4 items-center px-4 py-3 hover:bg-white/3 transition-colors ${node.isStale ? "opacity-40" : ""} ${i > 0 ? "border-t border-white/5" : ""}`}
+        >
+          <span className="font-mono text-xs text-white/60">{node.peerId.slice(0, 20)}…</span>
+          <div>
+            <Badge
+              variant={getHealthBadgeVariant(node.healthStatus)}
+              className={`capitalize text-xs ${node.healthStatus === "healthy" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20" : "bg-red-500/15 text-red-400 border-red-500/20"}`}
+            >
+              {node.healthStatus}
+            </Badge>
+          </div>
+          <span className="text-sm capitalize text-white/50">{node.trustTier}</span>
+          <span className="tabular-nums text-sm text-white/60">{node.serviceCount}</span>
+          <span className="tabular-nums text-sm text-white/60">{node.activeExecutions}</span>
+          <span className="text-xs text-white/30">{formatRelativeTime(node.lastSeenAt)}</span>
+        </div>
+      ))}
+    </div>
   );
 }

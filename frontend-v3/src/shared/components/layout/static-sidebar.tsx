@@ -24,7 +24,9 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
     <>
       {groups.map((group) => (
         <SidebarGroup key={group.heading}>
-          <SidebarGroupLabel>{group.heading}</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-widest">
+            {group.heading}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {group.links.map((link) => {
@@ -34,10 +36,10 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
                     <Link
                       href={link.href}
                       className={cn(
-                        "flex h-8 items-center rounded-md px-2 text-sm transition-colors",
+                        "flex h-8 items-center rounded-lg px-3 text-sm transition-all duration-150",
                         isActive
-                          ? "bg-accent font-medium text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                          ? "bg-indigo-500/15 font-medium text-indigo-300 ring-1 ring-indigo-500/25"
+                          : "text-white/40 hover:bg-white/6 hover:text-white/80"
                       )}
                     >
                       {link.label}
@@ -49,7 +51,7 @@ export function StaticSidebar({ groups }: StaticSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       ))}
-      <div className="mt-auto border-t border-hairline p-3">
+      <div className="mt-auto p-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <NavUser />
       </div>
     </>

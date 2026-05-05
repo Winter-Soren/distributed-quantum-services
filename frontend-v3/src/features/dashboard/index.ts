@@ -1,8 +1,8 @@
 // Public barrel for the dashboard feature
 export { DashboardActivityFeed } from "./components/dashboard-activity-feed";
-export { DashboardHealthStatus } from "./components/dashboard-health-status";
 export { DashboardKpiCards } from "./components/dashboard-kpi-cards";
 export { DashboardQuickActions } from "./components/dashboard-quick-actions";
+export { DashboardStatusBar } from "./components/dashboard-status-bar";
 
 // Hooks
 export { useDashboardStats } from "./hooks/use-dashboard-data";

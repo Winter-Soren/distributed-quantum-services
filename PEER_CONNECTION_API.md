@@ -1,6 +1,7 @@
 # Peer Connection API Documentation
 
 ## Overview
+
 This document describes the backend API endpoint needed to connect user-added peer nodes to the quantum network.
 
 ## Endpoint
@@ -10,11 +11,13 @@ This document describes the backend API endpoint needed to connect user-added pe
 Connects a user's peer node to the distributed quantum network via libp2p.
 
 #### Request Headers
+
 ```
 Content-Type: application/json
 ```
 
 #### Request Body
+
 ```json
 {
   "address": "string",          // IP address or hostname of the peer
@@ -28,6 +31,7 @@ Content-Type: application/json
 ```
 
 #### Example Request
+
 ```bash
 curl -X POST http://localhost:8081/api/v1/peers/connect \
   -H "Content-Type: application/json" \
@@ -43,6 +47,7 @@ curl -X POST http://localhost:8081/api/v1/peers/connect \
 ```
 
 #### Success Response (200 OK)
+
 ```json
 {
   "success": true,
@@ -61,6 +66,7 @@ curl -X POST http://localhost:8081/api/v1/peers/connect \
 #### Error Responses
 
 **400 Bad Request** - Invalid request data
+
 ```json
 {
   "success": false,
@@ -74,6 +80,7 @@ curl -X POST http://localhost:8081/api/v1/peers/connect \
 ```
 
 **409 Conflict** - Peer already connected
+
 ```json
 {
   "success": false,
@@ -84,6 +91,7 @@ curl -X POST http://localhost:8081/api/v1/peers/connect \
 ```
 
 **503 Service Unavailable** - Connection failed
+
 ```json
 {
   "success": false,
@@ -99,6 +107,7 @@ curl -X POST http://localhost:8081/api/v1/peers/connect \
 ## Backend Implementation Requirements
 
 ### 1. **libp2p Connection**
+
 The backend must use py-libp2p to establish a connection to the peer:
 
 ```python
@@ -122,6 +131,7 @@ async def connect_peer(peer_data):
 ```
 
 ### 2. **Peer Registry**
+
 Store connected peers in a registry for tracking:
 
 ```python
@@ -141,6 +151,7 @@ Store connected peers in a registry for tracking:
 ```
 
 ### 3. **Service Discovery**
+
 After connection, query the peer for available services:
 
 ```python
@@ -155,6 +166,7 @@ async def discover_peer_services(peer_id):
 ```
 
 ### 4. **Health Monitoring**
+
 Periodically check peer connectivity:
 
 ```python
@@ -171,6 +183,7 @@ async def monitor_peer_health(peer_id):
 ```
 
 ### 5. **Network Topology Update**
+
 Update the network graph when a new peer connects:
 
 ```python
@@ -191,6 +204,7 @@ async def update_network_topology(peer_id):
 ## Frontend Integration
 
 ### Calling the API
+
 ```typescript
 const connectPeer = async (peerData: PeerConnectionData) => {
   const response = await fetch('/api/v1/peers/connect', {
@@ -209,6 +223,7 @@ const connectPeer = async (peerData: PeerConnectionData) => {
 ```
 
 ### Real-time Updates
+
 Use WebSocket or polling to get real-time updates about peer status:
 
 ```typescript
@@ -248,22 +263,21 @@ Frontend updates (3D graph, tables, stats)
 ## Testing
 
 ### Manual Testing
+
 1. Start a local quantum node:
-   ```bash
+  ```bash
    python -m quantum_node --port 8080
-   ```
-
+  ```
 2. Note the peer ID from the logs
-
 3. Use the frontend "Add Node" button to connect
-
 4. Verify the node appears in:
-   - `/network/nodes` (All Network Nodes table)
-   - `/network/services` (Services offered by your node)
-   - `/network/dag` (Visual graph showing connections)
-   - `/network/fidelity` (Your node's fidelity metrics)
+  - `/network/nodes` (All Network Nodes table)
+  - `/network/services` (Services offered by your node)
+  - `/network/dag` (Visual graph showing connections)
+  - `/network/fidelity` (Your node's fidelity metrics)
 
 ### Automated Testing
+
 ```python
 import pytest
 from app import connect_peer
@@ -311,3 +325,4 @@ async def test_connect_invalid_peer_id():
 3. Create peer health monitoring background task
 4. Add peer disconnection handling
 5. Implement filtered views on frontend network pages
+
