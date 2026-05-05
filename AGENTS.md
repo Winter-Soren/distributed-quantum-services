@@ -44,4 +44,5 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - Backend only exposes `POST /api/v1/workflows/runs` (no GET); frontend hooks must account for this
 - frontend-v3 was migrated from frontend-v2; architecture docs live in `frontend-v3/architecture.md`, `frontend-v3/DESIGN.md`, `frontend-v3/SKILLS.md`
 - CSS variables from `globals.css` should be used everywhere for theming consistency
-- Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md
+- Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md, @frontend-v3/DESIGN.md
+- If something new color discovered or any new font or some astheticness observed in the lines of @frontend-v3/DESIGN.md then append it

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const res = await fetch(BACKEND.WORKFLOWS.RUNS);
+    const res = await fetch(BACKEND.JOBS.LIST);
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

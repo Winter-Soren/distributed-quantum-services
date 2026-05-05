@@ -17,7 +17,7 @@ export function SidebarPanel({ activeRailItem }: SidebarPanelProps) {
   const { sidebar } = activeRailItem;
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen className="!w-auto !min-h-0 flex-none">
       <aside className="flex w-[220px] flex-col border-r border-hairline">
         <SidebarContent>
           {sidebar.type === "static" ? (
