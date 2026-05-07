@@ -24,11 +24,11 @@ export function SectionTitle({ icon: Icon, title, badge, accentColor = "amber" }
   };
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2">
-        <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[accentColor] ?? iconBg.amber)}>
-          <Icon className={cn("h-3.5 w-3.5", iconText[accentColor] ?? iconText.amber)} />
+      <div className="flex items-center gap-2.5">
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", iconBg[accentColor] ?? iconBg.amber)}>
+          <Icon className={cn("h-4 w-4", iconText[accentColor] ?? iconText.amber)} />
         </div>
-        <span className="text-sm font-medium text-white/80">{title}</span>
+        <span className="text-base font-semibold text-white/85">{title}</span>
       </div>
       {badge}
     </div>

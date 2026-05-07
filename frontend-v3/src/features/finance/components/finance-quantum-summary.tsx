@@ -101,9 +101,9 @@ function BlochSphere({ ticker, prob, selected }: { ticker: string; prob: number 
       {/* State data column */}
       <div className="flex flex-1 flex-col gap-3 pt-1">
         {/* Ticker + state label */}
-        <div className="flex flex-col gap-1">
-          <span className="text-base font-semibold text-white/90">{ticker}</span>
-          <span className="text-xs font-medium" style={{ color: stateLabelColor }}>{stateLabel}</span>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40">{ticker}</span>
+          <span className="text-sm font-semibold" style={{ color: stateLabelColor }}>{stateLabel}</span>
         </div>
 
         {/* State vector */}
@@ -459,7 +459,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
             accentColor="emerald"
             badge={<span className="text-[11px] text-white/30">selection probability → state vector</span>}
           />
-          <div className="flex flex-wrap gap-8 pt-2">
+          <div className="grid grid-cols-1 gap-3 pt-3 lg:grid-cols-2">
             {encodedAssets.map((ticker) => (
               <BlochSphere
                 key={ticker}
@@ -469,31 +469,55 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
               />
             ))}
           </div>
-          {/* Highlighted legend callout */}
-          <div className="mt-5 rounded-xl border-l-2 border-emerald-500/40 bg-emerald-500/[0.04] px-4 py-3 ring-1 ring-emerald-500/10">
-            <p className="mb-1.5 text-[11px] font-semibold text-emerald-400/80">Reading the Bloch Sphere</p>
-            <div className="grid grid-cols-1 gap-1 md:grid-cols-3">
+
+          {/* Legend callout */}
+          <div className="mt-6 rounded-xl border-l-2 border-emerald-500/40 bg-emerald-500/[0.04] px-5 py-4 ring-1 ring-emerald-500/10">
+            <p className="mb-3 text-sm font-semibold text-emerald-400/90">How to read the Bloch Sphere</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
-                { dot: "#34d399", label: "North pole |1⟩", desc: "Asset selected by QAOA (prob ≥ 0.65)" },
-                { dot: "#67e8f9", label: "Equator |+⟩", desc: "Superposition — uncertain selection" },
-                { dot: "#ffffff28", label: "South pole |0⟩", desc: "Asset not selected (prob ≤ 0.35)" },
+                {
+                  dot: "#34d399",
+                  label: "North pole  |1⟩",
+                  desc: "State vector points upward. The asset was selected by QAOA with high confidence (measurement probability ≥ 0.65).",
+                },
+                {
+                  dot: "#67e8f9",
+                  label: "Equator  |+⟩",
+                  desc: "State vector lies on the equatorial plane — the qubit is in superposition. Selection is uncertain; the algorithm gave no strong preference.",
+                },
+                {
+                  dot: "#ffffff28",
+                  label: "South pole  |0⟩",
+                  desc: "State vector points downward. The asset was not selected by QAOA (measurement probability ≤ 0.35).",
+                },
               ].map(({ dot, label, desc }) => (
-                <div key={label} className="flex items-start gap-2">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-                  <div>
-                    <span className="text-[11px] font-medium text-white/60">{label}</span>
-                    <span className="ml-1.5 text-[10px] text-white/30">{desc}</span>
+                <div key={label} className="flex items-start gap-3">
+                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full ring-1 ring-white/10" style={{ background: dot }} />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-white/80">{label}</span>
+                    <span className="text-xs leading-relaxed text-white/45">{desc}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="mt-2.5 text-[10px] text-white/30 leading-relaxed">
-              <span className="text-white/50 font-medium">|ψ⟩ ≈ α|0⟩ + β|1⟩</span> where α²= P(|0⟩) and β²= P(|1⟩).
-              {" "}<span className="text-white/50 font-medium">⟨Z⟩ = 2p−1</span> is the Bloch z-component derived from measurement probability.
-              {" "}Angle <span className="text-white/50 font-medium">θ</span> = 2·arccos(√p) from north pole.
-              {" "}Density matrix diagonal <span className="text-white/50 font-medium">ρ₀₀ = 1−p, ρ₁₁ = p</span>.
-              {" "}⟨X⟩ and ⟨Y⟩ (off-diagonal coherences) require full quantum state tomography — unavailable from measurement counts alone.
-            </p>
+            <div className="mt-4 grid grid-cols-1 gap-2 border-t border-white/6 pt-4 sm:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-medium text-white/55">State vector formula</p>
+                <p className="text-sm text-white/70">
+                  <span className="font-mono">|ψ⟩ ≈ α|0⟩ + β|1⟩</span>
+                  <span className="ml-2 text-xs text-white/35">where α² = P(|0⟩) and β² = P(|1⟩)</span>
+                </p>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium text-white/55">Derived quantities</p>
+                <p className="text-xs leading-relaxed text-white/40">
+                  <span className="font-mono text-white/55">⟨Z⟩ = 2p − 1</span> is the Bloch z-component.{" "}
+                  <span className="font-mono text-white/55">θ = 2 · arccos(√p)</span> is the polar angle from the north pole.{" "}
+                  <span className="font-mono text-white/55">ρ₀₀ = 1 − p</span>, <span className="font-mono text-white/55">ρ₁₁ = p</span> are density matrix diagonals.{" "}
+                  ⟨X⟩ and ⟨Y⟩ coherences are unavailable from measurement counts alone — full state tomography required.
+                </p>
+              </div>
+            </div>
           </div>
         </GlassCard>
       )}
