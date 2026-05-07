@@ -91,7 +91,7 @@
   --border: rgba(255,255,255,0.08);
   --input: rgba(255,255,255,0.08);
   --ring: #6366f1;
-  --radius: 0.75rem;
+  --radius: 0.45rem;
 
   --chart-1: #6366f1;
   --chart-2: #22d3ee;
@@ -134,6 +134,39 @@
 
   --font-sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-heading: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Glow palette — used by PageHeader and ambient backgrounds */
+  --glow-indigo-1: #6366f1;
+  --glow-indigo-2: #818cf8;
+  --glow-indigo-3: #a78bfa;
+
+  --glow-cyan-1: #22d3ee;
+  --glow-cyan-2: #06b6d4;
+  --glow-cyan-3: #67e8f9;
+
+  --glow-emerald-1: #34d399;
+  --glow-emerald-2: #10b981;
+  --glow-emerald-3: #6ee7b7;
+
+  --glow-amber-1: #fbbf24;
+  --glow-amber-2: #f59e0b;
+  --glow-amber-3: #fcd34d;
+
+  --glow-rose-1: #fb7185;
+  --glow-rose-2: #f43f5e;
+  --glow-rose-3: #fda4af;
+
+  --glow-violet-1: #a78bfa;
+  --glow-violet-2: #8b5cf6;
+  --glow-violet-3: #c4b5fd;
+
+  --glow-blue-1: #60a5fa;
+  --glow-blue-2: #3b82f6;
+  --glow-blue-3: #93c5fd;
+
+  --glow-orange-1: #fb923c;
+  --glow-orange-2: #f97316;
+  --glow-orange-3: #fdba74;
 }
 
 /* ── Glass card utility ── */

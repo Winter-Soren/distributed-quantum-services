@@ -40,13 +40,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
       <IconRail />
 
-      <div className="relative my-2 mr-2 ml-1.5 flex flex-1 overflow-hidden rounded-2xl ring-1 ring-white/6"
+      <div className="relative ml-1.5 flex flex-1 overflow-hidden ring-1 ring-white/6"
         style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(2px)" }}>
         <SidebarPanel activeRailItem={activeRailItem} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <SiteHeader />
           <TrialGate>
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>
           </TrialGate>
         </div>
       </div>

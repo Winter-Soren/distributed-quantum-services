@@ -186,7 +186,7 @@ export function NewRunPageClient() {
   ];
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <div className="flex min-h-full flex-col overflow-y-auto">
       {/* ── Marketplace hero ── */}
       <header className="relative border-b border-white/6 px-6 pb-6 pt-6">
         <div className="absolute inset-0 overflow-hidden">
@@ -282,7 +282,7 @@ export function NewRunPageClient() {
                     className="group relative text-left"
                   >
                     <div
-                      className={`relative flex h-full flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
+                      className={`relative flex min-h-full flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
                         isActive
                           ? `${meta.borderActive} bg-white/[0.07]`
                           : "border-white/6 bg-white/[0.025] hover:border-white/12 hover:bg-white/[0.045]"
