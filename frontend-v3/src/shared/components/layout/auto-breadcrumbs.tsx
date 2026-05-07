@@ -19,8 +19,8 @@ function getRailLabel(segments: string[]): string | undefined {
 function formatSegment(segment: string): { label: string; isMono: boolean } {
   const known = BREADCRUMB_LABELS[segment];
   if (known) return { label: known, isMono: false };
-  const truncated = segment.length > 8 ? segment.slice(0, 8) + "\u2026" : segment;
-  return { label: truncated, isMono: true };
+
+  return { label: segment, isMono: true };
 }
 
 export function AutoBreadcrumbs() {

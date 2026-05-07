@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, Plus, Circle } from "lucide-react";
 import type { NavToolConfig } from "@/constants";
+import { ROUTES } from "@/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useRecentRuns } from "./use-recent-runs";
+import { useOptionsList } from "@/features/options/hooks/use-options-list";
+import { useRiskList } from "@/features/risk/hooks/use-risk-list";
+import { useFinanceList } from "@/features/finance/hooks/use-finance-list";
 
 interface LabToolGroupProps {
   tool: NavToolConfig;
@@ -26,9 +30,67 @@ const STATUS_COLORS: Record<string, string> = {
   reserving: "text-violet-400",
 };
 
+type RecentItem = { jobId: string; label: string; status: string; createdAt: string; href: string };
+
+function useRecentItems(tool: NavToolConfig): RecentItem[] {
+  const { data: runs } = useRecentRuns(tool.tool === "runs");
+  const { data: options } = useOptionsList();
+  const { data: risk } = useRiskList();
+  const { data: finance } = useFinanceList();
+
+  if (tool.tool === "runs") {
+    return (runs ?? []).slice(0, 5).map((r) => ({
+      jobId: r.jobId,
+      label: r.circuitPreview || r.jobId.slice(0, 12),
+      status: r.status,
+      createdAt: r.createdAt,
+      href: `/runs/${r.jobId}`,
+    }));
+  }
+  if (tool.tool === "options") {
+    return (options ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map((j) => ({
+        jobId: j.jobId,
+        label: j.optionType || j.jobId.slice(0, 12),
+        status: j.status,
+        createdAt: j.createdAt,
+        href: ROUTES.optionsDetail(j.jobId),
+      }));
+  }
+  if (tool.tool === "risk") {
+    return (risk ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map((j) => ({
+        jobId: j.jobId,
+        label: j.riskModel || j.jobId.slice(0, 12),
+        status: j.status,
+        createdAt: j.createdAt,
+        href: ROUTES.riskDetail(j.jobId),
+      }));
+  }
+  if (tool.tool === "finance") {
+    return (finance ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map((j) => ({
+        jobId: j.jobId,
+        label: j.filename || j.problemType || j.jobId.slice(0, 12),
+        status: j.status,
+        createdAt: j.createdAt,
+        href: ROUTES.financeDetail(j.jobId),
+      }));
+  }
+  return [];
+}
+
 export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
-  const isRunsTool = tool.tool === "runs";
-  const { data: recentRuns } = useRecentRuns(isRunsTool);
+  const items = useRecentItems(tool);
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
@@ -50,26 +112,26 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
       </div>
       <CollapsibleContent>
         <div className="px-2 pb-2">
-          {isRunsTool && recentRuns && recentRuns.length > 0 ? (
+          {items.length > 0 ? (
             <div className="flex flex-col gap-0.5">
-              {recentRuns.map((run) => (
+              {items.map((item) => (
                 <Link
-                  key={run.jobId}
-                  href={`/runs/${run.jobId}`}
+                  key={item.jobId}
+                  href={item.href}
                   className="group/item flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-white/5"
                 >
                   <Circle
                     size={6}
                     className={cn(
                       "shrink-0 fill-current",
-                      STATUS_COLORS[run.status] ?? "text-white/25",
+                      STATUS_COLORS[item.status] ?? "text-white/25",
                     )}
                   />
                   <span className="flex-1 truncate text-[11px] text-muted-foreground transition-colors group-hover/item:text-foreground">
-                    {run.circuitPreview || run.jobId.slice(0, 8)}
+                    {item.label}
                   </span>
                   <span className="text-[10px] text-white/20">
-                    {formatTimeAgo(run.createdAt)}
+                    {formatTimeAgo(item.createdAt)}
                   </span>
                 </Link>
               ))}

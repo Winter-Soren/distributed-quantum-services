@@ -1,4 +1,3 @@
-
 <!-- codebase-memory-mcp:start -->
 # Codebase Knowledge Graph (codebase-memory-mcp)
 
@@ -32,6 +31,7 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - User prefers animated lucide icons throughout the UI
 - Disable trial/auth gating during development via `NEXT_PUBLIC_TRIAL_DISABLED=true` env var
 - Remove non-interactive or data-less cards; consolidate small status indicators to top-right area
+- Detail/result pages must be full-width — never apply `max-w-*` constraints to detail page content containers
 
 ## Learned Workspace Facts
 
@@ -45,6 +45,8 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - Parity system uses uppercase statuses (QUEUED, COMPILING, EXECUTING, COMPLETED, FAILED) stored in `workflow_runs` table — incompatible with `WorkflowRunStatus` enum (lowercase: submitted, planning, running, etc.)
 - Circuit jobs use `job-{uuid}` prefix; workflows use `run-{uuid}` prefix
 - The shadcn `SidebarProvider` wrapper has `w-full min-h-svh` which breaks flex layouts when used as a child — must override with `!w-auto !min-h-0 flex-none`
-- frontend-v3 was migrated from frontend-v2; architecture docs live in `frontend-v3/architecture.md`, `frontend-v3/DESIGN.md`, `frontend-v3/SKILLS.md`
+- `DashboardShell` main content wrapper keeps `ml-1.5` left gap (icon rail separation) but is flush on top, bottom, and right edges — do NOT add `my-*` or `mr-*` margins or `rounded-*` to that wrapper
+- Shared detail-page components live at `src/shared/components/detail/` — `GlassCard`, `SectionTitle`, `JobMetaStrip`, `MetricGrid`, `DataTable`, `FieldList`, `ResultValue`; use these across Options, Risk, and Finance detail pages for consistent UI
+- Network mesh page uses `react-force-graph-3d` loaded via `next/dynamic` with `ssr: false`; nodes auto-zoom to fit canvas, links rendered in orange
 - CSS variables from `globals.css` should be used everywhere for theming consistency
 - Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md, @frontend-v3/DESIGN.md

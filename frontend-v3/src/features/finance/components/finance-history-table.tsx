@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -31,6 +31,8 @@ export function FinanceHistoryTable({
   jobs,
   className,
 }: FinanceHistoryTableProps) {
+  const router = useRouter();
+
   if (jobs.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-6 text-center">
@@ -40,40 +42,40 @@ export function FinanceHistoryTable({
   }
 
   return (
-    <Table className={cn(className)}>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Job ID</TableHead>
-          <TableHead>Filename</TableHead>
-          <TableHead>Problem</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead className="sr-only">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {jobs.map((job) => (
-          <TableRow key={job.jobId}>
-            <TableCell className="font-mono text-xs">{job.jobId}</TableCell>
-            <TableCell className="max-w-[160px] truncate">{job.filename}</TableCell>
-            <TableCell>{job.problemType ?? "—"}</TableCell>
-            <TableCell>
-              <Badge variant={statusVariant(job.status)}>{job.status}</Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground text-sm">
-              {new Date(job.createdAt).toLocaleString()}
-            </TableCell>
-            <TableCell>
-              <Link
-                href={ROUTES.financeDetail(job.jobId)}
-                className="text-sm underline underline-offset-4 text-foreground hover:text-muted-foreground"
-              >
-                View
-              </Link>
-            </TableCell>
+    <div className="relative w-full overflow-x-auto">
+      <Table className={cn(className)}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Job ID</TableHead>
+            <TableHead>Filename</TableHead>
+            <TableHead>Problem</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {jobs.map((job) => (
+            <TableRow
+              key={job.jobId}
+              onClick={() => router.push(ROUTES.financeDetail(job.jobId))}
+              className="group relative cursor-pointer"
+            >
+              <TableCell className="font-mono text-xs">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-emerald-600/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                {job.jobId}
+              </TableCell>
+              <TableCell className="max-w-[160px] truncate">{job.filename}</TableCell>
+              <TableCell>{job.problemType ?? "—"}</TableCell>
+              <TableCell>
+                <Badge variant={statusVariant(job.status)}>{job.status}</Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {new Date(job.createdAt).toLocaleString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

@@ -22,6 +22,7 @@ export const ROUTES = {
   FINANCE: "/finance",
   FINANCE_HISTORY: "/finance/history",
   financeDetail: (id: string) => `/finance/${id}` as const,
+  financeQuantum: (id: string) => `/finance/${id}/quantum` as const,
   FINANCE_BENCHMARK: "/finance/benchmark",
   FINANCE_EXECUTION: "/finance/execution",
   FINANCE_FRONTIER: "/finance/frontier",
