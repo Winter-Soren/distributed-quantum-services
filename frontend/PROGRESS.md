@@ -676,82 +676,118 @@ Error: `coincurve==21.0.0` build failed — `RuntimeError: Expected exactly one 
 
 ---
 
-## Milestone 14 — IPFS Helia + Pinata Integration
+## Milestone 14 — VAULT NFT.Storage Free Pinning Integration
 
 ### Status: ⚪ Pending
 ### Owner: —
 ### Started: —
 ### Completed: —
+### Design Spec: `docs/superpowers/specs/2026-05-08-vault-nft-storage-integration.md`
 
 ### Vision
 
-Transform the platform into the world's first verifiable peer-to-peer quantum computing platform. Every user's frontend (browser or desktop app) runs a Helia IPFS node, enabling true peer-to-peer quantum circuit sharing, real-time execution observation, and community-driven circuit libraries — all without backend intermediation for content distribution.
+Enable decentralized quantum circuit and workflow sharing via IPFS with free, permanent pinning. Users can publish circuits to IPFS (via Helia P2P), pin them for long-term availability (via NFT.Storage free service), and browse community-shared content — all from the frontend without backend involvement. Backend remains quantum-execution only.
 
-**Architecture**: Frontend-only IPFS. Backend continues handling quantum execution via libp2p unchanged. IPFS Helia runs entirely in user frontends for content sharing. Pinata provides optional long-term persistence, managed entirely from the frontend (frontend-to-Pinata directly, bypassing backend).
+**Architecture**: Frontend → Helia (P2P) + NFT.Storage (permanence) + MongoDB (audit trail). No backend involvement for VAULT. Phase 1 ships NFT.Storage only; Phase 2 adds Pinata "bring your own API key" option.
 
-### Key Use Cases
-
-1. **Public Quantum Circuit Library** — Decentralized marketplace of quantum circuits. Users publish circuits to IPFS with metadata. Community curates. Zero platform lock-in, censorship-resistant, automatic attribution.
-2. **Workflow Cloning & Collaborative Research** — GitHub-style collaboration for quantum computing. Every completed workflow has a CID. Users share, clone, fork, and compare workflows with full provenance chains. Academic citations via permanent CIDs.
-3. **Real-Time Execution Observation** — "Twitch for quantum computing". Users subscribe to live execution streams of other users' workflows via IPFS pubsub. Pure P2P — no backend involvement in streaming.
-4. **Decentralized Benchmark Leaderboards** — Community-maintained leaderboards stored on IPFS with cryptographic verification. Signed benchmark records, verifiable by anyone via CIDs.
-5. **Frontend-Managed Circuit Storage & Sharing** — Users store quantum workflows directly to IPFS from their frontend, creating personal circuit repositories they fully own.
+**Key Use Cases:**
+1. **Circuit Library** — Browse and load community-published quantum circuits
+2. **Workflow Sharing** — Share completed runs via IPFS with permanent CIDs
+3. **My Vault** — Track user's published circuits and shared runs with pinning status
+4. **Quota Management** — Real-time storage tracking across all VAULT pages
 
 ### Tasks
 
-#### Infrastructure
-- [ ] `bun add helia @helia/unixfs @helia/json @helia/strings` — install Helia packages
-- [ ] `bun add @pinata/sdk` or use Pinata REST API directly
-- [ ] `src/features/ipfs/lib/helia-node.ts` — singleton Helia node factory (browser-only, `next/dynamic`)
-- [ ] `src/features/ipfs/lib/pinata-client.ts` — Pinata REST client wrapper
-- [ ] `src/features/ipfs/hooks/use-helia.ts` — React hook to initialize/access Helia node
-- [ ] `src/features/ipfs/hooks/use-ipfs-upload.ts` — TanStack mutation for uploading content to IPFS
-- [ ] `src/features/ipfs/hooks/use-ipfs-fetch.ts` — TanStack query for fetching content by CID
-- [ ] `src/features/ipfs/hooks/use-pinata-pin.ts` — TanStack mutation for pinning CIDs to Pinata
-- [ ] `src/features/ipfs/types.ts` — CID, CircuitRecord, WorkflowRecord, BenchmarkRecord types
-- [ ] `src/constants/ipfs.ts` — IPFS gateway URLs, Pinata API base, pubsub topic names
-- [ ] Add `PINATA_API_KEY`, `PINATA_SECRET_API_KEY`, `NEXT_PUBLIC_IPFS_GATEWAY` to `.env.local`
+#### Phase 1 — Infrastructure
+- [ ] `bun add helia @helia/unixfs @helia/interface blockstore-idb` — install Helia packages
+- [ ] Add `NEXT_PUBLIC_NFT_STORAGE_TOKEN` to `.env.local` — NFT.Storage API token (public, rate-limited)
+- [ ] `features/ipfs/lib/helia-init.ts` — Helia factory + singleton (browser-only, dynamic import)
+- [ ] `features/ipfs/lib/local-index.ts` — localStorage CID registry
+- [ ] `features/ipfs/lib/transformers.ts` — RunDetail ↔ RunIPFSRecord, CircuitForm ↔ CircuitIPFSRecord
+- [ ] `features/ipfs/provider.tsx` — HeliaProvider React context (dynamic import, ssr:false)
+- [ ] `features/ipfs/hooks.ts` — useHelia(), useIpfsUpload(), useIpfsFetch()
+- [ ] `features/ipfs/types.ts` — CircuitIPFSRecord, RunIPFSRecord, VaultItem, LocalVaultIndex
+- [ ] `features/ipfs/schema.ts` — Zod validators for both record types
+- [ ] `features/ipfs/pinata.ts` — Phase 1 stub (throws "Phase 2 not implemented")
+- [ ] `features/ipfs/index.ts` — public barrel
 
-#### Circuit Library Feature
-- [ ] `src/features/ipfs/components/circuit-library-panel.tsx` — browsable circuit library (dynamic import)
-- [ ] `src/features/ipfs/components/circuit-publish-form.tsx` — RHF + Zod form to publish circuit to IPFS
-- [ ] `src/features/ipfs/components/circuit-card.tsx` — single circuit card with CID, metadata, Load button
-- [ ] `src/features/ipfs/hooks/use-circuit-library.ts` — TanStack Query hook to fetch circuits from IPFS DHT
-- [ ] Wire circuit library into `runs/new/page.tsx` as "Load from Library" option
-- [ ] `app/(main)/runs/library/page.tsx` — dedicated circuit library page
+#### Phase 1 — Vault Pinning Feature (NEW)
+- [ ] `features/vault-pinning/types.ts` — PinningProvider interface, PinResult, QuotaInfo, PinAuditRecord
+- [ ] `features/vault-pinning/services/nft-storage.ts` — NFTStorageProvider implementation
+- [ ] `features/vault-pinning/services/index.ts` — provider registry (Phase 1: NFT only)
+- [ ] `features/vault-pinning/hooks/use-pin.ts` — pin/unpin actions with MongoDB sync
+- [ ] `features/vault-pinning/hooks/use-quota.ts` — quota fetching + caching (5min stale time)
+- [ ] `features/vault-pinning/hooks/use-pin-metadata.ts` — fetch pin status for CID
+- [ ] `features/vault-pinning/components/pin-button.tsx` — main pin UI with dropdown (Phase 1: single service)
+- [ ] `features/vault-pinning/components/quota-display.tsx` — quota visualization (3 variants: settings/header/tooltip)
+- [ ] `features/vault-pinning/components/pin-status-badge.tsx` — "📌 NFT.Storage" badges for tables
+- [ ] `features/vault-pinning/components/unpin-modal.tsx` — soft vs hard delete choice modal
+- [ ] `features/vault-pinning/lib/mongodb.ts` — MongoDB connection helper (reuse existing)
+- [ ] `features/vault-pinning/lib/sync-queue.ts` — localStorage queue for offline pinning
+- [ ] `features/vault-pinning/lib/estimate-size.ts` — JSON size estimation utility
+- [ ] `features/vault-pinning/lib/quota-cache.ts` — MongoDB quota cache helpers
+- [ ] `features/vault-pinning/provider.tsx` — PinningProvider context
+- [ ] `features/vault-pinning/index.ts` — public barrel
 
-#### Workflow Sharing
-- [ ] `src/features/ipfs/lib/workflow-serializer.ts` — serialize RunDetail → IPFS-storable WorkflowRecord
-- [ ] `src/features/ipfs/components/share-workflow-button.tsx` — "Share via IPFS" button on run detail
-- [ ] `src/features/ipfs/components/workflow-cid-badge.tsx` — shows CID with copy + IPFS gateway link
-- [ ] Wire into `runs/[runId]/page.tsx` — show CID badge and share button after completion
-- [ ] `app/(main)/runs/[runId]/share/page.tsx` — public share page (fetches from IPFS, no auth required)
+#### Phase 1 — Constants & Navigation
+- [ ] `constants/routes.ts` — add VAULT routes: `/vault`, `/vault/circuits`, `/vault/runs`, `/vault/my/circuits`, `/vault/my/runs`, `vaultRunDetail()`, `vaultCircuitDetail()`
+- [ ] `constants/navigation.ts` — add Vault rail item with sidebar (Discover: Circuit Library, Shared Runs; My Vault: My Circuits, My Runs)
+- [ ] `constants/breadcrumbs.ts` — add vault breadcrumb labels
+- [ ] `constants/query-keys.ts` — add vault query keys (circuitFetch, runFetch, myCircuits, myRuns)
 
-#### Live Execution Observation (pubsub)
-- [ ] `src/features/ipfs/hooks/use-pubsub-subscribe.ts` — subscribe to IPFS pubsub topic
-- [ ] `src/features/ipfs/hooks/use-pubsub-publish.ts` — publish execution events to pubsub
-- [ ] `src/features/ipfs/components/live-executions-feed.tsx` — live feed of public workflows
-- [ ] `src/features/ipfs/components/execution-observer-panel.tsx` — observe a specific workflow in realtime
-- [ ] Privacy controls: private / anonymized / public flag on run submit form
+#### Phase 1 — VAULT Routes
+- [ ] `app/(main)/vault/layout.tsx` — HeliaProvider wrapper (dynamic import, ssr:false)
+- [ ] `app/(main)/vault/circuits/page.tsx` — Circuit Library page shell (≤10 lines)
+- [ ] `app/(main)/vault/circuits/[cid]/page.tsx` — Circuit detail page shell
+- [ ] `app/(main)/vault/runs/page.tsx` — Shared Runs page shell
+- [ ] `app/(main)/vault/runs/[cid]/page.tsx` — Run viewer page shell (public, no auth)
+- [ ] `app/(main)/vault/my/circuits/page.tsx` — My Circuits page shell
+- [ ] `app/(main)/vault/my/runs/page.tsx` — My Runs page shell
 
-#### Benchmark Leaderboards
-- [ ] `src/features/ipfs/lib/benchmark-record.ts` — create + sign benchmark records
-- [ ] `src/features/ipfs/components/leaderboard-panel.tsx` — dynamic leaderboard from IPFS
-- [ ] `src/features/ipfs/components/submit-benchmark-button.tsx` — submit run result as benchmark
-- [ ] `app/(main)/network/leaderboard/page.tsx` — leaderboard page
+#### Phase 1 — VAULT Components
+- [ ] `features/ipfs/components/circuit-library-client.tsx` — Circuit Library main UI (search, filter, 3-col grid, publish drawer)
+- [ ] `features/ipfs/components/circuit-detail-client.tsx` — Circuit detail view (metadata, QASM, fork badge, CTAs)
+- [ ] `features/ipfs/components/vault-runs-client.tsx` — Shared Runs table (author, qubits, peers, runtime, status)
+- [ ] `features/ipfs/components/vault-run-detail-client.tsx` — Run detail view (metadata, execution, results, offline state)
+- [ ] `features/ipfs/components/my-vault-client.tsx` — My Vault table (type: circuits | runs, with unpin action)
+- [ ] `features/ipfs/hooks/use-local-vault-index.ts` — reads localStorage CID index, refreshes on focus
 
-#### Pinata Persistence
-- [ ] `src/features/ipfs/components/pin-to-pinata-button.tsx` — "Pin for permanent access" button
-- [ ] `src/features/ipfs/components/pinned-content-list.tsx` — user's pinned content management
-- [ ] `app/(main)/settings/ipfs/page.tsx` — IPFS + Pinata settings (API keys, pinned content, usage)
+#### Phase 1 — Integration Points
+- [ ] `features/ipfs/components/share-to-vault-button.tsx` — "Share to VAULT" button for run detail (replaces Pinata stub)
+- [ ] Update `features/runs/components/run-detail-page-client.tsx` — add `<PinButton>` after share
+- [ ] Update `app/(main)/vault/my/circuits/page.tsx` — add "Pin Status" column with `<PinStatusBadge>`
+- [ ] Update `app/(main)/vault/my/runs/page.tsx` — add "Pin Status" column
+- [ ] Update `app/(main)/settings/page.tsx` — add VAULT Identity section with quota display + display name field
+- [ ] `features/ipfs/components/vault-display-name-field.tsx` — Display name field for Settings (reads/writes localStorage)
+- [ ] Add `<QuotaDisplay variant="header">` to all VAULT page headers
 
-#### Navigation
-- [ ] Add "Library" sub-item to Runs section in `constants/navigation.ts`
-- [ ] Add "Leaderboard" sub-item to Network section in `constants/navigation.ts`
-- [ ] Add "IPFS" sub-item to Settings section in `constants/navigation.ts`
+#### Phase 1 — MongoDB Setup
+- [ ] Create MongoDB collection `vault_pin_audit` with schema: `{ userId, cid, service, action, size, sizeSource, type, metadata, timestamp, syncStatus, error? }`
+- [ ] Create indexes: `{ userId: 1, timestamp: -1 }`, `{ userId: 1, cid: 1, service: 1 }`, `{ syncStatus: 1, timestamp: 1 }`, `{ userId: 1, service: 1, action: 1 }`
+- [ ] Create MongoDB collection `vault_quota_cache` with TTL index (10min expiry)
 
-#### index.ts barrel
-- [ ] `src/features/ipfs/index.ts` — public barrel
+#### Phase 1 — Testing
+- [ ] Unit tests: `features/vault-pinning/services/nft-storage.test.ts` — pin success, rate limiting, quota fetch
+- [ ] Integration tests: `features/vault-pinning/hooks/use-pin.test.tsx` — pin + MongoDB update, localStorage queue on failure
+- [ ] E2E tests (Playwright): pin circuit from Circuit Library, unpin with quota freeing
+- [ ] Manual QA: offline pinning (disable network, test queue), quota tracking across pages
+
+#### Phase 1 — Documentation
+- [ ] Update `frontend/CLAUDE.md` — add VAULT feature guidance
+- [ ] Update `frontend/AGENTS.md` — add VAULT pinning patterns
+- [ ] Update `.env.example` with `NEXT_PUBLIC_NFT_STORAGE_TOKEN`
+
+#### Phase 1 — Performance
+- [ ] Add ESLint rule: no direct imports from `**/vault-pinning/**` (enforce dynamic imports)
+- [ ] Verify bundle size impact <50KB gzipped
+- [ ] Add `experimental.optimizePackageImports` for Helia packages if needed
+
+### Phase 2 (Deferred)
+- [ ] Add `features/vault-pinning/services/pinata.ts` provider
+- [ ] Reveal multi-service dropdown in `<PinButton>`
+- [ ] Settings page: "Bring your own API key" section with Pinata JWT field
+- [ ] Provider plugin architecture for community extensions
+- [ ] Pin migration between services
 
 ### Issues
 
@@ -759,13 +795,15 @@ _None yet._
 
 ### Notes
 
-- Helia is browser-only (uses WebRTC/WebSockets transports). ALL Helia components MUST use `next/dynamic({ ssr: false })`.
-- The Helia node should be a singleton created once per browser session — use a module-level cache in `helia-node.ts`.
-- IPFS pubsub requires Helia + libp2p pubsub (GossipSub). Install `@chainsafe/libp2p-gossipsub`.
-- CIDs should be stored in MongoDB alongside workflow/run records so the backend can reference them.
-- Pinata REST API is simpler than the SDK for frontend use — use `fetch` directly to `https://api.pinata.cloud`.
-- The `NEXT_PUBLIC_IPFS_GATEWAY` should default to `https://gateway.pinata.cloud/ipfs/` for reliability.
-- Source document: `docs/IPFS_INTEGRATION_STRATEGIC_VISION.md`.
+- **Phase 1 scope:** NFT.Storage only, multi-service UI designed but hidden
+- **Backend involvement:** Zero — frontend connects directly to MongoDB + NFT.Storage
+- **Helia components:** ALL must use `next/dynamic({ ssr: false })` (browser-only)
+- **MongoDB:** Direct connection from frontend (existing pattern in project)
+- **NFT.Storage:** Free tier, no credit card, permanence-focused
+- **localStorage keys:** `vault:cid_index`, `vault:display_name`, `vault:pin_queue`
+- **Quota sync:** 5min cache, real-time on pin/unpin, user can click "Refresh"
+- **Source spec:** `docs/superpowers/specs/2026-05-08-vault-nft-storage-integration.md`
+- **Replaces:** Previous Pinata-focused VAULT specs (deleted)
 
 ---
 
