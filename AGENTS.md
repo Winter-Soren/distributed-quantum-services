@@ -38,20 +38,13 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 
 - frontend uses barrel imports from feature folders (`@/features/network`, `@/features/runs`)
 - Backend API returns snake_case; frontend transformers in `features/*/lib/*-transformers.ts` convert to camelCase
-- Topology route should hit `BACKEND.DISCOVERY.PEERS` (not `DISCOVERY.TOPOLOGY`) for peer list data
-- Backend `ServiceQualityTracker` in `api/routers/service_quality.py` provides gate_set/connectivity/fidelity from Qiskit transpilation
+- Backend folder is `backend/` (renamed from `backend-v2/`); Python package name `quantum_backend_v2` (underscores) is intentionally kept as-is — do NOT rename it
+- Backend `ServiceQualityTracker` in `api/routers/service_quality.py` provides gate_set/connectivity/fidelity from Qiskit transpilation; backend is FastAPI on port 8081, frontend is Next.js 16 on port 3000
 - Proxy middleware is in `frontend/src/proxy.ts` (not `src/middleware.ts`)
-- Backend is FastAPI on port 8081; frontend is Next.js 16 on port 3000
+- After renaming a Next.js project directory, run `rm -rf frontend/.next` — Turbopack bakes absolute paths into the build cache; stale cache causes "Next.js package not found" panics on every HMR update
+- Sidebar status color lookups must call `.toLowerCase()` on the status before map lookup — backend sends uppercase statuses (QUEUED, COMPILING, EXECUTING, COMPLETED, FAILED); `STATUS_COLORS` maps use lowercase keys
 - Circuit submission uses `BACKEND.CIRCUITS.SUBMIT` (`POST /api/v1/circuits/submit` accepts `{circuit: "..."}`); job detail uses `BACKEND.JOBS.DETAIL` (`GET /api/v1/jobs/{id}`) — do NOT use `BACKEND.WORKFLOWS.RUNS` for these
-- Parity system uses uppercase statuses (QUEUED, COMPILING, EXECUTING, COMPLETED, FAILED) stored in `workflow_runs` table — incompatible with `WorkflowRunStatus` enum (lowercase: submitted, planning, running, etc.)
-- Circuit jobs use `job-{uuid}` prefix; workflows use `run-{uuid}` prefix
-- The shadcn `SidebarProvider` wrapper has `w-full min-h-svh` which breaks flex layouts when used as a child — must override with `!w-auto !min-h-0 flex-none`
-- `DashboardShell` main content wrapper keeps `ml-1.5` left gap (icon rail separation) but is flush on top, bottom, and right edges — do NOT add `my-*` or `mr-*` margins or `rounded-*` to that wrapper
+- The shadcn `SidebarProvider` wrapper has `w-full min-h-svh` which breaks flex layouts when used as a child — must override with `!w-auto !min-h-0 flex-none`; `DashboardShell` main content wrapper keeps `ml-1.5` left gap but is flush on all other edges (no `my-*`/`mr-*`/`rounded-*`)
 - Shared detail-page components live at `src/shared/components/detail/` — `GlassCard`, `SectionTitle`, `JobMetaStrip`, `MetricGrid`, `DataTable`, `FieldList`, `ResultValue`; use these across Options, Risk, and Finance detail pages for consistent UI
-- Network mesh page uses `react-force-graph-3d` loaded via `next/dynamic` with `ssr: false`; nodes auto-zoom to fit canvas, links rendered in orange
-- CSS variables from `globals.css` should be used everywhere for theming consistency
-- Always follow @frontend/AGENT.md, @frontend/SKILL.md, @frontend/CLAUDE.md, @frontend/DESIGN.md
-- `PageHeader` is the standard shared page header at `src/shared/components/layout/page-header.tsx`; all pages use it instead of inline `h1` headers — pass `children` for right-side content
-- `DataTable` `getRowKey` callbacks must append the row index for uniqueness (e.g. `` `${r.state}-${i}` ``) to avoid duplicate React key warnings when data values repeat
-- `LabToolGroup` sidebar component must fetch recent items for all tool types (options, risk, finance, runs), not just runs — each tool type needs its own data hook
-- Job IDs must not be truncated in breadcrumbs — `formatSegment` in `AutoBreadcrumbs` should show full IDs
+- VAULT is a planned IPFS feature (top-level nav rail): Phase 1 = Circuit Library (`/vault/circuits`) + Workflow Cloning (`/vault/runs`) via Helia P2P; Pinata pinning is NOT in Phase 1; Provenance/Verification deferred to Phase 2
+- `PageHeader` is the standard shared page header at `src/shared/components/layout/page-header.tsx`; `DataTable` `getRowKey` must append row index for uniqueness; job IDs must not be truncated in `AutoBreadcrumbs` `formatSegment`
