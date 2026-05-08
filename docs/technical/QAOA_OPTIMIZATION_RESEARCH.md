@@ -103,7 +103,7 @@ Research identifies these difficulties:
 
 ### Phase 1: L-BFGS-B with Transfer Learning (✅ DONE)
 
-**File**: `backend-v2/src/quantum_backend_v2/application/qaoa_parameter_optimization.py`
+**File**: `backend/src/quantum_backend_v2/application/qaoa_parameter_optimization.py`
 
 **Features Implemented**:
 
@@ -135,7 +135,7 @@ Research identifies these difficulties:
 
 ### Integration with Financial Portfolio
 
-**File**: `backend-v2/src/quantum_backend_v2/application/financial_portfolio.py`
+**File**: `backend/src/quantum_backend_v2/application/financial_portfolio.py`
 
 **Changes**:
 
@@ -293,7 +293,7 @@ for key, data in cache.items():
 ### Test Script
 
 ```python
-# backend-v2/tests/test_advanced_qaoa_optimizer.py
+# backend/tests/test_advanced_qaoa_optimizer.py
 
 def test_lbfgsb_faster_than_cobyla():
     """Verify L-BFGS-B is faster than COBYLA for same accuracy."""

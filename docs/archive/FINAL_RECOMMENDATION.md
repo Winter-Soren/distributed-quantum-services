@@ -112,7 +112,7 @@ Classical got unexpectedly faster with more peers (likely OS caching):
 
 #### Phase 1: Core QAE Implementation (Week 1)
 
-**File**: `backend-v2/src/quantum_backend_v2/application/quantum_option_pricing.py`
+**File**: `backend/src/quantum_backend_v2/application/quantum_option_pricing.py`
 
 ```python
 from qiskit.algorithms import AmplitudeEstimation
@@ -253,7 +253,7 @@ def price_option_quantum(
 
 **Configuration Update**:
 ```python
-# backend-v2/src/quantum_backend_v2/bootstrap/settings.py
+# backend/src/quantum_backend_v2/bootstrap/settings.py
 DEFAULT_DEV_SERVICE_PEER_COUNT = 10  # Changed from 5
 RECOMMENDED_PRODUCTION_PEER_COUNT = 50  # New constant
 MAX_EFFICIENT_PEER_COUNT = 50  # New limit (beyond this, overhead exceeds gain)

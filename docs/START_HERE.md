@@ -123,7 +123,7 @@ docs/
 
 ### Goal: Replicate Experiments
 1. [`technical/IMPLEMENTATION_NOTES.md`](technical/IMPLEMENTATION_NOTES.md) (code changes)
-2. [`../backend-v2/scripts/`](../backend-v2/scripts/) (benchmark scripts)
+2. [`../backend/scripts/`](../backend/scripts/) (benchmark scripts)
 3. [`technical/BENCHMARK.md`](technical/BENCHMARK.md) (expected results)
 
 ### Goal: Understand Quantum Advantage

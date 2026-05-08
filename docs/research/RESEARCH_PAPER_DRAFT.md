@@ -561,7 +561,7 @@ The complete execution protocol for a single QAOA optimization iteration:
 
 **Code Organization**:
 ```
-backend-v2/
+backend/
 ├── src/quantum_backend_v2/
 │   ├── application/
 │   │   ├── financial_portfolio.py       # QUBO formulation
@@ -1970,10 +1970,10 @@ Wehner, S., Elkouss, D., & Hanson, R. (2018). Quantum Internet: A Vision for the
 
 All code is available at: [GitHub repository link]
 
-- QAOA implementation: `backend-v2/src/quantum_backend_v2/application/financial_portfolio.py`
-- Advanced optimizer: `backend-v2/src/quantum_backend_v2/application/qaoa_parameter_optimization.py`
-- Distributed framework: `backend-v2/src/quantum_backend_v2/libp2p/`
-- Benchmarking scripts: `backend-v2/scripts/`
+- QAOA implementation: `backend/src/quantum_backend_v2/application/financial_portfolio.py`
+- Advanced optimizer: `backend/src/quantum_backend_v2/application/qaoa_parameter_optimization.py`
+- Distributed framework: `backend/src/quantum_backend_v2/libp2p/`
+- Benchmarking scripts: `backend/scripts/`
 
 ## Appendix C: Hardware Specifications
 

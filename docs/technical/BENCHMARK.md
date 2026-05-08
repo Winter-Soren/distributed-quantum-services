@@ -549,7 +549,7 @@ But **not sufficient** for demonstrating quantum advantage without:
 
 ### Primary Bottleneck: QAOA Parameter Optimization
 
-**Location**: `backend-v2/src/quantum_backend_v2/application/financial_portfolio.py:1154-1374`
+**Location**: `backend/src/quantum_backend_v2/application/financial_portfolio.py:1154-1374`
 
 #### The Problem
 
@@ -1036,11 +1036,11 @@ Even with **ALL optimizations + 100 peers**, quantum remains **140x slower** tha
 
 ### Benchmark Execution Logs
 
-Full benchmark results available at: `backend-v2/scripts/peer_scaling_results.json`
+Full benchmark results available at: `backend/scripts/peer_scaling_results.json`
 
 ### Code Changes
 
-**Bottleneck Fixes**: `backend-v2/src/quantum_backend_v2/application/financial_portfolio.py`
+**Bottleneck Fixes**: `backend/src/quantum_backend_v2/application/financial_portfolio.py`
 
 ```diff
 + _DEFAULT_PARAMETER_STEPS = 5  # Reduced from 9

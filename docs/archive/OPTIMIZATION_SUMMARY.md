@@ -210,9 +210,9 @@ Decomposes large circuits into smaller subcircuits for distributed execution:
 
 1. **`BENCHMARK.md`**: Comprehensive benchmark analysis (awaiting benchmark results)
 2. **`OPTIMIZATION_SUMMARY.md`**: This document (executive summary)
-3. **`backend-v2/src/quantum_backend_v2/application/financial_portfolio.py`**: Optimized code (6 fixes)
-4. **`backend-v2/scripts/run_peer_scaling_benchmark.py`**: Automated benchmark harness
-5. **`backend-v2/scripts/peer_scaling_results.json`**: Raw benchmark data (pending)
+3. **`backend/src/quantum_backend_v2/application/financial_portfolio.py`**: Optimized code (6 fixes)
+4. **`backend/scripts/run_peer_scaling_benchmark.py`**: Automated benchmark harness
+5. **`backend/scripts/peer_scaling_results.json`**: Raw benchmark data (pending)
 
 ---
 

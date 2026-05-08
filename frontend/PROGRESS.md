@@ -668,7 +668,7 @@ Error: `coincurve==21.0.0` build failed — `RuntimeError: Expected exactly one 
 
 ### Notes
 
-- Full E2E requires both frontend dev server and backend-v2 running
+- Full E2E requires both frontend dev server and backend running
 - `proxy.ts` uses `getSessionCookie` from `better-auth/cookies` — lightweight cookie check, no DB round-trip
 - All analytics routes are deliberately empty redirects per the ADR decision to remove standalone Analytics section
 - `fragment-flow/page.tsx` redirects to the tab-based run detail page; `fragment-flow-canvas.tsx` dynamically imported on tab switch

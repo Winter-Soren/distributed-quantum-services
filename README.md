@@ -35,7 +35,7 @@ Technical journey from bottleneck discovery through optimization attempts.
 
 ### I want to run benchmarks
 
-**→ Start here:** [backend-v2/README.md](backend-v2/README.md)  
+**→ Start here:** [backend/README.md](backend/README.md)  
 Setup instructions, benchmark commands, and configuration options.
 
 ### I want the executive summary
@@ -242,7 +242,7 @@ graph TB
 │   └── archive/                       ← 📦 Historical documents
 │       └── (superseded reports)
 │
-├── backend-v2/                        ← 💻 Main implementation
+├── backend/                        ← 💻 Main implementation
 │   ├── src/quantum_backend_v2/
 │   │   └── application/
 │   │       ├── financial_portfolio.py        Core QAOA implementation
@@ -393,7 +393,7 @@ Result: 3× MORE expensive!
 ### Installation
 
 ```bash
-cd backend-v2
+cd backend
 uv sync
 ```
 
@@ -411,8 +411,8 @@ uv run scripts/benchmark_massive_dataset.py
 
 Results saved to:
 
-- `backend-v2/scripts/node_scaling_current_baseline.json`
-- `backend-v2/scripts/massive_dataset_benchmark_results.json`
+- `backend/scripts/node_scaling_current_baseline.json`
+- `backend/scripts/massive_dataset_benchmark_results.json`
 
   
 
@@ -462,7 +462,7 @@ This is academic research code. For inquiries:
 
 - **Research questions**: See [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)
 - **Technical details**: See [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)
-- **Bugs/Issues**: Check [backend-v2/README.md](backend-v2/README.md) for troubleshooting
+- **Bugs/Issues**: Check [backend/README.md](backend/README.md) for troubleshooting
 
   
 
@@ -513,7 +513,7 @@ If you use this work, please cite:
 
 
 
-**[📄 Read the Paper](docs/research/RESEARCH_PAPER_DRAFT.md)** · **[🔧 Implementation Details](docs/technical/IMPLEMENTATION_NOTES.md)** · **[📊 View Benchmarks](backend-v2/scripts/)**
+**[📄 Read the Paper](docs/research/RESEARCH_PAPER_DRAFT.md)** · **[🔧 Implementation Details](docs/technical/IMPLEMENTATION_NOTES.md)** · **[📊 View Benchmarks](backend/scripts/)**
 
   
 

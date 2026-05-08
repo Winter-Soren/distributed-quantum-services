@@ -616,7 +616,7 @@ where $\mathcal{N}(m_k)$ is the neighborhood of single-fragment replacements.
 The backend adds a new domain to the application layer:
 
 ```text
-backend-v2/src/quantum_backend_v2/
+backend/src/quantum_backend_v2/
 ├── application/
 │   ├── pharma_job_service.py          # Orchestrates 6 stages
 │   ├── quantum_ligand_generation.py   # Stage -1 (Quantum GAN)

@@ -380,7 +380,7 @@ if __name__ == "__main__":
         setup_phase3()
 ```
 
-Save as `backend-v2/scripts/download_datasets.py`
+Save as `backend/scripts/download_datasets.py`
 
 ---
 

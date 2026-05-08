@@ -129,9 +129,9 @@ This project includes comprehensive documentation for research publication, stru
 ### For Code Review/Replication
 
 **Start**: IMPLEMENTATION_NOTES.md (technical timeline)  
-**Code**: backend-v2/src/quantum_backend_v2/application/financial_portfolio.py  
-**Benchmarks**: backend-v2/scripts/benchmark_massive_dataset.py  
-**Results**: backend-v2/scripts/massive_dataset_benchmark_results.json
+**Code**: backend/src/quantum_backend_v2/application/financial_portfolio.py  
+**Benchmarks**: backend/scripts/benchmark_massive_dataset.py  
+**Results**: backend/scripts/massive_dataset_benchmark_results.json
 
 ### For Understanding Quantum Advantage
 
@@ -360,7 +360,7 @@ nodes-quantum-gates/
 ├── BENCHMARK.md (original analysis)
 ├── QAOA_OPTIMIZATION_RESEARCH.md (literature review)
 ├── CONTEXT.md (project overview)
-├── backend-v2/
+├── backend/
 │   ├── src/quantum_backend_v2/application/
 │   │   ├── financial_portfolio.py (main implementation)
 │   │   ├── financial_comparison.py (classical baselines)

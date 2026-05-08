@@ -14,11 +14,11 @@ Back to [Docs Index](README.md)
 The repository currently has two different finance stories:
 
 - the legacy `backend/` contains a richer finance workflow with correlations, time-series analysis, a simplified DCF path, anomaly detection, and a finance-derived quantum execution artifact
-- `backend-v2/` currently exposes a much narrower finance parity flow that profiles uploaded CSVs and returns row counts, column categories, and simple per-column statistics
+- `backend/` currently exposes a much narrower finance parity flow that profiles uploaded CSVs and returns row counts, column categories, and simple per-column statistics
 
 That difference matters because "financial modeling" is not the same thing as "reading a CSV and computing summary statistics."
 
-Before extending `backend-v2`, the project needs a shared definition of:
+Before extending `backend`, the project needs a shared definition of:
 
 - what kind of finance problem the platform is trying to solve
 - what dataset shape that problem actually needs
@@ -320,7 +320,7 @@ This is the natural fit for:
 
 ## 9. What This Means For The Repo
 
-The current `backend-v2` finance endpoint should be described as:
+The current `backend` finance endpoint should be described as:
 
 - CSV profiling
 - finance data inspection
@@ -354,7 +354,7 @@ Track A should be treated as:
 - a future analytics module
 - or a data-preparation / reporting layer
 
-but not as the main definition of the finance feature inside `backend-v2`.
+but not as the main definition of the finance feature inside `backend`.
 
 ## 11. Recommended First Real Finance Problem
 
@@ -399,7 +399,7 @@ Recommended outputs:
 - qubit count
 - solver metadata
 
-## 12. API Direction For `backend-v2`
+## 12. API Direction For `backend`
 
 The finance API should move from:
 

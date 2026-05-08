@@ -6,7 +6,7 @@ Read this file first in every new session. It answers:
 
 - what this platform is
 - what exists today (not aspirational docs)
-- how the code is organized across backend-v2, frontend-v2, and legacy directories
+- how the code is organized across backend, frontend-v2, and legacy directories
 - where the important code lives, with exact file paths
 - what caveats matter before changing anything
 
@@ -38,7 +38,7 @@ Treat it as a serious proof-of-concept orchestration platform with a growing ope
 
 | Directory | Role | Tech |
 |---|---|---|
-| `backend-v2/` | **Primary backend** | Python 3.11, FastAPI, py-libp2p (Trio), Qiskit, SQLAlchemy (Postgres), Beanie (MongoDB) |
+| `backend/` | **Primary backend** | Python 3.11, FastAPI, py-libp2p (Trio), Qiskit, SQLAlchemy (Postgres), Beanie (MongoDB) |
 | `frontend-v2/` | **Primary frontend** | Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui, Zustand, ReactFlow, Recharts |
 | `docs/` | Documentation corpus | Markdown |
 
@@ -53,7 +53,7 @@ Treat it as a serious proof-of-concept orchestration platform with a growing ope
 
 | File | Purpose |
 |---|---|
-| `docker-compose.yaml` | Runs `backend-v2` + `frontend-v2` + Caddy. Uses Neon Postgres and Atlas MongoDB by default. |
+| `docker-compose.yaml` | Runs `backend` + `frontend-v2` + Caddy. Uses Neon Postgres and Atlas MongoDB by default. |
 | `MANUAL.md` | EC2 + Docker + Caddy deployment runbook |
 | `.env.example` | Template for Docker/deployment env vars |
 | `deploy/Caddyfile` | Reverse proxy config |
@@ -66,7 +66,7 @@ Package: `src/quantum_backend_v2/`
 
 ### Entrypoints
 
-- CLI: `quantum_backend_v2.main:main` (registered as `quantum-backend-v2` console script)
+- CLI: `quantum_backend_v2.main:main` (registered as `quantum-backend` console script)
 - Bootstrap: `bootstrap/application.py` → `create_application()` builds the FastAPI app
 - Lifespan: `api/app.py` handles startup (init persistence, start discovery, run recovery) and shutdown
 
@@ -174,7 +174,7 @@ Aliases: `h` → hadamard, `cx`/`cnot` → cnot, `bell` → bell_pair, `teleport
 ### Running Locally
 
 ```bash
-cd backend-v2
+cd backend
 make install    # uv sync --extra dev
 make run        # scripts/demo-start.sh
 make run-clean  # scripts/demo-start.sh --clean (flush runtime artifacts first)
@@ -264,7 +264,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Services: `backend-v2` (port 8080), `frontend-v2` (port 3000), `caddy` (ports 80/443).
+Services: `backend` (port 8080), `frontend-v2` (port 3000), `caddy` (ports 80/443).
 
 Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB_TARGET=remote`), libp2p enabled with 4 dev worker peers.
 
@@ -304,9 +304,9 @@ Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB
 
 ---
 
-## Key Differences: backend-v2 vs legacy backend
+## Key Differences: backend vs legacy backend
 
-| Aspect | `backend/` (legacy) | `backend-v2/` (active) |
+| Aspect | `backend/` (legacy) | `backend/` (active) |
 |---|---|---|
 | Package name | `quantum_coordinator` | `quantum_backend_v2` |
 | Persistence | SQLite only | Postgres + MongoDB + local JSONL |
@@ -337,19 +337,19 @@ Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB
 ## Where To Start By Task
 
 **Backend API or orchestration**:
-→ `backend-v2/src/quantum_backend_v2/api/routers/` then `application/`
+→ `backend/src/quantum_backend_v2/api/routers/` then `application/`
 
 **Circuit parsing or planning**:
-→ `backend-v2/src/quantum_backend_v2/planning/` and `application/distributed_statevector.py`
+→ `backend/src/quantum_backend_v2/planning/` and `application/distributed_statevector.py`
 
 **Libp2p or peer discovery**:
-→ `backend-v2/src/quantum_backend_v2/libp2p/` then `discovery/`
+→ `backend/src/quantum_backend_v2/libp2p/` then `discovery/`
 
 **Persistence or data models**:
-→ `backend-v2/src/quantum_backend_v2/persistence/postgres.py` (ORM) and `persistence/mongodb.py` (Beanie docs)
+→ `backend/src/quantum_backend_v2/persistence/postgres.py` (ORM) and `persistence/mongodb.py` (Beanie docs)
 
 **Alembic migrations**:
-→ `backend-v2/alembic/`
+→ `backend/alembic/`
 
 **Frontend pages or components**:
 → `frontend-v2/src/app/(main)/` for pages, `frontend-v2/src/components/` for components
@@ -364,7 +364,7 @@ Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB
 → `frontend-v2/src/types/`
 
 **Docker or deployment**:
-→ `docker-compose.yaml`, `backend-v2/Dockerfile`, `frontend-v2/Dockerfile`, `MANUAL.md`
+→ `docker-compose.yaml`, `backend/Dockerfile`, `frontend-v2/Dockerfile`, `MANUAL.md`
 
 **Docs or roadmap**:
 → `docs/README.md` — separate current-state docs from future-roadmap docs before making claims
@@ -375,7 +375,7 @@ Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB
 
 1. **Trio/asyncio bridge**: The libp2p layer runs in a Trio thread. Communication with the asyncio FastAPI world happens through `queue.SimpleQueue` (events) and `trio.from_thread.run` (RPC). Do not mix Trio and asyncio primitives.
 
-2. **No WebSockets**: Neither backend-v2 nor frontend-v2 uses WebSockets. The legacy backend had a WS endpoint (`/api/v1/jobs/{job_id}/ws`), but backend-v2 relies on polling from the frontend and libp2p pubsub for peer communication.
+2. **No WebSockets**: Neither backend nor frontend-v2 uses WebSockets. The legacy backend had a WS endpoint (`/api/v1/jobs/{job_id}/ws`), but backend relies on polling from the frontend and libp2p pubsub for peer communication.
 
 3. **Auth is dev-mode**: `QB2_AUTH_REQUIRED=false` by default. Production JWT is a stub. Do not build features that assume real auth exists.
 
@@ -385,11 +385,11 @@ Default: Neon Postgres (`QB2_POSTGRES_TARGET=neon`), Atlas MongoDB (`QB2_MONGODB
 
 6. **Quantum modeling simplifications**: Teleportation = ancilla-free SWAP. Syndrome extraction and distillation = orchestration steps (no stabilizer measurement). Fidelity = consistency reference against ideal compiled state, not hardware tomography.
 
-7. **Financial workflow**: backend-v2 implements QAOA-based portfolio optimization with quantum-vs-classical comparison reports. This is different from the legacy backend's simpler profiling + DCF + anomaly detection approach.
+7. **Financial workflow**: backend implements QAOA-based portfolio optimization with quantum-vs-classical comparison reports. This is different from the legacy backend's simpler profiling + DCF + anomaly detection approach.
 
 8. **Bun, not npm**: frontend-v2 uses Bun as its package manager. Use `bun install` and `bun run dev`, not npm/yarn.
 
-9. **uv, not pip**: backend-v2 uses `uv` for Python package management. Use `uv sync` and `uv run`, not pip.
+9. **uv, not pip**: backend uses `uv` for Python package management. Use `uv sync` and `uv run`, not pip.
 
 ---
 

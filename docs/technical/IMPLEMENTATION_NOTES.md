@@ -112,7 +112,7 @@ timeline
 
 ### Implementation
 
-**New File**: `backend-v2/src/quantum_backend_v2/application/qaoa_parameter_optimization.py` (500+ lines)
+**New File**: `backend/src/quantum_backend_v2/application/qaoa_parameter_optimization.py` (500+ lines)
 
 **Key Components**:
 
@@ -459,7 +459,7 @@ Quantum Advantage: 2-4× faster!
 
 ## File Modifications Log
 
-### backend-v2/src/quantum_backend_v2/application/financial_portfolio.py
+### backend/src/quantum_backend_v2/application/financial_portfolio.py
 
 **Lines Changed**: 1190-1270
 
@@ -472,7 +472,7 @@ Quantum Advantage: 2-4× faster!
 
 **Rationale**: Original logic prevented gradients from ever being used due to contradictory conditions.
 
-### backend-v2/src/quantum_backend_v2/application/qaoa_parameter_optimization.py
+### backend/src/quantum_backend_v2/application/qaoa_parameter_optimization.py
 
 **New File**: 356 lines
 
@@ -489,7 +489,7 @@ Quantum Advantage: 2-4× faster!
 - `_find_warm_start_parameters()`: Transfer learning lookup
 - `_generate_initial_points()`: Smart initialization
 
-### backend-v2/scripts/benchmark_massive_dataset.py
+### backend/scripts/benchmark_massive_dataset.py
 
 **New File**: 180 lines
 
