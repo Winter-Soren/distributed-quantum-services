@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { useRiskJob } from "@/features/risk/hooks/use-risk-job";
+import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
 import { RiskResultDashboard } from "@/features/risk/components/risk-result-dashboard";
 
 export default function RiskDetailPage() {
@@ -19,7 +20,15 @@ export default function RiskDetailPage() {
         title="Job Result"
         description="Quantum CVaR and VaR risk analysis against classical Monte Carlo."
         glow="rose"
-      />
+      >
+        {data && data.status.toLowerCase() === "completed" && (
+          <ShareToVaultButton
+            data={data as unknown as Record<string, unknown>}
+            name={data.jobId}
+            type="run"
+          />
+        )}
+      </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "280px" }}>
           <div

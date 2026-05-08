@@ -6,3 +6,4 @@ export { DataTable, type DataTableColumn } from "./data-table";
 export { FieldList, type FieldItem } from "./field-list";
 export { ResultValue } from "./result-value";
 export { DetailPageSkeleton } from "./detail-page-skeleton";
+export { QuantumDetailsButton } from "./quantum-details-button";

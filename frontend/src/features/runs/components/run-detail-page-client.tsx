@@ -1,7 +1,7 @@
 "use client";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  Cpu, Zap, BarChart3, Database, ArrowRight, CheckCircle2, XCircle, Clock,
+  Cpu, Zap, BarChart3, Database, CheckCircle2, XCircle, Clock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -12,10 +12,12 @@ import {
   JobMetaStrip,
   MetricGrid,
   DataTable,
+  QuantumDetailsButton,
   type MetricItem,
   type DataTableColumn,
 } from "@/shared/components/detail";
 import { ROUTES } from "@/constants";
+import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
 import { useRunDetail } from "../hooks/use-run-detail";
 import { RunStatusBadge } from "./run-status-badge";
 import type { RunDetail, FragmentResult } from "../types";
@@ -25,26 +27,6 @@ function fmt(n: number, d = 4) {
   return n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
-// ── Quantum Details button ─────────────────────────────────────────────────────
-function QuantumDetailsButton({ runId }: { runId: string }) {
-  const router = useRouter();
-  return (
-    <button
-      onClick={() => router.push(ROUTES.runFragmentFlow(runId))}
-      className={cn(
-        "group relative flex items-center gap-1.5 overflow-hidden rounded-md",
-        "border border-violet-500/25 bg-violet-500/8 px-3 py-1.5",
-        "text-[12px] font-medium text-violet-400 transition-all duration-200",
-        "hover:border-violet-500/50 hover:bg-violet-500/15 hover:text-violet-300",
-      )}
-    >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-violet-400/12 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-      <Zap className="h-3 w-3 shrink-0 animate-pulse" />
-      <span>Quantum Details</span>
-      <ArrowRight className="h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-hover:translate-x-0.5" />
-    </button>
-  );
-}
 
 // ── Fragment results table columns ─────────────────────────────────────────────
 const fragmentCols: DataTableColumn<FragmentResult>[] = [
@@ -198,7 +180,7 @@ function RunDetailPanel({ run }: { run: RunDetail }) {
           ...(run.planId ? [{ label: "Distributed", className: "border-violet-500/30 bg-violet-500/10 text-violet-400" }] : []),
           ...(failedFragments > 0 ? [{ label: `${failedFragments} failed`, className: "border-red-500/30 bg-red-500/10 text-red-400" }] : []),
         ]}
-        rightContent={<QuantumDetailsButton runId={run.jobId} />}
+        rightContent={<QuantumDetailsButton href={ROUTES.runFragmentFlow(run.jobId)} accent="violet" />}
       />
 
       {/* Execution overview */}
@@ -303,7 +285,15 @@ export function RunDetailPageClient() {
         title="Run Detail"
         description="Circuit execution progress, fragment results, and measurement outcomes."
         glow="violet"
-      />
+      >
+        {run && run.status.toLowerCase() === "completed" && (
+          <ShareToVaultButton
+            data={run as unknown as Record<string, unknown>}
+            name={run.jobId}
+            type="run"
+          />
+        )}
+      </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "280px" }}>
           <div

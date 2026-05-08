@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { getLocalItems } from "../lib/local-index";
 import type { VaultItem } from "../types";
 
 let listeners: Array<() => void> = [];
+let cachedSnapshot: VaultItem[] | null = null;
 
 function subscribe(callback: () => void) {
   listeners.push(callback);
@@ -14,19 +15,25 @@ function subscribe(callback: () => void) {
 }
 
 function getSnapshot(): VaultItem[] {
-  return getLocalItems();
+  if (cachedSnapshot === null) {
+    cachedSnapshot = getLocalItems();
+  }
+  return cachedSnapshot;
 }
 
 function emptyItems(): VaultItem[] {
   return [];
 }
 
+function notify() {
+  cachedSnapshot = null;
+  listeners.forEach((l) => l());
+}
+
 export function useLocalVaultIndex() {
   const items = useSyncExternalStore(subscribe, getSnapshot, emptyItems);
 
-  const refresh = useCallback(() => {
-    listeners.forEach((l) => l());
-  }, []);
+  const refresh = useCallback(() => notify(), []);
 
   useEffect(() => {
     window.addEventListener("focus", refresh);
@@ -35,3 +42,5 @@ export function useLocalVaultIndex() {
 
   return { items, refresh };
 }
+
+export { notify as notifyVaultIndexChanged };

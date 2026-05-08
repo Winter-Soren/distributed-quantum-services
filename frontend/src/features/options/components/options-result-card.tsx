@@ -1,6 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { TrendingUp, Cpu, Zap, Settings, AlertTriangle, Database, ArrowRight } from "lucide-react";
+import { TrendingUp, Cpu, Zap, Settings, AlertTriangle, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +8,7 @@ import {
   JobMetaStrip,
   MetricGrid,
   DataTable,
+  QuantumDetailsButton,
   type MetricItem,
   type DataTableColumn,
 } from "@/shared/components/detail";
@@ -57,26 +57,6 @@ const paramCols: DataTableColumn<ParamRow>[] = [
   { key: "value", header: "Value", align: "right", accentClass: "tabular-nums text-white/85" },
 ];
 
-// ── Quantum Details button ────────────────────────────────────────────────────
-function QuantumDetailsButton({ jobId }: { jobId: string }) {
-  const router = useRouter();
-  return (
-    <button
-      onClick={() => router.push(ROUTES.optionsQuantum(jobId))}
-      className={cn(
-        "group relative flex items-center gap-1.5 overflow-hidden rounded-md",
-        "border border-amber-500/25 bg-amber-500/8 px-3 py-1.5",
-        "text-[12px] font-medium text-amber-400 transition-all duration-200",
-        "hover:border-amber-500/50 hover:bg-amber-500/15 hover:text-amber-300",
-      )}
-    >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-amber-400/12 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-      <Zap className="h-3 w-3 shrink-0 animate-pulse" />
-      <span>Quantum Details</span>
-      <ArrowRight className="h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-hover:translate-x-0.5" />
-    </button>
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
@@ -157,7 +137,7 @@ export function OptionsResultCard({ job, className }: OptionsResultCardProps) {
           ...(r.divergenceWarning ? [{ label: "Divergence Warning", className: "border-red-500/30 bg-red-500/10 text-red-400" }] : []),
           ...(r.sigmaZeroFallback ? [{ label: "σ=0 Fallback", className: "border-orange-500/30 bg-orange-500/10 text-orange-400" }] : []),
         ]}
-        rightContent={<QuantumDetailsButton jobId={job.jobId} />}
+        rightContent={<QuantumDetailsButton href={ROUTES.optionsQuantum(job.jobId)} accent="amber" />}
       />
 
       {/* Pricing result */}

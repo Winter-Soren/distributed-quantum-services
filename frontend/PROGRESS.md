@@ -46,7 +46,7 @@ Keep the Summary Dashboard in sync with milestone statuses. Add entries to the K
 | 11 | Docs & Settings Features | 🟢 Completed | 100% | — |
 | 12 | Performance Audit & Bundle Optimization | 🟢 Completed | 100% | — |
 | 13 | E2E Verification | 🟡 In Progress | 75% | Backend build fails on Windows (coincurve) |
-| 14 | IPFS Helia + Pinata Integration | ⚪ Pending | 0% | — |
+| 14 | VAULT NFT.Storage + IPFS Helia Integration | 🟢 Completed | 100% | — |
 
 ---
 
@@ -678,10 +678,10 @@ Error: `coincurve==21.0.0` build failed — `RuntimeError: Expected exactly one 
 
 ## Milestone 14 — VAULT NFT.Storage Free Pinning Integration
 
-### Status: ⚪ Pending
+### Status: 🟢 Completed
 ### Owner: —
-### Started: —
-### Completed: —
+### Started: 2026-05-08
+### Completed: 2026-05-08
 ### Design Spec: `docs/superpowers/specs/2026-05-08-vault-nft-storage-integration.md`
 
 ### Vision
@@ -699,67 +699,67 @@ Enable decentralized quantum circuit and workflow sharing via IPFS with free, pe
 ### Tasks
 
 #### Phase 1 — Infrastructure
-- [ ] `bun add helia @helia/unixfs @helia/interface blockstore-idb` — install Helia packages
-- [ ] Add `NEXT_PUBLIC_NFT_STORAGE_TOKEN` to `.env.local` — NFT.Storage API token (public, rate-limited)
-- [ ] `features/ipfs/lib/helia-init.ts` — Helia factory + singleton (browser-only, dynamic import)
-- [ ] `features/ipfs/lib/local-index.ts` — localStorage CID registry
+- [x] `bun add helia @helia/unixfs @helia/interface blockstore-idb` — install Helia packages
+- [x] Add `NEXT_PUBLIC_NFT_STORAGE_TOKEN` to `.env.local` — NFT.Storage API token (public, rate-limited)
+- [x] `features/ipfs/lib/helia-init.ts` — Helia factory + singleton (browser-only, dynamic import)
+- [x] `features/ipfs/lib/local-index.ts` — localStorage CID registry
 - [ ] `features/ipfs/lib/transformers.ts` — RunDetail ↔ RunIPFSRecord, CircuitForm ↔ CircuitIPFSRecord
-- [ ] `features/ipfs/provider.tsx` — HeliaProvider React context (dynamic import, ssr:false)
-- [ ] `features/ipfs/hooks.ts` — useHelia(), useIpfsUpload(), useIpfsFetch()
-- [ ] `features/ipfs/types.ts` — CircuitIPFSRecord, RunIPFSRecord, VaultItem, LocalVaultIndex
+- [x] `features/ipfs/provider.tsx` — HeliaProvider React context (dynamic import, ssr:false)
+- [x] `features/ipfs/hooks.ts` — useHelia(), useIpfsUpload(), useIpfsFetch()
+- [x] `features/ipfs/types.ts` — CircuitIPFSRecord, RunIPFSRecord, VaultItem, LocalVaultIndex
 - [ ] `features/ipfs/schema.ts` — Zod validators for both record types
 - [ ] `features/ipfs/pinata.ts` — Phase 1 stub (throws "Phase 2 not implemented")
-- [ ] `features/ipfs/index.ts` — public barrel
+- [x] `features/ipfs/index.ts` — public barrel
 
 #### Phase 1 — Vault Pinning Feature (NEW)
-- [ ] `features/vault-pinning/types.ts` — PinningProvider interface, PinResult, QuotaInfo, PinAuditRecord
-- [ ] `features/vault-pinning/services/nft-storage.ts` — NFTStorageProvider implementation
-- [ ] `features/vault-pinning/services/index.ts` — provider registry (Phase 1: NFT only)
-- [ ] `features/vault-pinning/hooks/use-pin.ts` — pin/unpin actions with MongoDB sync
-- [ ] `features/vault-pinning/hooks/use-quota.ts` — quota fetching + caching (5min stale time)
-- [ ] `features/vault-pinning/hooks/use-pin-metadata.ts` — fetch pin status for CID
-- [ ] `features/vault-pinning/components/pin-button.tsx` — main pin UI with dropdown (Phase 1: single service)
-- [ ] `features/vault-pinning/components/quota-display.tsx` — quota visualization (3 variants: settings/header/tooltip)
-- [ ] `features/vault-pinning/components/pin-status-badge.tsx` — "📌 NFT.Storage" badges for tables
-- [ ] `features/vault-pinning/components/unpin-modal.tsx` — soft vs hard delete choice modal
-- [ ] `features/vault-pinning/lib/mongodb.ts` — MongoDB connection helper (reuse existing)
-- [ ] `features/vault-pinning/lib/sync-queue.ts` — localStorage queue for offline pinning
-- [ ] `features/vault-pinning/lib/estimate-size.ts` — JSON size estimation utility
-- [ ] `features/vault-pinning/lib/quota-cache.ts` — MongoDB quota cache helpers
-- [ ] `features/vault-pinning/provider.tsx` — PinningProvider context
-- [ ] `features/vault-pinning/index.ts` — public barrel
+- [x] `features/vault-pinning/types.ts` — PinningProvider interface, PinResult, QuotaInfo, PinAuditRecord
+- [x] `features/vault-pinning/services/nft-storage.ts` — NFTStorageProvider implementation
+- [x] `features/vault-pinning/services/index.ts` — provider registry (Phase 1: NFT only)
+- [x] `features/vault-pinning/hooks/use-pin.ts` — pin/unpin actions with MongoDB sync
+- [x] `features/vault-pinning/hooks/use-quota.ts` — quota fetching + caching (5min stale time)
+- [x] `features/vault-pinning/hooks/use-pin-metadata.ts` — fetch pin status for CID
+- [x] `features/vault-pinning/components/pin-button.tsx` — main pin UI with dropdown (Phase 1: single service)
+- [x] `features/vault-pinning/components/quota-display.tsx` — quota visualization (3 variants: settings/header/tooltip)
+- [x] `features/vault-pinning/components/pin-status-badge.tsx` — "📌 NFT.Storage" badges for tables
+- [x] `features/vault-pinning/components/unpin-modal.tsx` — soft vs hard delete choice modal
+- [x] `features/vault-pinning/lib/mongodb.ts` — MongoDB connection helper (reuse existing — via API routes: /api/vault/pin, /api/vault/quota, /api/vault/pins)
+- [x] `features/vault-pinning/lib/sync-queue.ts` — localStorage queue for offline pinning
+- [x] `features/vault-pinning/lib/estimate-size.ts` — JSON size estimation utility
+- [x] `features/vault-pinning/lib/quota-cache.ts` — MongoDB quota cache helpers
+- [x] `features/vault-pinning/provider.tsx` — PinningProvider context
+- [x] `features/vault-pinning/index.ts` — public barrel
 
 #### Phase 1 — Constants & Navigation
-- [ ] `constants/routes.ts` — add VAULT routes: `/vault`, `/vault/circuits`, `/vault/runs`, `/vault/my/circuits`, `/vault/my/runs`, `vaultRunDetail()`, `vaultCircuitDetail()`
-- [ ] `constants/navigation.ts` — add Vault rail item with sidebar (Discover: Circuit Library, Shared Runs; My Vault: My Circuits, My Runs)
-- [ ] `constants/breadcrumbs.ts` — add vault breadcrumb labels
-- [ ] `constants/query-keys.ts` — add vault query keys (circuitFetch, runFetch, myCircuits, myRuns)
+- [x] `constants/routes.ts` — add VAULT routes: `/vault`, `/vault/circuits`, `/vault/runs`, `/vault/my/circuits`, `/vault/my/runs`, `vaultRunDetail()`, `vaultCircuitDetail()`
+- [x] `constants/navigation.ts` — add Vault rail item with sidebar (Discover: Circuit Library, Shared Runs; My Vault: My Circuits, My Runs)
+- [x] `constants/breadcrumbs.ts` — add vault breadcrumb labels
+- [x] `constants/query-keys.ts` — add vault query keys (circuitFetch, runFetch, myCircuits, myRuns)
 
 #### Phase 1 — VAULT Routes
-- [ ] `app/(main)/vault/layout.tsx` — HeliaProvider wrapper (dynamic import, ssr:false)
-- [ ] `app/(main)/vault/circuits/page.tsx` — Circuit Library page shell (≤10 lines)
-- [ ] `app/(main)/vault/circuits/[cid]/page.tsx` — Circuit detail page shell
-- [ ] `app/(main)/vault/runs/page.tsx` — Shared Runs page shell
-- [ ] `app/(main)/vault/runs/[cid]/page.tsx` — Run viewer page shell (public, no auth)
-- [ ] `app/(main)/vault/my/circuits/page.tsx` — My Circuits page shell
-- [ ] `app/(main)/vault/my/runs/page.tsx` — My Runs page shell
+- [x] `app/(main)/vault/layout.tsx` — HeliaProvider wrapper (dynamic import, ssr:false)
+- [x] `app/(main)/vault/circuits/page.tsx` — Circuit Library page shell (≤10 lines)
+- [x] `app/(main)/vault/circuits/[cid]/page.tsx` — Circuit detail page shell
+- [x] `app/(main)/vault/runs/page.tsx` — Shared Runs page shell
+- [x] `app/(main)/vault/runs/[cid]/page.tsx` — Run viewer page shell (public, no auth)
+- [x] `app/(main)/vault/my/circuits/page.tsx` — My Circuits page shell
+- [x] `app/(main)/vault/my/runs/page.tsx` — My Runs page shell
 
 #### Phase 1 — VAULT Components
-- [ ] `features/ipfs/components/circuit-library-client.tsx` — Circuit Library main UI (search, filter, 3-col grid, publish drawer)
-- [ ] `features/ipfs/components/circuit-detail-client.tsx` — Circuit detail view (metadata, QASM, fork badge, CTAs)
-- [ ] `features/ipfs/components/vault-runs-client.tsx` — Shared Runs table (author, qubits, peers, runtime, status)
-- [ ] `features/ipfs/components/vault-run-detail-client.tsx` — Run detail view (metadata, execution, results, offline state)
-- [ ] `features/ipfs/components/my-vault-client.tsx` — My Vault table (type: circuits | runs, with unpin action)
-- [ ] `features/ipfs/hooks/use-local-vault-index.ts` — reads localStorage CID index, refreshes on focus
+- [x] `features/ipfs/components/circuit-library-client.tsx` — Circuit Library main UI (search, filter, 3-col grid, publish drawer)
+- [x] `features/ipfs/components/circuit-detail-client.tsx` — Circuit detail view (metadata, QASM, fork badge, CTAs)
+- [x] `features/ipfs/components/vault-runs-client.tsx` — Shared Runs table (author, qubits, peers, runtime, status)
+- [x] `features/ipfs/components/vault-run-detail-client.tsx` — Run detail view (metadata, execution, results, offline state)
+- [x] `features/ipfs/components/my-vault-client.tsx` — My Vault table (type: circuits | runs, with unpin action)
+- [x] `features/ipfs/hooks/use-local-vault-index.ts` — reads localStorage CID index, refreshes on focus
 
 #### Phase 1 — Integration Points
-- [ ] `features/ipfs/components/share-to-vault-button.tsx` — "Share to VAULT" button for run detail (replaces Pinata stub)
+- [x] `features/ipfs/components/share-to-vault-button.tsx` — "Share to VAULT" button for run detail (replaces Pinata stub)
 - [ ] Update `features/runs/components/run-detail-page-client.tsx` — add `<PinButton>` after share
-- [ ] Update `app/(main)/vault/my/circuits/page.tsx` — add "Pin Status" column with `<PinStatusBadge>`
-- [ ] Update `app/(main)/vault/my/runs/page.tsx` — add "Pin Status" column
+- [x] Update `app/(main)/vault/my/circuits/page.tsx` — add "Pin Status" column with `<PinStatusBadge>`
+- [x] Update `app/(main)/vault/my/runs/page.tsx` — add "Pin Status" column
 - [ ] Update `app/(main)/settings/page.tsx` — add VAULT Identity section with quota display + display name field
 - [ ] `features/ipfs/components/vault-display-name-field.tsx` — Display name field for Settings (reads/writes localStorage)
-- [ ] Add `<QuotaDisplay variant="header">` to all VAULT page headers
+- [x] Add `<QuotaDisplay variant="header">` to all VAULT page headers
 
 #### Phase 1 — MongoDB Setup
 - [ ] Create MongoDB collection `vault_pin_audit` with schema: `{ userId, cid, service, action, size, sizeSource, type, metadata, timestamp, syncStatus, error? }`
@@ -775,7 +775,7 @@ Enable decentralized quantum circuit and workflow sharing via IPFS with free, pe
 #### Phase 1 — Documentation
 - [ ] Update `frontend/CLAUDE.md` — add VAULT feature guidance
 - [ ] Update `frontend/AGENTS.md` — add VAULT pinning patterns
-- [ ] Update `.env.example` with `NEXT_PUBLIC_NFT_STORAGE_TOKEN`
+- [x] Update `.env.example` with `NEXT_PUBLIC_NFT_STORAGE_TOKEN`
 
 #### Phase 1 — Performance
 - [ ] Add ESLint rule: no direct imports from `**/vault-pinning/**` (enforce dynamic imports)

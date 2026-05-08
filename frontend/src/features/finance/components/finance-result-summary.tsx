@@ -1,8 +1,7 @@
 "use client";
-import { useRouter } from "next/navigation";
 import {
   TrendingUp, Layers, Database, Settings, AlertTriangle,
-  Activity, GitBranch, Zap, CheckCircle2, XCircle, ArrowRight,
+  Activity, GitBranch, CheckCircle2, XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,6 +10,7 @@ import {
   JobMetaStrip,
   MetricGrid,
   DataTable,
+  QuantumDetailsButton,
   type MetricItem,
   type DataTableColumn,
 } from "@/shared/components/detail";
@@ -105,25 +105,6 @@ const frontierCols: DataTableColumn<FrontierRow>[] = [
   { key: "vol", header: "Volatility", align: "right" },
 ];
 
-// ── animated quantum details button ──────────────────────────────────────────
-function QuantumDetailsButton({ jobId }: { jobId: string }) {
-  const router = useRouter();
-  return (
-    <button
-      onClick={() => router.push(ROUTES.financeQuantum(jobId))}
-      className="group relative inline-flex h-8 items-center gap-1.5 overflow-hidden rounded-lg bg-emerald-500/8 px-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/20 transition-colors duration-150 hover:bg-emerald-500/14 hover:text-emerald-200 hover:ring-emerald-500/35 active:translate-y-px"
-    >
-      {/* Shimmer sweep */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full"
-      />
-      <Zap className="relative h-3.5 w-3.5 shrink-0" />
-      <span className="relative">Quantum Details</span>
-      <ArrowRight className="relative h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5" />
-    </button>
-  );
-}
 
 // ── main component ────────────────────────────────────────────────────────────
 export function FinanceResultSummary({ job, className }: FinanceResultSummaryProps) {
@@ -141,7 +122,7 @@ export function FinanceResultSummary({ job, className }: FinanceResultSummaryPro
             ? [{ label: problemType, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" }]
             : []
         }
-        rightContent={hasResult ? <QuantumDetailsButton jobId={job.jobId} /> : undefined}
+        rightContent={hasResult ? <QuantumDetailsButton href={ROUTES.financeQuantum(job.jobId)} accent="emerald" /> : undefined}
       />
 
       {hasResult ? (

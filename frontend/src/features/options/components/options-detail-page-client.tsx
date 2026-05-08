@@ -4,6 +4,7 @@ import { TrendingUp } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
 import { useOptionsJob } from "../hooks/use-options-job";
 import { OptionsResultCard } from "./options-result-card";
 
@@ -19,7 +20,15 @@ export function OptionsDetailPageClient() {
         title="Job Result"
         description="Quantum vs classical Black-Scholes pricing analysis."
         glow="amber"
-      />
+      >
+        {data && data.status.toLowerCase() === "completed" && (
+          <ShareToVaultButton
+            data={data as unknown as Record<string, unknown>}
+            name={data.jobId}
+            type="run"
+          />
+        )}
+      </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "280px" }}>
           <div

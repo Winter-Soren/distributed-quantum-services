@@ -5,9 +5,16 @@ import { useHeliaContext } from "../provider";
 import { addToIndex } from "../lib/local-index";
 
 export function useIpfsUpload() {
-  const { helia, ready } = useHeliaContext();
+  const { helia, ready, error: heliaError } = useHeliaContext();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Derive a human-readable status for the VAULT connection
+  const heliaStatus: string = heliaError
+    ? `VAULT error: ${heliaError.message}`
+    : ready
+      ? "VAULT ready"
+      : "VAULT is initializing (Helia / libp2p booting…)";
 
   const upload = async (
     data: Record<string, unknown>,
@@ -40,5 +47,5 @@ export function useIpfsUpload() {
     }
   };
 
-  return { upload, uploading, error, ready };
+  return { upload, uploading, error, ready, heliaStatus };
 }

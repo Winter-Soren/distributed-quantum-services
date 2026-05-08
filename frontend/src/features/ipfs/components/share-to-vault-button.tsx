@@ -1,12 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { toast } from "sonner";
-import { useIpfsUpload } from "../hooks/use-ipfs-upload";
-import { PinButton } from "@/features/vault-pinning/components/pin-button";
+import dynamic from "next/dynamic";
+import { Share2, XCircle } from "lucide-react";
 
 interface ShareToVaultButtonProps {
   data: Record<string, unknown>;
@@ -14,42 +9,22 @@ interface ShareToVaultButtonProps {
   type: "circuit" | "run";
 }
 
-export function ShareToVaultButton({ data, name, type }: ShareToVaultButtonProps) {
-  const { upload, uploading, ready } = useIpfsUpload();
-  const [sharedCid, setSharedCid] = useState<string | null>(null);
+// Lazy-load the inner component so helia/libp2p/node-datachannel are never
+// evaluated during SSR, even when this button is imported in non-vault pages.
+const ShareToVaultButtonInner = dynamic(
+  () => import("./share-to-vault-button-inner").then((m) => m.ShareToVaultButtonInner),
+  {
+    ssr: false,
+    loading: () => (
+      <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-cyan-500/25 bg-cyan-500/8 px-3 py-1.5 text-[12px] font-medium text-cyan-400">
+        <Share2 className="h-3 w-3 shrink-0 animate-pulse" />
+        <span>Share to VAULT</span>
+        <XCircle className="h-3 w-3 shrink-0 text-rose-400" />
+      </button>
+    ),
+  },
+);
 
-  const handleShare = async () => {
-    const cid = await upload(data, name, type);
-    if (cid) {
-      setSharedCid(cid);
-      toast.success("Shared to VAULT via IPFS");
-    } else {
-      toast.error("Failed to share to VAULT");
-    }
-  };
-
-  if (sharedCid) {
-    return (
-      <PinButton
-        cid={sharedCid}
-        type={type}
-        metadata={{ name, ...data }}
-      />
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      onClick={handleShare}
-      disabled={uploading || !ready}
-    >
-      {uploading ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <Share2 data-icon="inline-start" />
-      )}
-      {uploading ? "Sharing..." : "Share to VAULT"}
-    </Button>
-  );
+export function ShareToVaultButton(props: ShareToVaultButtonProps) {
+  return <ShareToVaultButtonInner {...props} />;
 }

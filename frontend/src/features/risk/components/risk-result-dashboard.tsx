@@ -1,7 +1,6 @@
 "use client";
-import { useRouter } from "next/navigation";
 import {
-  ShieldAlert, Cpu, Zap, BarChart3, ArrowRight, Database, TrendingDown,
+  ShieldAlert, Cpu, BarChart3, Database, TrendingDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ import {
   JobMetaStrip,
   MetricGrid,
   DataTable,
+  QuantumDetailsButton,
   type MetricItem,
   type DataTableColumn,
 } from "@/shared/components/detail";
@@ -106,26 +106,6 @@ const holdingCols: DataTableColumn<HoldingRow>[] = [
   },
 ];
 
-// ── Quantum Details button ─────────────────────────────────────────────────────
-function QuantumDetailsButton({ jobId }: { jobId: string }) {
-  const router = useRouter();
-  return (
-    <button
-      onClick={() => router.push(ROUTES.riskQuantum(jobId))}
-      className={cn(
-        "group relative flex items-center gap-1.5 overflow-hidden rounded-md",
-        "border border-rose-500/25 bg-rose-500/8 px-3 py-1.5",
-        "text-[12px] font-medium text-rose-400 transition-all duration-200",
-        "hover:border-rose-500/50 hover:bg-rose-500/15 hover:text-rose-300",
-      )}
-    >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-rose-400/12 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-      <Zap className="h-3 w-3 shrink-0 animate-pulse" />
-      <span>Quantum Details</span>
-      <ArrowRight className="h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-hover:translate-x-0.5" />
-    </button>
-  );
-}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function RiskResultDashboard({ job, className }: RiskResultDashboardProps) {
@@ -186,7 +166,7 @@ export function RiskResultDashboard({ job, className }: RiskResultDashboardProps
           { label: titleCase(job.riskModel), className: "border-rose-500/30 bg-rose-500/10 text-rose-400" },
           { label: `${job.portfolioSize} assets`, className: "border-white/10 text-white/40" },
         ]}
-        rightContent={<QuantumDetailsButton jobId={job.jobId} />}
+        rightContent={<QuantumDetailsButton href={ROUTES.riskQuantum(job.jobId)} accent="rose" />}
       />
 
       {/* CVaR / Loss overview */}

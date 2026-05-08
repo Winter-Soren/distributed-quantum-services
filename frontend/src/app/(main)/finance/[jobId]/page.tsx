@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { useFinanceJob } from "@/features/finance/hooks/use-finance-job";
+import { ShareToVaultButton } from "@/features/ipfs/components/share-to-vault-button";
 import { FinanceResultSummary } from "@/features/finance/components/finance-result-summary";
 
 export default function FinanceDetailPage() {
@@ -19,7 +20,15 @@ export default function FinanceDetailPage() {
         title="Job Result"
         description="Quantum financial optimization and fairness analysis."
         glow="emerald"
-      />
+      >
+        {data && data.status.toLowerCase() === "completed" && (
+          <ShareToVaultButton
+            data={data as unknown as Record<string, unknown>}
+            name={data.jobId}
+            type="run"
+          />
+        )}
+      </PageHeader>
       <div className="relative flex-1 overflow-y-auto p-6">
         <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden" style={{ height: "280px" }}>
           <div
