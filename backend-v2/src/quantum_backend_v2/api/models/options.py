@@ -134,3 +134,89 @@ class OptionsJobResponse(BaseModel):
     result: OptionsAnalysisResult | None
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Batch benchmark models
+# ---------------------------------------------------------------------------
+
+
+class BatchOptionsRow(BaseModel):
+    """One row in a batch options benchmark CSV."""
+
+    option_type: OptionType
+    current_value: Annotated[float, Field(gt=0.0)]
+    strike_or_cost: Annotated[float, Field(gt=0.0)]
+    time_to_expiry: Annotated[float, Field(gt=0.0)]
+    volatility: Annotated[float, Field(gt=0.0, le=5.0)]
+    risk_free_rate: Annotated[float, Field(ge=0.0, le=1.0)]
+    market_price: float | None = Field(default=None, ge=0.0, description="Observed market price for error comparison")
+    # Optional extras (same as OptionsJobRequest)
+    annual_cost_of_delay: float | None = None
+    reserve_quantity: float | None = None
+    resource_price_per_unit: float | None = None
+    extraction_cost_per_unit: float | None = None
+    annual_cashflow_after_tax: float | None = None
+    reinvestment_need_pct: float | None = None
+    reinvestment_volatility: float | None = None
+    max_internal_financing_pct: float | None = None
+    cost_of_capital: float | None = None
+    return_on_capital: float | None = None
+    # IQAE params per-row (optional; batch defaults used if absent)
+    num_uncertainty_qubits: int | None = Field(default=None, ge=3, le=8)
+    epsilon: float | None = Field(default=None, gt=0.0, lt=0.5)
+
+
+class BatchOptionsRowResult(BaseModel):
+    """Result for one row in a batch benchmark."""
+
+    row_index: int
+    option_type: str
+    current_value: float
+    strike_or_cost: float
+    time_to_expiry: float
+    volatility: float
+    risk_free_rate: float
+    market_price: float | None
+
+    # Prices
+    quantum_price: float
+    classical_bs_price: float
+    classical_binomial_price: float
+    price_difference_pct: float  # (quantum - BS) / BS * 100
+
+    # Market error (only if market_price provided)
+    quantum_vs_market_pct: float | None
+    bs_vs_market_pct: float | None
+
+    # Greeks summary
+    quantum_delta: float
+    classical_delta: float
+
+    # IQAE metadata
+    confidence_interval: list[float]
+    moneyness: str
+    divergence_warning: bool
+    num_qubits: int
+    analysis_duration_ms: int
+
+
+class BatchOptionsSummary(BaseModel):
+    """Aggregate statistics for the batch benchmark run."""
+
+    total_rows: int
+    succeeded: int
+    failed: int
+    mean_quantum_bs_diff_pct: float
+    mean_quantum_vs_market_pct: float | None  # None if no market prices provided
+    mean_bs_vs_market_pct: float | None
+    rows_with_divergence_warning: int
+    total_duration_ms: int
+
+
+class BatchOptionsResult(BaseModel):
+    """Full batch benchmark response."""
+
+    rows: list[BatchOptionsRowResult]
+    errors: list[dict]  # {row_index, error}
+    summary: BatchOptionsSummary

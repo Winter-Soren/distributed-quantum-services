@@ -6,6 +6,8 @@ import { useMemo, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { TrialBanner } from '@/components/auth/trial-banner';
+import { NavUser } from '@/components/nav-user';
 import {
 	ActivityIcon,
 	AlertTriangleIcon,
@@ -68,6 +70,7 @@ import {
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarGroupLabel,
+	SidebarFooter,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -253,7 +256,13 @@ const FINANCIAL_SUBMENU_LINKS: { label: string; href: string }[] = [
 
 /** Options Pricing submenu under Runs → Projects. */
 const OPTIONS_SUBMENU_LINKS: { label: string; href: string }[] = [
-	{ label: 'Price an Option', href: '/options' }
+	{ label: 'Price an Option', href: '/options' },
+	{ label: 'Batch Benchmark', href: '/options/batch' }
+];
+
+/** Risk Engine submenu. */
+const RISK_SUBMENU_LINKS: { label: string; href: string }[] = [
+	{ label: 'Portfolio VaR / CVaR', href: '/risk' }
 ];
 
 /**
@@ -361,7 +370,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 		if (pathname.startsWith('/analytics')) return { activeItem: 'analytics' as const };
 		if (pathname.startsWith('/docs')) return { activeItem: 'docs' as const };
 		if (pathname.startsWith('/settings')) return { activeItem: 'settings' as const };
-		if (pathname.startsWith('/runs') || pathname.startsWith('/finance') || pathname.startsWith('/options')) {
+		if (pathname.startsWith('/runs') || pathname.startsWith('/finance') || pathname.startsWith('/options') || pathname.startsWith('/risk')) {
 			return { activeItem: 'runs-projects' as const };
 		}
 		if (pathname === '/dashboard' || pathname === '/') {
@@ -615,16 +624,56 @@ export function DashboardShell({ children }: DashboardShellProps) {
 																					<SidebarMenuSubButton
 																						asChild
 																						size='sm'
-																						isActive={
-																							pathname === link.href ||
-																							pathname.startsWith(link.href + '/')
-																						}
+																						isActive={pathname === link.href}
 																					>
 																						<Link
 																							href={link.href}
 																							onClick={() =>
 																								setManualActivePanelItem(
 																									'Options Pricing'
+																								)
+																							}
+																						>
+																							<span className='truncate'>
+																								{link.label}
+																							</span>
+																						</Link>
+																					</SidebarMenuSubButton>
+																				</SidebarMenuSubItem>
+																			))}
+																		</SidebarMenuSub>
+																	</CollapsibleContent>
+																</Collapsible>
+															</SidebarMenuItem>
+															<SidebarMenuItem>
+																<Collapsible
+																	defaultOpen={pathname.startsWith('/risk')}
+																	className='group/collapsible w-full'
+																>
+																	<CollapsibleTrigger asChild>
+																		<SidebarMenuButton
+																			isActive={pathname.startsWith('/risk')}
+																			className='px-3'
+																		>
+																			<ShieldIcon className='opacity-80' />
+																			<span className='truncate'>Risk Engine</span>
+																			<ChevronRightIcon className='ml-auto size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90' />
+																		</SidebarMenuButton>
+																	</CollapsibleTrigger>
+																	<CollapsibleContent>
+																		<SidebarMenuSub>
+																			{RISK_SUBMENU_LINKS.map(link => (
+																				<SidebarMenuSubItem key={link.href}>
+																					<SidebarMenuSubButton
+																						asChild
+																						size='sm'
+																						isActive={pathname === link.href}
+																					>
+																						<Link
+																							href={link.href}
+																							onClick={() =>
+																								setManualActivePanelItem(
+																									'Risk Engine'
 																								)
 																							}
 																						>
@@ -647,9 +696,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
 										</div>
 									))}
 								</SidebarContent>
+								<SidebarFooter className='border-t border-border bg-card px-2 py-2'>
+									<NavUser />
+								</SidebarFooter>
 							</Sidebar>
 
 							<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background/50'>
+								<TrialBanner />
 								<header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-transparent px-4 py-3'>
 									<Breadcrumb>
 										<BreadcrumbList>

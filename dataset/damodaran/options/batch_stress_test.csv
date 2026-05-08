@@ -1,0 +1,11 @@
+option_type,current_value,strike_or_cost,time_to_expiry,volatility,risk_free_rate,market_price,reserve_quantity,resource_price_per_unit,extraction_cost_per_unit,annual_cashflow_after_tax,annual_cost_of_delay,reinvestment_need_pct,reinvestment_volatility,max_internal_financing_pct,cost_of_capital,return_on_capital,num_uncertainty_qubits,epsilon
+european_call_short,112.5,110.0,0.2055,0.30,0.04,,,,,,,,,,,,,
+european_call_long,500.0,600.0,15.0,0.50,0.05,,,,,,,,,,,,,
+expand,100.0,150.0,10.0,0.31622776601683794,0.065,,,,,0.0,,,,,,5,0.03
+delay,350.0,500.0,20.0,0.223606797749979,0.07,,,,,0.05,,,,,,5,0.03
+abandon,254.0,150.0,10.0,0.30,0.07,,,,,0.04,,,,,,5,0.03
+patent,800000.0,1000000.0,10.0,0.30,0.08,,,,,0.1,,,,,,4,0.05
+natural_resource,22.5,1000000.0,10.0,0.30,0.08,,100000.0,22.5,10.0,50000.0,,,,,,4,0.05
+financial_flexibility,0.09131719969879529,0.05,1.0,0.6125043783929958,0.04,,,,,,,0.09131719969879529,0.6125043783929958,0.05,0.10,0.16,4,0.05
+european_call_short,10.0,10.0,5.0,0.40,0.02,,,,,,,,,,,5,0.03
+european_call_long,238511.0,238511.0,7.0,0.25,0.07,,,,,,,,,,,4,0.05

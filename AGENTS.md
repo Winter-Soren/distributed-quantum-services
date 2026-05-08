@@ -1,37 +1,57 @@
+<!-- codebase-memory-mcp:start -->
+# Codebase Knowledge Graph (codebase-memory-mcp)
+
+This project uses codebase-memory-mcp to maintain a knowledge graph of the codebase.
+ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
+
+## Priority Order
+1. `search_graph` — find functions, classes, routes, variables by pattern
+2. `trace_path` — trace who calls a function or what it calls
+3. `get_code_snippet` — read specific function/class source code
+4. `query_graph` — run Cypher queries for complex patterns
+5. `get_architecture` — high-level project summary
+
+## When to fall back to grep/glob
+- Searching for string literals, error messages, config values
+- Searching non-code files (Dockerfiles, shell scripts, configs)
+- When MCP tools return insufficient results
+
+## Examples
+- Find a handler: `search_graph(name_pattern=".*OrderHandler.*")`
+- Who calls it: `trace_path(function_name="OrderHandler", direction="inbound")`
+- Read source: `get_code_snippet(qualified_name="pkg/orders.OrderHandler")`
+<!-- codebase-memory-mcp:end -->
+
 ## Learned User Preferences
 
-- Never leave TODOs or placeholders — implement everything completely in one pass; the user explicitly asks "do everything 100%" and "complete the TODOs, don't leave anything for the future."
-- Do not hardcode UI theme values or colors in components; all visual parameters must be CSS variables sourced from `frontend-v2/src/app/globals.css` so the design system can be swapped by replacing `DESIGN.md`.
-- Always reuse existing shadcn/ui components (e.g. `pagination.tsx`, `table.tsx` with TanStack React Table) rather than writing custom equivalents.
-- When migrating frontend code, align every component against `DESIGN.md`; if a new `DESIGN.md` is provided, re-audit all components and sync them.
-- Prefer light theme for the frontend; do not switch to dark theme unless explicitly requested.
-- When adding an `AUTH_REQUIRED` env variable for development, make it a boolean toggle so auth middleware can be bypassed locally.
-- When the user asks to force-merge a branch, hard-reset the target branch to the source branch (not a standard merge) — and remind them to force-push afterward.
-- Document all issues and resolutions encountered during EC2/Docker deployment directly in `MANUAL.md`.
-- When adding a Makefile, include a docstring/comment describing each command.
-- Do not use `dark mode` or `localStorage`-dependent logic in Next.js SSR components; it causes hydration mismatches — use `suppressHydrationWarning` or initialize safely.
-- The icon rail in `dashboard-shell.tsx` uses a flush, no-outer-padding layout (no `p-3`/`gap-3` on the wrapper). The rail is a narrow `w-[4.25rem]` sidebar with icon+label nav items. Do not add outer padding or spacing around the layout, and do not add rounded corners to the overall shell container. There is no top header bar — it was intentionally removed. The active rail item uses a `size-9 rounded-xl bg-background shadow` icon tile for an elevation/raised effect. Active sidebar selections must always use elevation (raised tile + shadow on the icon container), never just a background fill on the row.
-- The top `<header>` bar (breadcrumb, search ⌘K, avatar, bell) in `dashboard-shell.tsx` was intentionally removed. Also removed: the "Workspace navigation" subtitle `<p class="text-xs text-muted-foreground">` and the non-functional "Add" `<Button>` in the sidebar header area for non-runs sections.
-- `financialSubLinkIsActive` in `dashboard-shell.tsx`: the "Upload & Analyse" link (`/finance`) must only be active on the bare `/finance` route with no `?jobId` query param. Pass the active job ID into the check so the upload link is not highlighted when viewing a job result.
-- Finance page (`financial-analytics-client.tsx`) route behavior: when `?jobId` is present in the URL, hide the upload form and recent jobs list entirely — show only the active job card, progress, and result dashboard. When no `jobId` is set, show the upload form + recent jobs list in a `[1fr_320px]` two-column layout.
+- UI cards should be neutral glass (no per-card color fills); ambient glow gradients go behind sections in the page background
+- Hover states on clickable cards should show a gradient wash matching the card's icon color
+- Background glow positions should match the horizontal position of the cards they sit behind
+- Follow `frontend-v3/DESIGN.md` strictly for colors, variables, and component styling
+- User prefers animated lucide icons throughout the UI
+- Disable trial/auth gating during development via `NEXT_PUBLIC_TRIAL_DISABLED=true` env var
+- Remove non-interactive or data-less cards; consolidate small status indicators to top-right area
+- Detail/result pages must be full-width — never apply `max-w-*` constraints to detail page content containers
+- History table rows (Options/Risk/Finance) must be clickable via `router.push` with hover gradient matching the page accent color — no separate "View" column
 
 ## Learned Workspace Facts
 
-- **Primary stack:** backend = Python 3.11 + FastAPI + py-libp2p (Trio) + Qiskit (statevector simulation) + SQLAlchemy (Postgres) + Beanie (MongoDB); frontend = Next.js 16 + React 19 + TypeScript + Tailwind 4 + shadcn/ui + Zustand + ReactFlow + Recharts.
-- **Active directories:** `backend-v2/` (primary backend) and `frontend-v2/` (primary frontend). `frontend-v3/` is an active migration target (auth system, DESIGN.md token work). `backend/` and `frontend/` are legacy reference — do not extend them.
-- **Entry point:** `CONTEXT.md` at the repo root is the canonical session context file for all AI agents; read it first in every new session.
-- **Config pattern:** All backend config flows through `QB2_*` environment variables into `AppSettings.from_env()` (Pydantic); never hardcode config values.
-- **SQLite files** (`*.sqlite3`, `*.sqlite3-shm`, `*.sqlite3-wal`) under `backend-v2/quantum-backend-v2/libp2p/` are gitignored via `**/*.sqlite3*` glob patterns.
-- **Deployment:** `docker-compose.yaml` runs `backend-v2` + `frontend-v2` + Caddy. EC2 deployment documented in `MANUAL.md`. Legacy frontend (`frontend/`) is served manually via `pm2` + `serve -s dist` on port 3003, not included in Docker Compose.
-- **Quantum backend:** Uses Qiskit `BasicSimulator` for statevector simulation (not real quantum hardware). Quality/fidelity metrics are derived from Qiskit backend instruction properties via `ServiceQualityTracker`.
-- **Financial workflow:** A secondary QAOA-based portfolio optimization workflow accepts user-uploaded CSV files; results must appear in the run history page under the sidebar "Financial" section alongside circuit job history.
-- **3D network visualization:** Uses `react-force-graph-3d` (React wrapper); do not use `3d-force-graph` directly (that is the HTML-only library).
-- **Authors:** Soham Bhoir and Manusheel Gupta (both listed in README BibTeX and `**Author**` line).
-- **Branch `legacy`:** A snapshot of the old `main` before the `codex/wire-frontendv2-to-backendv2` force-merge; kept as a reference backup.
-- **`frontend-v3` landing route:** `/` redirects to `/dashboard`; there is no standalone landing page.
-- **`frontend-v3` auth session:** `GET /api/auth/session` returns HTTP 200 with `{ user: null }` when no session exists (not a 4xx). Guards must check `data.user` for null after `response.ok`; both `src/features/auth/store/auth-store.ts` and `src/store/auth-store.ts` are kept in sync.
-- **Financial analytics UI style:** Finance page components under `frontend-v2/src/components/financial/` use flat, blunt info blocks with no decorative chrome. Only `border-border`, `bg-card`, `text-foreground`, `text-muted-foreground`, and other globals.css CSS variables — no hardcoded colors or custom clay/gradient vars.
-- **Financial results page layout:** On the finance job results page, render small stat/metric boxes first (top), then main details in descending order of importance; use side-by-side layout when the data width permits, single-column otherwise.
-- **`frontend-v3` tooling:** Uses `bun` as the package manager (not npm/yarn). Prettier is configured via `frontend-v3/prettier.config.mjs`; run `bun run format` to format and `bun run format:check` to check. A `.prettierignore` at `frontend-v3/.prettierignore` excludes `node_modules`, `.next`, `out`, `build`, lock files, and `next-env.d.ts`. `eslint-config-prettier` must be the **last** config block in the ESLint config to properly override conflicting formatting rules.
-- **`frontend-v3` Tailwind v4 design tokens:** Custom DESIGN.md color tokens (`ink`, `canvas`, `surface-soft`, `surface-strong`, `surface-dark`, `link`, `link-active`, `info`, `info-border`, `signature-*`, `primary-active`, `on-primary`, `on-dark`, `hairline`, `border-strong`) and radius tokens must be wired into the `@theme inline` block in `globals.css` so Tailwind v4 generates utility classes (`text-ink`, `bg-canvas`, etc.). Defining CSS variables without the `@theme inline` mapping means Tailwind utilities are not generated.
-- **Local Postgres DB name:** `qds`.
+- frontend-v3 uses barrel imports from feature folders (`@/features/network`, `@/features/runs`)
+- Backend API returns snake_case; frontend transformers in `features/*/lib/*-transformers.ts` convert to camelCase
+- Topology route should hit `BACKEND.DISCOVERY.PEERS` (not `DISCOVERY.TOPOLOGY`) for peer list data
+- Backend `ServiceQualityTracker` in `api/routers/service_quality.py` provides gate_set/connectivity/fidelity from Qiskit transpilation
+- Proxy middleware is in `frontend-v3/src/proxy.ts` (not `src/middleware.ts`)
+- Backend is FastAPI on port 8081; frontend-v3 is Next.js 16 on port 3000
+- Circuit submission uses `BACKEND.CIRCUITS.SUBMIT` (`POST /api/v1/circuits/submit` accepts `{circuit: "..."}`); job detail uses `BACKEND.JOBS.DETAIL` (`GET /api/v1/jobs/{id}`) — do NOT use `BACKEND.WORKFLOWS.RUNS` for these
+- Parity system uses uppercase statuses (QUEUED, COMPILING, EXECUTING, COMPLETED, FAILED) stored in `workflow_runs` table — incompatible with `WorkflowRunStatus` enum (lowercase: submitted, planning, running, etc.)
+- Circuit jobs use `job-{uuid}` prefix; workflows use `run-{uuid}` prefix
+- The shadcn `SidebarProvider` wrapper has `w-full min-h-svh` which breaks flex layouts when used as a child — must override with `!w-auto !min-h-0 flex-none`
+- `DashboardShell` main content wrapper keeps `ml-1.5` left gap (icon rail separation) but is flush on top, bottom, and right edges — do NOT add `my-*` or `mr-*` margins or `rounded-*` to that wrapper
+- Shared detail-page components live at `src/shared/components/detail/` — `GlassCard`, `SectionTitle`, `JobMetaStrip`, `MetricGrid`, `DataTable`, `FieldList`, `ResultValue`; use these across Options, Risk, and Finance detail pages for consistent UI
+- Network mesh page uses `react-force-graph-3d` loaded via `next/dynamic` with `ssr: false`; nodes auto-zoom to fit canvas, links rendered in orange
+- CSS variables from `globals.css` should be used everywhere for theming consistency
+- Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md, @frontend-v3/DESIGN.md
+- `PageHeader` is the standard shared page header at `src/shared/components/layout/page-header.tsx`; all pages use it instead of inline `h1` headers — pass `children` for right-side content
+- `DataTable` `getRowKey` callbacks must append the row index for uniqueness (e.g. `` `${r.state}-${i}` ``) to avoid duplicate React key warnings when data values repeat
+- `LabToolGroup` sidebar component must fetch recent items for all tool types (options, risk, finance, runs), not just runs — each tool type needs its own data hook
+- Job IDs must not be truncated in breadcrumbs — `formatSegment` in `AutoBreadcrumbs` should show full IDs

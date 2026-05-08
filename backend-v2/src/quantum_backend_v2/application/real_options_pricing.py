@@ -224,6 +224,12 @@ def _run_iqae_for_params(
 
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+    # Reset global seed so sequential IQAE calls in the same process don't share
+    # corrupted simulator state (critical for batch mode with multiple rows).
+    from qiskit_algorithms.utils import algorithm_globals
+
+    algorithm_globals.random_seed = 12345
+
     from qiskit_algorithms import IterativeAmplitudeEstimation, EstimationProblem
     from qiskit_finance.circuit.library import LogNormalDistribution
     from qiskit.circuit.library import LinearAmplitudeFunctionGate

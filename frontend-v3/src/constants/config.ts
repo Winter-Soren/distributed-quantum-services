@@ -1,0 +1,21 @@
+export const CONFIG = {
+  TRIAL_DURATION_MS: 24 * 60 * 60 * 1000,
+  STALE_TIME_MS: 30_000,
+  POLL_INTERVAL_MS: 3_000,
+  DASHBOARD_REFRESH_MS: 30_000,
+  POLL_STOP_STATUSES: [
+    "completed",
+    "failed",
+    "cancelled",
+    "error",
+    "COMPLETED",
+    "FAILED",
+  ] as readonly string[],
+  PAGE_SIZE: 20,
+  LIST_LIMIT: 50,
+  MAX_GRAPH_NODES: 500,
+  MAX_GRAPH_EDGES: 2000,
+  MAX_BATCH_ROWS: 25,
+  MAX_CSV_SIZE_MB: 50,
+  LIGHTHOUSE_MIN_SCORE: 90,
+} as const;

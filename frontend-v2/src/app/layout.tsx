@@ -4,6 +4,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/contexts/auth-context';
 
 const inter = Inter({
 	subsets: ['latin'],
@@ -18,8 +19,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-	title: 'Quantum Gates Dashboard',
-	description: 'Frontend workspace for the distributed quantum coordinator.'
+	title: 'Quantum Platform',
+	description: 'Quantum Computing Platform'
 };
 
 export default function RootLayout({
@@ -40,8 +41,10 @@ export default function RootLayout({
 		>
 			<TooltipProvider>
 				<body className='min-h-full flex flex-col'>
-					{children}
-					<Toaster />
+					<AuthProvider>
+						{children}
+						<Toaster />
+					</AuthProvider>
 				</body>
 			</TooltipProvider>
 		</html>

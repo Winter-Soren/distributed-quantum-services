@@ -47,3 +47,5 @@ backend/data/quantum_coordinator.db-wal
 *.db-trace-lock
 *.db-trace-wal
 .cursor
+.playright*
+.claude
