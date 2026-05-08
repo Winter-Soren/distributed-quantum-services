@@ -238,6 +238,7 @@ app/(main)/vault/
 ### `/vault/circuits` — Circuit Library
 
 - 3-column grid of circuit cards (`demo-grid-card` token)
+- Phase 1: browse is CID-based only (no keyword DHT search — deferred to Phase 2); filter is client-side over fetched records
 - Search bar + Domain / Qubits / Sort filters
 - Each card: name, author display name, qubit_count, gate_count, domain tag, truncated CID
 - Actions per card: `[Load into Builder]` `[Fork]`
