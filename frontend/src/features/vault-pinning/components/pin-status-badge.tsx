@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePinMetadata } from "../hooks/use-pin-metadata";
@@ -33,23 +34,25 @@ export function PinStatusBadge({ cid, variant = "default" }: PinStatusBadgeProps
   );
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
-      <TooltipContent>
-        <p className="text-xs">
-          Pinned on{" "}
-          {pinMeta.pinnedAt.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        {pinMeta.size > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Size: {(pinMeta.size / 1024).toFixed(1)} KB
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">
+            Pinned on{" "}
+            {pinMeta.pinnedAt.toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
           </p>
-        )}
-      </TooltipContent>
-    </Tooltip>
+          {pinMeta.size > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Size: {(pinMeta.size / 1024).toFixed(1)} KB
+            </p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

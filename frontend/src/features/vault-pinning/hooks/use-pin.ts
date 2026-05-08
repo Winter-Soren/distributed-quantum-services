@@ -45,7 +45,7 @@ export function usePin() {
 
       const { getProvider } = await import("../services");
       const provider = getProvider(service);
-      const result = await provider.pin(cid);
+      const result = await provider.pin(cid, metadata);
 
       await fetch(API.VAULT.UNPIN(cid), {
         method: "PATCH",

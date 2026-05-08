@@ -1,10 +1,5 @@
-// NOTE: NFT.Storage (app.nft.storage) is a Filecoin archival service for NFT
-// collections — it does NOT expose a programmatic IPFS pinning API.
-// We use Pinata (api.pinata.cloud) instead, which is the standard drop-in
-// replacement: free tier (1 GB), same Bearer token auth, same /pinning/pinJSONByHash
-// endpoint pattern.
-//
-// Get a free Pinata JWT at: https://app.pinata.cloud → API Keys → New Key
+// Pinata IPFS pinning — pins an existing CID by hash.
+// Get JWT at: https://app.pinata.cloud → API Keys → New Key
 // Set NEXT_PUBLIC_PINATA_JWT in .env
 
 import type { PinningProvider, PinResult, QuotaInfo } from "../types";
@@ -13,13 +8,16 @@ const BASE_URL = "https://api.pinata.cloud";
 
 function getToken(): string {
   const token = process.env.NEXT_PUBLIC_PINATA_JWT;
-  if (!token) throw new Error("Pinata JWT not set. Add NEXT_PUBLIC_PINATA_JWT to .env (get one at https://app.pinata.cloud → API Keys)");
+  if (!token)
+    throw new Error(
+      "Pinata JWT not set. Add NEXT_PUBLIC_PINATA_JWT to .env (get one at https://app.pinata.cloud → API Keys)",
+    );
   return token;
 }
 
-class PinataProvider implements PinningProvider {
-  name = "nft.storage" as const; // keep same service name so existing pin records still match
-  displayName = "Pinata (IPFS)";
+class PinataService implements PinningProvider {
+  name = "pinata" as const;
+  displayName = "Pinata";
 
   async pin(cid: string, content?: Record<string, unknown>): Promise<PinResult> {
     // pinJSONToIPFS works on Pinata free tier; pinByHash requires paid plan
@@ -95,8 +93,10 @@ class PinataProvider implements PinningProvider {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       return res.ok;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 }
 
-export const nftStorageProvider = new PinataProvider();
+export const pinataProvider = new PinataService();

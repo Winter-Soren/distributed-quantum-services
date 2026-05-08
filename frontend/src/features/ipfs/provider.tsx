@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Helia } from "helia";
+import { toast } from "sonner";
 
 interface HeliaContextValue {
   helia: Helia | null;
@@ -31,8 +32,11 @@ export function HeliaProvider({ children }: { children: ReactNode }) {
         const instance = await getHelia();
         setHelia(instance);
         setReady(true);
+        toast.success("VAULT online — Helia P2P node ready", { id: "helia-ready", duration: 3000 });
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
+        const e = err instanceof Error ? err : new Error(String(err));
+        setError(e);
+        toast.error(`VAULT failed to start: ${e.message}`, { id: "helia-error" });
       }
     })();
 

@@ -1,9 +1,9 @@
-export type PinningService = "nft.storage" | "pinata";
+export type PinningService = "nft.storage" | "pinata" | "lighthouse";
 
 export interface PinningProvider {
   name: PinningService;
   displayName: string;
-  pin(cid: string): Promise<PinResult>;
+  pin(cid: string, content?: Record<string, unknown>): Promise<PinResult>;
   unpin(cid: string): Promise<void>;
   getQuota(): Promise<QuotaInfo>;
   testAuth(): Promise<boolean>;

@@ -16,10 +16,10 @@ const ShareToVaultButtonInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-cyan-500/25 bg-cyan-500/8 px-3 py-1.5 text-[12px] font-medium text-cyan-400">
+      <button className="inline-flex cursor-pointer items-center self-center gap-1.5 rounded-md border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-[12px] font-medium text-rose-400">
         <Share2 className="h-3 w-3 shrink-0 animate-pulse" />
         <span>Share to VAULT</span>
-        <XCircle className="h-3 w-3 shrink-0 text-rose-400" />
+        <XCircle className="h-3 w-3 shrink-0" />
       </button>
     ),
   },

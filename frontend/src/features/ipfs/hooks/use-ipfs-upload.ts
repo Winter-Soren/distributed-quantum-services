@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useHeliaContext } from "../provider";
 import { addToIndex } from "../lib/local-index";
+import { notifyVaultIndexChanged } from "./use-local-vault-index";
 
 export function useIpfsUpload() {
   const { helia, ready, error: heliaError } = useHeliaContext();
@@ -36,6 +37,7 @@ export function useIpfsUpload() {
       const cidStr = cid.toString();
 
       addToIndex({ cid: cidStr, type, name });
+      notifyVaultIndexChanged();
 
       return cidStr;
     } catch (err) {

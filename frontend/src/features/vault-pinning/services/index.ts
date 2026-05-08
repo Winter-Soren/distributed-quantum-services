@@ -1,9 +1,16 @@
 import type { PinningProvider, PinningService } from "../types";
+import { lighthouseProvider } from "./lighthouse";
 import { nftStorageProvider } from "./nft-storage";
+import { pinataProvider } from "./pinata";
 
 const providers = new Map<PinningService, PinningProvider>([
+  ["lighthouse", lighthouseProvider],
+  ["pinata", pinataProvider],
+  // backward-compat: existing pin records that stored service="nft.storage"
   ["nft.storage", nftStorageProvider],
 ]);
+
+export const DEFAULT_SERVICE: PinningService = "pinata";
 
 export function getProvider(service: PinningService): PinningProvider {
   const provider = providers.get(service);
