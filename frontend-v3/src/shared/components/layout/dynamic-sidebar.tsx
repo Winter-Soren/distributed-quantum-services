@@ -1,7 +1,6 @@
 "use client";
 
 import type { NavToolConfig } from "@/constants";
-import { NavUser } from "./nav-user";
 import { LabToolGroup } from "./lab-tool-group";
 
 interface DynamicSidebarProps {
@@ -18,9 +17,6 @@ export function DynamicSidebar({ tools }: DynamicSidebarProps) {
           defaultOpen={index === 0}
         />
       ))}
-      <div className="mt-auto border-t border-hairline p-3">
-        <NavUser />
-      </div>
     </div>
   );
 }

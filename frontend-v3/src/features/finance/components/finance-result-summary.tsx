@@ -148,7 +148,7 @@ export function FinanceResultSummary({ job, className }: FinanceResultSummaryPro
         <PortfolioOptimizationFinance result={job.result!} />
       ) : !job.result && job.status !== "failed" ? (
         <GlassCard>
-          <SectionTitle icon={TrendingUp} title="Analysis Results" accentColor="emerald" />
+          <SectionTitle icon={TrendingUp} title="Analysis Results" accentColor="emerald" tooltip="Core portfolio optimization output: the optimal allocation selected by the QAOA quantum algorithm versus the classical benchmark, with risk-adjusted performance metrics." />
           <p className="text-sm text-white/35">Results will appear here once the analysis completes.</p>
         </GlassCard>
       ) : null}
@@ -245,6 +245,7 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
           icon={TrendingUp}
           title="Portfolio Result"
           accentColor="emerald"
+          tooltip="The optimal portfolio allocation found by QAOA, scored by annualised return, Sharpe ratio, and volatility. A higher percentile rank means the solution outperforms more random portfolios."
           badge={
             quantileRank !== null ? (
               <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
@@ -261,6 +262,7 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
           icon={Activity}
           title="Quantum vs Classical"
           accentColor="emerald"
+          tooltip="Head-to-head comparison of the QAOA quantum portfolio versus the classical mean-variance optimizer. A positive advantage score means the quantum solution achieved a better risk-adjusted return."
           badge={
             <div className="flex items-center gap-2">
               {advantageDetected
@@ -293,7 +295,7 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
         <GlassCard>
           <SectionTitle
             icon={Layers}
-            title="Asset Universe"
+            title="Asset Universe" tooltip="All assets considered in the optimization. 'Q' indicates the asset was selected by the quantum QAOA algorithm; 'C' by the classical benchmark. Sharpe ratio = excess return per unit of risk."
             accentColor="emerald"
             badge={feasibleCount !== null ? <span className="text-[11px] text-white/30">{feasibleCount} feasible portfolios</span> : undefined}
           />
@@ -303,13 +305,13 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
 
       {frontierRows.length > 0 && (
         <GlassCard>
-          <SectionTitle icon={GitBranch} title="Efficient Frontier" accentColor="emerald" />
+          <SectionTitle icon={GitBranch} title="Efficient Frontier" tooltip="The set of optimal portfolios offering the best possible expected return for each level of risk (volatility). Points on the frontier are Pareto-optimal — you cannot improve return without increasing risk." accentColor="emerald" />
           <DataTable rows={frontierRows} columns={frontierCols} accentClass="text-emerald-300" getRowKey={(r) => r.bitstring} />
         </GlassCard>
       )}
 
       <GlassCard>
-        <SectionTitle icon={Database} title="Dataset" accentColor="emerald" />
+        <SectionTitle icon={Database} title="Dataset" accentColor="emerald" tooltip="The input historical price dataset used to compute asset returns, covariances, and Sharpe ratios. Longer lookback periods give more stable estimates but may miss recent regime changes." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Input Layout", value: str(dataset.input_layout) },
@@ -350,7 +352,7 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
       </GlassCard>
 
       <GlassCard>
-        <SectionTitle icon={Settings} title="Run Configuration" accentColor="emerald" />
+        <SectionTitle icon={Settings} title="Run Configuration" accentColor="emerald" tooltip="The solver parameters submitted for this run: number of QAOA layers (p), optimizer type, qubit count, and risk preference. More layers generally improve solution quality at the cost of circuit depth." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Budget (# Assets)", value: num(request.budget) ?? "—" },
@@ -370,7 +372,7 @@ function PortfolioOptimizationFinance({ result }: { result: Record<string, unkno
 
       {warnings.length > 0 && (
         <GlassCard>
-          <SectionTitle icon={AlertTriangle} title="Warnings" accentColor="amber" />
+          <SectionTitle icon={AlertTriangle} title="Warnings" accentColor="amber" tooltip="Non-fatal issues detected during execution that may affect result reliability. Common causes: shallow circuit depth, optimizer convergence issues, or degenerate asset correlations." />
           <ul className="flex flex-col gap-1.5">
             {warnings.map((w, i) => (
               <li key={i} className="flex items-start gap-2">

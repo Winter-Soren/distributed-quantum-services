@@ -32,6 +32,7 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - Disable trial/auth gating during development via `NEXT_PUBLIC_TRIAL_DISABLED=true` env var
 - Remove non-interactive or data-less cards; consolidate small status indicators to top-right area
 - Detail/result pages must be full-width — never apply `max-w-*` constraints to detail page content containers
+- History table rows (Options/Risk/Finance) must be clickable via `router.push` with hover gradient matching the page accent color — no separate "View" column
 
 ## Learned Workspace Facts
 
@@ -50,3 +51,7 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - Network mesh page uses `react-force-graph-3d` loaded via `next/dynamic` with `ssr: false`; nodes auto-zoom to fit canvas, links rendered in orange
 - CSS variables from `globals.css` should be used everywhere for theming consistency
 - Always follow @frontend-v3/AGENT.md, @frontend-v3/SKILL.md, @frontend-v3/CLAUDE.md, @frontend-v3/DESIGN.md
+- `PageHeader` is the standard shared page header at `src/shared/components/layout/page-header.tsx`; all pages use it instead of inline `h1` headers — pass `children` for right-side content
+- `DataTable` `getRowKey` callbacks must append the row index for uniqueness (e.g. `` `${r.state}-${i}` ``) to avoid duplicate React key warnings when data values repeat
+- `LabToolGroup` sidebar component must fetch recent items for all tool types (options, risk, finance, runs), not just runs — each tool type needs its own data hook
+- Job IDs must not be truncated in breadcrumbs — `formatSegment` in `AutoBreadcrumbs` should show full IDs

@@ -1,6 +1,7 @@
 // Public barrel for the risk feature
 export { RiskUploadPanel } from "./components/risk-upload-panel";
 export { RiskResultDashboard } from "./components/risk-result-dashboard";
+export { RiskQuantumSummary } from "./components/risk-quantum-summary";
 export { RiskHistoryTable } from "./components/risk-history-table";
 
 // Page-level client components

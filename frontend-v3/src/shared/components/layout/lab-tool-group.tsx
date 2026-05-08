@@ -124,7 +124,7 @@ export function LabToolGroup({ tool, defaultOpen = false }: LabToolGroupProps) {
                     size={6}
                     className={cn(
                       "shrink-0 fill-current",
-                      STATUS_COLORS[item.status] ?? "text-white/25",
+                      STATUS_COLORS[item.status.toLowerCase()] ?? "text-white/25",
                     )}
                   />
                   <span className="flex-1 truncate text-[11px] text-muted-foreground transition-colors group-hover/item:text-foreground">

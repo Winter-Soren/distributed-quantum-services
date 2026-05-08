@@ -48,6 +48,12 @@ function transformFragmentResult(f: BackendFragmentResult): FragmentResult {
     finishedAt: f.finished_at,
     observedFidelity: f.observed_fidelity,
     error: f.error,
+    stageIndex: f.stage_index ?? null,
+    componentQubits: f.component_qubits ?? null,
+    gateCount: f.gate_count ?? null,
+    circuitDepth: f.circuit_depth ?? null,
+    stateHandoffFrom: f.state_handoff_from_node_ids ?? [],
+    stateTransferBytes: f.state_transfer_bytes ?? null,
   };
 }
 

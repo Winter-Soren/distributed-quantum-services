@@ -1,6 +1,7 @@
 // Public barrel for the options feature
 export { OptionsPricingForm } from "./components/options-pricing-form";
 export { OptionsResultCard } from "./components/options-result-card";
+export { OptionsQuantumSummary } from "./components/options-quantum-summary";
 export { OptionsHistoryTable } from "./components/options-history-table";
 
 // Page-level client components

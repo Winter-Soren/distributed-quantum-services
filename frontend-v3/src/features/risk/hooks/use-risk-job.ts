@@ -32,9 +32,12 @@ function transform(raw: BackendRiskJobResponse): RiskJobDetail {
           lossDistributionClassical: raw.result.loss_distribution_classical,
           lossDistributionBins: raw.result.loss_distribution_bins,
           quadraticSpeedupFactor: raw.result.quadratic_speedup_factor,
+          classicalMcSamplesEquivalent: raw.result.classical_mc_samples_equivalent,
           numQubits: raw.result.num_qubits,
           circuitDepth: raw.result.circuit_depth,
+          numIqaeCalls: raw.result.num_iqae_calls,
           analysisDurationMs: raw.result.analysis_duration_ms,
+          generatedAt: raw.result.generated_at,
         }
       : null,
     createdAt: raw.created_at,

@@ -36,6 +36,12 @@ export interface BackendFragmentResult {
   finished_at: string | null;
   observed_fidelity: number | null;
   error: string | null;
+  stage_index?: number | null;
+  component_qubits?: number[] | null;
+  gate_count?: number | null;
+  circuit_depth?: number | null;
+  state_handoff_from_node_ids?: string[];
+  state_transfer_bytes?: number | null;
 }
 
 export interface BackendQuantumResult {
@@ -112,6 +118,12 @@ export interface FragmentResult {
   finishedAt: string | null;
   observedFidelity: number | null;
   error: string | null;
+  stageIndex: number | null;
+  componentQubits: number[] | null;
+  gateCount: number | null;
+  circuitDepth: number | null;
+  stateHandoffFrom: string[];
+  stateTransferBytes: number | null;
 }
 
 export interface QuantumResult {

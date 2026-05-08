@@ -463,6 +463,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
             icon={Activity}
             title="Qubit States (Bloch Spheres)"
             accentColor="emerald"
+            tooltip="Bloch spheres visualize each qubit's quantum state. North pole = |1⟩ (asset selected), south pole = |0⟩ (not selected), equator = superposition (uncertain). The state vector arrow shows where the qubit collapsed after measurement."
             badge={<span className="text-[11px] text-white/30">selection probability → state vector</span>}
           />
           <div className="grid grid-cols-1 gap-3 pt-3 lg:grid-cols-2">
@@ -534,6 +535,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           icon={GitBranch}
           title="Circuit Fragment Execution Flow"
           accentColor="emerald"
+          tooltip="The QAOA circuit split into fragments distributed across quantum nodes. Each node executes its fragment; results are classically recombined to reconstruct the full quantum probability distribution."
           badge={
             <span className="text-[11px] text-white/30">
               {plan ? `${Object.keys(plan?.fragments ?? {}).length} fragments` : "plan pending"}
@@ -549,6 +551,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           icon={Clock}
           title="Execution Pipeline"
           accentColor="emerald"
+          tooltip="Timeline of QAOA stages from circuit compilation through variational optimization to final measurement. Each stage feeds results into the next."
           badge={totalMs !== null ? <span className="font-mono text-[11px] text-white/30">{totalMs}ms total</span> : undefined}
         />
         <ExecutionPipeline steps={pipelineSteps} />
@@ -560,6 +563,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           icon={Zap}
           title="QAOA Parameters"
           accentColor="emerald"
+          tooltip="Variational angles γ (phase separation — encodes the cost function) and β (mixing — explores solution space), optimized by the classical outer loop. More layers (p) increase expressibility at the cost of circuit depth."
           badge={
             <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
               {str(qaoa.mixer_strategy).replace(/_/g, " ")}
@@ -607,7 +611,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
 
       {/* ── Circuit Summary ───────────────────────────────────────────────── */}
       <GlassCard>
-        <SectionTitle icon={Cpu} title="Circuit Summary" accentColor="emerald" />
+        <SectionTitle icon={Cpu} title="Circuit Summary" accentColor="emerald" tooltip="Key metrics of the compiled QAOA quantum circuit. Depth is the number of sequential gate layers — shallower circuits have lower error rates on current hardware." />
         <MetricGrid metrics={circuitMetrics} accentClass="text-emerald-300" />
         {gateRows.length > 0 && (
           <div className="mt-4 border-t border-white/6 pt-4">
@@ -624,6 +628,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
             icon={BarChart3}
             title="Top Measurement States"
             accentColor="emerald"
+            tooltip="Most frequently observed bitstrings when the QAOA circuit was measured. Each bitstring encodes a portfolio: bit '1' means the asset at that position was selected. Higher probability = stronger algorithmic preference."
             badge={<span className="text-[11px] text-white/30">top {topStateRows.length} of 2<sup className="text-[0.65em]">{logN}</sup></span>}
           />
           <DataTable rows={topStateRows} columns={topStateCols} accentClass="text-emerald-300" getRowKey={(r) => r.bitstring} />
@@ -637,6 +642,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
             icon={GitBranch}
             title="Ising Hamiltonian"
             accentColor="emerald"
+            tooltip="Ising Hamiltonian coupling matrix encoding the portfolio optimization. Each cell J_ij shows the interaction strength between asset qubits i and j — negative values favour joint selection; positive values penalise it. Linear terms h_i encode individual asset biases."
             badge={
               <span className="text-[11px] text-white/30">
                 offset = {fmt(num(hamiltonian.offset) ?? 0, 4)} · {str(hamiltonian.penalty_strategy).replace(/_/g, " ")}
@@ -653,6 +659,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
           icon={Layers}
           title="Quantum Solver"
           accentColor="emerald"
+          tooltip="Configuration of the QAOA variational circuit: ansatz structure, number of layers (reps), mixer type, and whether constraint-preserving gates were used to always produce feasible portfolio allocations."
           badge={
             <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/40 ring-1 ring-white/8">
               {str(qSolver.ansatz)} p={num(qSolver.reps) ?? "?"}
@@ -694,7 +701,7 @@ function QuantumDetails({ result }: { result: Record<string, unknown> }) {
 
       {/* ── Classical Solver ──────────────────────────────────────────────── */}
       <GlassCard>
-        <SectionTitle icon={Settings2} title="Classical Solver" accentColor="emerald" />
+        <SectionTitle icon={Settings2} title="Classical Solver" accentColor="emerald" tooltip="The classical optimizer that tunes the QAOA angles. It runs on a classical CPU and evaluates the quantum circuit repeatedly, adjusting γ and β to minimize the cost function." />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Strategy", value: str(cSolver.strategy).replace(/_/g, " ") },

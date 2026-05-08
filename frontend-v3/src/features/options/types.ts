@@ -164,10 +164,18 @@ export interface OptionsJobDetail {
     moneyness: Moneyness;
     moneynessRatio: number;
     divergenceWarning: boolean;
+    sigmaZeroFallback: boolean;
     numQubits: number;
     circuitDepth: number;
+    numIqaeRuns: number;
+    shotsPerRun: number;
+    epsilon: number;
+    alpha: number;
+    classicalMcSamplesEquivalent: number;
     analysisDurationMs: number;
     quadraticSpeedupFactor: number;
+    request: Record<string, unknown>;
+    generatedAt: string;
   } | null;
   createdAt: string;
   updatedAt: string;

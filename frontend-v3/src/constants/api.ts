@@ -12,6 +12,7 @@ export const API = {
     LIST: "/api/runs",
     CREATE: "/api/runs",
     DETAIL: (id: string) => `/api/runs/${id}` as const,
+    PLAN: (planId: string) => `/api/runs/plan/${planId}` as const,
   },
   OPTIONS: {
     LIST: "/api/options",

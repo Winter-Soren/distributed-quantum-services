@@ -15,6 +15,8 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   history: "History",
   risk: "Risk",
   finance: "Financial",
+  quantum: "Quantum Details",
+  "fragment-flow": "Quantum Details",
   docs: "Docs",
   api: "API Reference",
   roadmap: "Roadmap",

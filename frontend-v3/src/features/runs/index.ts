@@ -5,6 +5,7 @@ export { RunMetricsPanel } from "./components/run-metrics-panel";
 export { RunCreateForm } from "./components/run-create-form";
 export { RunStatusBadge } from "./components/run-status-badge";
 export { FragmentFlowCanvas } from "./components/fragment-flow-canvas";
+export { RunQuantumSummary } from "./components/run-quantum-summary";
 
 // Page-level client components
 export { RunsPageClient } from "./components/runs-page-client";

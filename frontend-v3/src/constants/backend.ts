@@ -15,6 +15,7 @@ export const BACKEND = {
   JOBS: {
     LIST: `${BASE_URL}/api/v1/jobs`,
     DETAIL: (id: string) => `${BASE_URL}/api/v1/jobs/${id}` as const,
+    PLAN: (planId: string) => `${BASE_URL}/api/v1/plans/${planId}` as const,
   },
   PLANS: {
     DETAIL: (id: string) => `${BASE_URL}/api/v1/plans/${id}` as const,

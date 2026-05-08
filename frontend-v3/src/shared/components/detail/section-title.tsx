@@ -1,13 +1,21 @@
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SectionTitleProps {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   badge?: React.ReactNode;
+  tooltip?: string;
   accentColor?: string;
 }
 
-export function SectionTitle({ icon: Icon, title, badge, accentColor = "amber" }: SectionTitleProps) {
+export function SectionTitle({ icon: Icon, title, badge, tooltip, accentColor = "amber" }: SectionTitleProps) {
   const iconBg: Record<string, string> = {
     amber: "bg-amber-500/10",
     rose: "bg-rose-500/10",
@@ -29,6 +37,27 @@ export function SectionTitle({ icon: Icon, title, badge, accentColor = "amber" }
           <Icon className={cn("h-4 w-4", iconText[accentColor] ?? iconText.amber)} />
         </div>
         <span className="text-base font-semibold text-white/85">{title}</span>
+        {tooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus-visible:outline-none"
+                  aria-label={`Info: ${title}`}
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-64 text-center text-[11px] leading-relaxed"
+              >
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       {badge}
     </div>

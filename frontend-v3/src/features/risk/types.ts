@@ -124,9 +124,12 @@ export interface RiskJobDetail {
     lossDistributionClassical: number[];
     lossDistributionBins: number[];
     quadraticSpeedupFactor: number;
+    classicalMcSamplesEquivalent: number;
     numQubits: number;
     circuitDepth: number;
+    numIqaeCalls: number;
     analysisDurationMs: number;
+    generatedAt: string;
   } | null;
   createdAt: string;
   updatedAt: string;

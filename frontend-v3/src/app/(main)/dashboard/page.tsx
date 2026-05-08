@@ -1,12 +1,14 @@
 import { Suspense } from "react";
+import { LayoutDashboard } from "lucide-react";
 import { DashboardKpiCards } from "@/features/dashboard/components/dashboard-kpi-cards";
 import { DashboardQuickActions } from "@/features/dashboard/components/dashboard-quick-actions";
 import { DashboardActivityFeed } from "@/features/dashboard/components/dashboard-activity-feed";
 import { DashboardStatusBar } from "@/features/dashboard/components/dashboard-status-bar";
+import { PageHeader } from "@/shared/components/layout/page-header";
 
 export default function DashboardPage() {
   return (
-    <div className="relative flex flex-col gap-6 p-6">
+    <div className="relative flex flex-col">
 
       {/* ── Ambient glows — one per column, anchored to card positions ── */}
       <div className="pointer-events-none absolute inset-x-6 top-0 overflow-hidden" style={{ height: "420px" }}>
@@ -50,17 +52,19 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ── Content ── */}
-      <div className="relative z-10 flex flex-col gap-6">
+      {/* ── Page header ── */}
+      <PageHeader
+        icon={LayoutDashboard}
+        label="Overview"
+        title="Dashboard"
+        description="System pulse — current network and job status."
+        glow="indigo"
+      >
+        <DashboardStatusBar />
+      </PageHeader>
 
-        {/* Page header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-            <p className="mt-0.5 text-sm text-white/40">System pulse — current network and job status.</p>
-          </div>
-          <DashboardStatusBar />
-        </div>
+      {/* ── Content ── */}
+      <div className="relative z-10 flex flex-col gap-6 p-6">
 
         {/* KPI strip */}
         <DashboardKpiCards />
