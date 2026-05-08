@@ -59,4 +59,10 @@ export const BACKEND = {
     BENCHMARK: (id: string) =>
       `${BASE_URL}/api/v1/workflows/benchmarks/${id}` as const,
   },
+  PHARMA: {
+    SUBMIT: `${BASE_URL}/api/v1/pharma/submit`,
+    LIST: `${BASE_URL}/api/v1/pharma/jobs`,
+    JOB: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}` as const,
+    CANCEL: (id: string) => `${BASE_URL}/api/v1/pharma/jobs/${id}` as const,
+  },
 } as const;

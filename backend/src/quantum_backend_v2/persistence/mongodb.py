@@ -80,6 +80,29 @@ class ProvenanceBundleDocument(Document):
         name = "provenance_bundles"
 
 
+class FragmentDescriptorDocument(Document):
+    """Cached VQE descriptors keyed by canonical fragment SMILES.
+    Cross-job, cross-user accumulation — never expires."""
+
+    canonical_smiles: str
+    fragment_id_hint: str = ""
+    homo_energy_ev: float
+    lumo_energy_ev: float
+    homo_lumo_gap_ev: float
+    chemical_hardness_ev: float
+    esp_charges: list[float] = Field(default_factory=list)
+    ground_state_energy_hartree: float
+    qubit_count: int
+    gate_count: int
+    vqe_iterations: int
+    dmet_impurity_size: int | None = None
+    source_job_id: str = ""
+    computed_at: datetime = Field(default_factory=_utc_now)
+
+    class Settings:
+        name = "fragment_descriptors"
+
+
 @dataclass(frozen=True)
 class MongoRuntime:
     """Async Mongo runtime using Beanie-ready document models."""
@@ -130,5 +153,6 @@ def build_mongo_runtime(settings: MongoSettings) -> MongoRuntime | None:
             TopologyProjectionDocument,
             BenchmarkResultDocument,
             ProvenanceBundleDocument,
+            FragmentDescriptorDocument,
         ),
     )

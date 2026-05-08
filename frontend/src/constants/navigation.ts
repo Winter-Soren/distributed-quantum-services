@@ -121,9 +121,17 @@ export const NAV_CONFIG: RailItem[] = [
           newHref: "/finance",
           historyHref: "/finance/history",
         },
+        {
+          group: "Pharma Docking",
+          tool: "pharma",
+          href: "/pharma/history",
+          newLabel: "New Pipeline",
+          newHref: "/pharma/submit",
+          historyHref: "/pharma/history",
+        },
       ],
     },
-    matchPrefixes: ["/runs", "/options", "/risk", "/finance"],
+    matchPrefixes: ["/runs", "/options", "/risk", "/finance", "/pharma"],
   },
   {
     id: "vault",

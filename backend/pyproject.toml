@@ -35,6 +35,15 @@ dependencies = [
   "yfinance>=0.2.0",
   "scipy>=1.12.0",
   "numpy>=1.26.0",
+  # Quantum pharma pipeline
+  "pennylane>=0.42.0",
+  "pennylane-qiskit>=0.42.0",
+  "rdkit>=2024.03.6",
+  "openfermion>=1.6.0",
+  "openfermionpyscf>=0.5",
+  "pyscf>=2.7.0",
+  "torch>=2.4.0",
+  "biopython>=1.84",
 ]
 
 [project.optional-dependencies]

@@ -22,6 +22,7 @@ class WorkflowType(str, Enum):
     SCIENTIFIC_SIMULATION = "scientific_simulation"
     BENCHMARK_ONLY = "benchmark_only"
     HYBRID = "hybrid"
+    PHARMA_DOCKING = "pharma_docking"
 
 
 class WorkflowRunStatus(str, Enum):
@@ -32,6 +33,7 @@ class WorkflowRunStatus(str, Enum):
     RUNNING = "running"
     AWAITING_FRAGMENTS = "awaiting_fragments"
     AGGREGATING = "aggregating"
+    REFINING = "refining"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

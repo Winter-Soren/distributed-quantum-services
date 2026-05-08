@@ -56,4 +56,9 @@ export const QUERY_KEYS = {
     pinMetadata: (cid: string) => ["vault", "pin-metadata", cid] as const,
     pins: () => ["vault", "pins"] as const,
   },
+  pharma: {
+    all: () => ["pharma"] as const,
+    list: () => ["pharma", "list"] as const,
+    job: (id: string) => ["pharma", "job", id] as const,
+  },
 } as const;

@@ -24,6 +24,7 @@ from quantum_backend_v2.api.routers.reservations import build_reservations_route
 from quantum_backend_v2.api.routers.services import build_services_router
 from quantum_backend_v2.api.routers.workflows import build_workflows_router
 from quantum_backend_v2.api.benchmark import router as benchmark_router
+from quantum_backend_v2.api.routers.pharma import router as pharma_router
 from quantum_backend_v2.config import AppSettings
 from quantum_backend_v2.discovery.service import DiscoveryService
 from quantum_backend_v2.libp2p import Libp2pBootstrapPlan, Libp2pRuntime
@@ -139,5 +140,8 @@ def create_app(
 
     # Benchmark endpoint - no dependencies, uses core portfolio optimization
     app.include_router(benchmark_router)
+
+    # Pharma docking pipeline — quantum drug discovery
+    app.include_router(pharma_router)
 
     return app
