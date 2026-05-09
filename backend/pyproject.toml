@@ -38,7 +38,7 @@ dependencies = [
   # Quantum pharma pipeline
   "pennylane>=0.42.0",
   "pennylane-qiskit>=0.42.0",
-  "rdkit>=2024.03.6",
+  "rdkit>=2024.3.6",
   "openfermion>=1.6.0",
   "openfermionpyscf>=0.5",
   "pyscf>=2.7.0",
