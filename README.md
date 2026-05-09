@@ -17,8 +17,6 @@ This project demonstrates **where quantum computers become useful** for portfoli
 **Key Finding**: Quantum advantage comes from **constant-time parameter optimization** while classical algorithms slow down exponentially with problem size.
 
   
-
-
 ---
 
 ## 🚀 Quick Start
@@ -26,7 +24,7 @@ This project demonstrates **where quantum computers become useful** for portfoli
 ### I'm a researcher/academic
 
 **→ Start here:** [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)  
-Complete 15,000-word paper with all findings, benchmarks, and proofs.
+Draft paper with all findings, benchmarks, and proofs.
 
 ### I'm a developer/engineer
 
