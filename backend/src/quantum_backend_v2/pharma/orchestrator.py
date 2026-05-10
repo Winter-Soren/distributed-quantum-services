@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import time
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -50,10 +50,12 @@ class PharmaOrchestrator:
         config: PharmaWorkflowConfig,
         cache: FragmentCache | None,
         execution_service: Any | None,
+        log_callback: Callable[[str, str, str | None], None] | None = None,
     ) -> None:
         self._cfg = config
         self._cache = cache or FragmentCache(mongo_runtime=None)
         self._execution_service = execution_service
+        self._log = log_callback or (lambda level, msg, stage=None: None)
         self.state = PharmaState.IDLE
         self._job_id: str = ""
         self._scaffold_history: list[ScaffoldIteration] = []
@@ -91,6 +93,7 @@ class PharmaOrchestrator:
 
             for iteration in range(self._cfg.max_iterations):
                 logger.info("[%s] Iteration %d/%d", job_id, iteration + 1, self._cfg.max_iterations)
+                self._log("iter", f"Iteration {iteration + 1}/{self._cfg.max_iterations}", "iteration")
 
                 fragments, descriptors = await self._run_stages_3_4(candidate_smiles)
                 docking_result = await self._run_stage_5(
@@ -106,6 +109,7 @@ class PharmaOrchestrator:
 
                 if self._check_convergence(vqc_score, admet_result):
                     logger.info("[%s] Converged at iteration %d", job_id, iteration + 1)
+                    self._log("success", f"Converged at iteration {iteration + 1} — binding affinity threshold met", "iteration")
                     break
 
                 if self._cfg.iterative and iteration < self._cfg.max_iterations - 1 and admet_result:
@@ -118,6 +122,7 @@ class PharmaOrchestrator:
                         prev_beta=prev_beta,
                         prev_gamma=prev_gamma,
                     )
+                    self._log("refine", f"Scaffold hopper: evaluating hop from current scaffold", "refining")
                     if hop.needs_hop:
                         self._scaffold_history.append(
                             ScaffoldIteration(
@@ -131,6 +136,7 @@ class PharmaOrchestrator:
                                 warm_start_gamma=hop.warm_start_gamma or [],
                             )
                         )
+                        self._log("refine", f"  Hop → {hop.replacement_smiles[:48] if len(hop.replacement_smiles)>48 else hop.replacement_smiles}  reason: {hop.hop_reason}", "refining")
                         candidate_smiles = [hop.replacement_smiles] + candidate_smiles[1:]
 
             self._build_candidates(descriptors, docking_result, vqc_score, admet_result, candidate_smiles)
@@ -144,6 +150,7 @@ class PharmaOrchestrator:
 
     async def _run_stage_1(self) -> None:
         self.state = PharmaState.FILTERING
+        self._log("stage", "Stage 1 — Lipinski filter: validating seed scaffold", "filtering")
         if self._cfg.mode == PharmaMode.OPTIMIZATION and self._cfg.initial_ligand_smiles:
             from quantum_backend_v2.pharma.models import VQEDescriptors
 
@@ -160,6 +167,7 @@ class PharmaOrchestrator:
 
     async def _run_stage_2(self) -> list[str]:
         self.state = PharmaState.GENERATING
+        self._log("stage", f"Stage 2 — QWGAN: generating candidate pool (mode={self._cfg.mode.value})", "generating")
         if self._cfg.mode == PharmaMode.OPTIMIZATION and self._cfg.initial_ligand_smiles:
             return [self._cfg.initial_ligand_smiles]
         out = self._generator.generate(
@@ -173,6 +181,7 @@ class PharmaOrchestrator:
         self, candidate_smiles: list[str]
     ) -> tuple[list[MolecularFragment], dict[str, VQEDescriptors]]:
         self.state = PharmaState.FRAGMENTING
+        self._log("stage", f"Stage 3 — fragment decomposition: {candidate_smiles[0][:40] if candidate_smiles else 'n/a'}", "fragmenting")
         ligand = candidate_smiles[0] if candidate_smiles else "c1ccccc1"
         fragments = self._decomposer.decompose(ligand)
 
@@ -180,9 +189,12 @@ class PharmaOrchestrator:
         descriptors: dict[str, VQEDescriptors] = {}
         for i, frag in enumerate(fragments):
             logger.info("[%s] VQE %d/%d: %s", self._job_id, i + 1, len(fragments), frag.fragment_id)
+            self._log("vqe", f"Stage 4 — VQE {i + 1}/{len(fragments)}: computing HOMO-LUMO gap for {frag.fragment_id} ({frag.smiles[:28] if len(frag.smiles) > 28 else frag.smiles})", "vqe_computing")
             result = await self._vqe_executor.run(frag)
             descriptors[frag.fragment_id] = result.to_descriptors()
             self._fragments_distributed[frag.fragment_id] = "local"
+            cache_note = " [cache hit]" if result.cached else f" gap={result.to_descriptors().homo_lumo_gap_ev:.2f} eV, qubits={result.to_descriptors().qubit_count}"
+            self._log("vqe", f"  HOMO-LUMO{cache_note}", "vqe_computing")
             if not result.cached:
                 await self._cache.put(frag.smiles, result.to_descriptors(), self._job_id)
 
@@ -196,6 +208,7 @@ class PharmaOrchestrator:
         prev_gamma: list[float] | None,
     ) -> Any:
         self.state = PharmaState.DOCKING
+        self._log("stage", f"Stage 5 — QAOA docking: placing {len(fragments)} fragment(s) on binding grid", "docking")
         n_sites = max(len(fragments), 3)
         clash = np.zeros((n_sites, n_sites))
         binding_grid = np.zeros((n_sites, n_sites, 3, 3))
@@ -210,6 +223,7 @@ class PharmaOrchestrator:
 
     async def _run_stage_6(self, smiles: str, docking_result: Any) -> tuple:
         self.state = PharmaState.SCORING
+        self._log("stage", "Stage 6 — VQC scoring + ADMET filter", "scoring")
         if docking_result is None or not smiles:
             return None, None
         pose = DockingPose(
@@ -223,6 +237,10 @@ class PharmaOrchestrator:
         )
         vqc_score = self._scorer.score(pose)
         admet_result = self._admet.evaluate(smiles)
+        if vqc_score:
+            self._log("score", f"  Binding affinity: {vqc_score.binding_affinity_kcal:.2f} kcal/mol  confidence [{vqc_score.confidence_interval[0]:.2f}, {vqc_score.confidence_interval[1]:.2f}]", "scoring")
+        if admet_result:
+            self._log("admet", f"  ADMET {'PASS' if admet_result.passes else 'FAIL'} — MW={admet_result.molecular_weight:.1f}  LogP={admet_result.logp:.2f}  QED={admet_result.qed_score:.3f}  SA={admet_result.synthetic_accessibility:.2f}", "scoring")
         return vqc_score, admet_result
 
     def _check_convergence(self, vqc_score: Any, admet_result: Any) -> bool:

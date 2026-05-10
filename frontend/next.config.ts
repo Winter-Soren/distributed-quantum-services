@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: ".",
   },
+  transpilePackages: ["ngl", "openchemlib"],
   experimental: {
     optimizePackageImports: ["@radix-ui/react-icons", "lucide-react", "recharts"],
   },

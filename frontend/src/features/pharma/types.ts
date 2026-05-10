@@ -106,6 +106,15 @@ export interface PharmaJobResult {
   fragments_distributed: Record<string, string>;
 }
 
+
+export type PipelineLogLevel = "stage" | "iter" | "vqe" | "score" | "admet" | "refine" | "success" | "error" | "info";
+
+export interface PipelineLogEntry {
+  ts: string;
+  level: PipelineLogLevel;
+  stage: string | null;
+  message: string;
+}
 export interface PharmaJob {
   job_id: string;
   status: PharmaJobStatus;
@@ -116,4 +125,5 @@ export interface PharmaJob {
   completed_at?: string;
   result?: PharmaJobResult;
   error?: string;
+  log_lines?: PipelineLogEntry[];
 }

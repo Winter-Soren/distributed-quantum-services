@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 
 from quantum_backend_v2 import __version__
@@ -84,6 +85,18 @@ def create_app(
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/", include_in_schema=False)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Callable
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
@@ -39,6 +40,7 @@ class PharmaJobStatus(BaseModel):
     completed_at: str | None = None
     result: dict | None = None
     error: str | None = None
+    log_lines: list[dict] = []
 
 
 @router.post("/submit", response_model=PharmaSubmitResponse, status_code=202)
@@ -67,10 +69,24 @@ async def submit_pharma_job(
         "completed_at": None,
         "result": None,
         "error": None,
+        "log_lines": [],
     }
 
     background_tasks.add_task(_run_pharma_pipeline, job_id, config)
     return PharmaSubmitResponse(job_id=job_id, status="queued", submitted_at=submitted_at)
+
+
+def _make_log_callback(job_id: str) -> Callable[[str, str, str | None], None]:
+    """Return a function that appends a structured log entry to the job store."""
+    def _push(level: str, message: str, stage: str | None = None) -> None:
+        entry: dict = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "level": level,
+            "stage": stage,
+            "message": message,
+        }
+        _JOB_STORE[job_id]["log_lines"].append(entry)
+    return _push
 
 
 async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> None:
@@ -78,9 +94,17 @@ async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> Non
     from quantum_backend_v2.pharma.orchestrator import PharmaOrchestrator
 
     _JOB_STORE[job_id]["status"] = "running"
-    orch = PharmaOrchestrator(config=config, cache=FragmentCache(None), execution_service=None)
+    log = _make_log_callback(job_id)
+    log("info", f"Pipeline started — mode={config.mode.value} target={config.target_pdb_id}", "init")
+    orch = PharmaOrchestrator(
+        config=config,
+        cache=FragmentCache(None),
+        execution_service=None,
+        log_callback=log,
+    )
     try:
         result = await orch.run(job_id=job_id)
+        log("success", f"Pipeline completed — {len(result.candidates)} candidate(s) produced", "completed")
         _JOB_STORE[job_id].update(
             status="completed",
             state=orch.state.value,
@@ -88,6 +112,7 @@ async def _run_pharma_pipeline(job_id: str, config: PharmaWorkflowConfig) -> Non
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
     except Exception as exc:
+        log("error", f"Pipeline failed: {exc}", "failed")
         _JOB_STORE[job_id].update(
             status="failed",
             state="failed",
