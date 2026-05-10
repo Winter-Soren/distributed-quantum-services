@@ -177,14 +177,6 @@ export const NAV_CONFIG: RailItem[] = [
             { label: "Users", href: "/settings/users" },
           ],
         },
-        {
-          heading: "System",
-          links: [
-            { label: "Security", href: "/settings/security" },
-            { label: "Observability", href: "/settings/observability" },
-            { label: "Audit Logs", href: "/settings/audit" },
-          ],
-        },
       ],
     },
     matchPrefixes: ["/settings"],

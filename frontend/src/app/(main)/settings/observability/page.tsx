@@ -1,3 +1,5 @@
+import { Activity } from "lucide-react";
+import { PageHeader } from "@/shared/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,12 +12,15 @@ const SIGNALS = [
 
 export default function ObservabilityPage() {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-normal text-foreground">Observability</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Logs, metrics, and tracing signals.</p>
-      </div>
-      <div className="grid max-w-2xl grid-cols-1 gap-4">
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        icon={Activity}
+        label="Settings"
+        title="Observability"
+        description="Logs, metrics, and tracing signals."
+        glow="amber"
+      />
+      <div className="grid grid-cols-1 gap-4 px-6 pb-6">
         {SIGNALS.map((s) => (
           <Card key={s.name} className="border-hairline">
             <CardHeader className="pb-2 pt-5">
