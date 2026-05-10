@@ -165,20 +165,8 @@ export const NAV_CONFIG: RailItem[] = [
     label: "Settings",
     icon: Settings,
     href: "/settings",
-    hasSidebar: true,
-    sidebar: {
-      type: "static",
-      groups: [
-        {
-          heading: "Workspace",
-          links: [
-            { label: "General", href: "/settings" },
-            { label: "Integrations", href: "/settings/integrations" },
-            { label: "Users", href: "/settings/users" },
-          ],
-        },
-      ],
-    },
+    hasSidebar: false,
+    sidebar: null,
     matchPrefixes: ["/settings"],
   },
 ];
