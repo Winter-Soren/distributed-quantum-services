@@ -18,8 +18,10 @@ import {
   ChevronRight,
   Terminal,
   Activity,
+  Ban,
 } from "lucide-react";
 import { usePharmaJob } from "@/features/pharma/hooks/use-pharma-job";
+import { useCancelPharma } from "@/features/pharma/hooks/use-cancel-pharma";
 import { CandidateCard } from "./candidate-card";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import type { PipelineLogEntry, PipelineLogLevel } from "../types";
@@ -197,6 +199,7 @@ function StageStrip({ logLines }: { logLines: PipelineLogEntry[] }) {
 
 export function PharmaJobDetail({ jobId }: { jobId: string }) {
   const { data: job, isLoading, error } = usePharmaJob(jobId);
+  const { mutate: cancelJob, isPending: isCancelling } = useCancelPharma(jobId);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll the console to the bottom whenever new lines arrive
@@ -287,6 +290,22 @@ export function PharmaJobDetail({ jobId }: { jobId: string }) {
               <p className="text-[11px] text-white/30">
                 {new Date(job.completed_at).toLocaleString()}
               </p>
+            </div>
+          )}
+          {isRunning && (
+            <div className="ml-auto">
+              <button
+                onClick={() => cancelJob()}
+                disabled={isCancelling}
+                className="flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-400/8 px-3 py-1.5 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCancelling ? (
+                  <Loader2 size={11} className="animate-spin" />
+                ) : (
+                  <Ban size={11} />
+                )}
+                {isCancelling ? "Cancelling…" : "Cancel Job"}
+              </button>
             </div>
           )}
         </div>

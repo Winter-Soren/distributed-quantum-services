@@ -15,6 +15,7 @@ import { useRecentRuns } from "./use-recent-runs";
 import { useOptionsList } from "@/features/options/hooks/use-options-list";
 import { useRiskList } from "@/features/risk/hooks/use-risk-list";
 import { useFinanceList } from "@/features/finance/hooks/use-finance-list";
+import { usePharmaJobs } from "@/features/pharma/hooks/use-pharma-jobs";
 
 interface LabToolGroupProps {
   tool: NavToolConfig;
@@ -24,8 +25,10 @@ interface LabToolGroupProps {
 const STATUS_COLORS: Record<string, string> = {
   completed: "text-emerald-400",
   executing: "text-amber-400",
+  running: "text-sky-400",
   failed: "text-red-400",
   queued: "text-white/30",
+  cancelled: "text-white/25",
   compiling: "text-sky-400",
   reserving: "text-violet-400",
 };
@@ -37,6 +40,7 @@ function useRecentItems(tool: NavToolConfig): RecentItem[] {
   const { data: options } = useOptionsList();
   const { data: risk } = useRiskList();
   const { data: finance } = useFinanceList();
+  const { data: pharmaJobs } = usePharmaJobs();
 
   if (tool.tool === "runs") {
     return (runs ?? []).slice(0, 5).map((r) => ({
@@ -84,6 +88,19 @@ function useRecentItems(tool: NavToolConfig): RecentItem[] {
         status: j.status,
         createdAt: j.createdAt,
         href: ROUTES.financeDetail(j.jobId),
+      }));
+  }
+  if (tool.tool === "pharma") {
+    return (pharmaJobs ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+      .slice(0, 5)
+      .map((j) => ({
+        jobId: j.job_id,
+        label: j.target_pdb_id || j.job_id.slice(0, 12),
+        status: j.status,
+        createdAt: j.submitted_at,
+        href: ROUTES.pharmaJob(j.job_id),
       }));
   }
   return [];
