@@ -18,71 +18,9 @@
 		-Server
 	}
 
-	# CORS configuration for frontend on Vercel (both www and non-www)
-	# Match requests from allowed origins
-	@cors_www {
-		header Origin https://www.distributed-quantum.com
-	}
-
-	@cors_non_www {
-		header Origin https://distributed-quantum.com
-	}
-
-	@cors_localhost {
-		header Origin http://localhost:3000
-	}
-
-	# Handle preflight requests
-	@cors_preflight {
-		method OPTIONS
-	}
-
-	handle @cors_preflight {
-		# For www origin
-		header @cors_www {
-			Access-Control-Allow-Origin "https://www.distributed-quantum.com"
-			Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-			Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-			Access-Control-Max-Age "3600"
-			Access-Control-Allow-Credentials "true"
-		}
-
-		# For non-www origin
-		header @cors_non_www {
-			Access-Control-Allow-Origin "https://distributed-quantum.com"
-			Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-			Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-			Access-Control-Max-Age "3600"
-			Access-Control-Allow-Credentials "true"
-		}
-
-		# For localhost
-		header @cors_localhost {
-			Access-Control-Allow-Origin "http://localhost:3000"
-			Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-			Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-			Access-Control-Max-Age "3600"
-			Access-Control-Allow-Credentials "true"
-		}
-
-		respond 204
-	}
-
-	# Add CORS headers to all responses (echo back the requesting origin)
-	header @cors_www {
-		Access-Control-Allow-Origin "https://www.distributed-quantum.com"
-		Access-Control-Allow-Credentials "true"
-	}
-
-	header @cors_non_www {
-		Access-Control-Allow-Origin "https://distributed-quantum.com"
-		Access-Control-Allow-Credentials "true"
-	}
-
-	header @cors_localhost {
-		Access-Control-Allow-Origin "http://localhost:3000"
-		Access-Control-Allow-Credentials "true"
-	}
+	# CORS is handled by FastAPI backend (not Caddy)
+	# FastAPI CORSMiddleware reads from CORS_ORIGINS environment variable
+	# and correctly handles multiple origins without header duplication
 
 	# Compression
 	encode zstd gzip
