@@ -1,473 +1,282 @@
-# Quantum Portfolio Optimization
+<div align="center">
 
-> **Distributed QAOA for Financial Portfolio Selection**  
-> Comprehensive research into quantum advantage through scaling, not speed tricks
+# Distributed Quantum Services
 
-  
+**Quantum-style operations as discoverable network services — orchestrated over py-libp2p, analyzed with Qiskit**
 
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Qiskit](https://img.shields.io/badge/Qiskit-1.x-6929C4?logo=ibm&logoColor=white)](https://qiskit.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-## 🎯 What You Need to Know
-
-This project demonstrates **where quantum computers become useful** for portfolio optimization:
-
-- ❌ **Not faster** for small problems (10-20 assets)
-- ✅ **Scales better** for large problems (40+ assets)
-- 🔬 **First comprehensive** bottleneck analysis showing 97% parameter search overhead
-
-**Key Finding**: Quantum advantage comes from **constant-time parameter optimization** while classical algorithms slow down exponentially with problem size.
-
-  
----
-
-## 🚀 Quick Start
-
-### I'm a researcher/academic
-
-**→ Start here:** [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)  
-Draft paper with all findings, benchmarks, and proofs.
-
-### I'm a developer/engineer
-
-**→ Start here:** [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)  
-Technical journey from bottleneck discovery through optimization attempts.
-
-### I want to run benchmarks
-
-**→ Start here:** [backend/README.md](backend/README.md)  
-Setup instructions, benchmark commands, and configuration options.
-
-### I want the executive summary
-
-**→ Continue reading below** ⬇️
-
-  
-
+</div>
 
 ---
 
-## 📊 Executive Summary
+## Overview
 
-### The Problem We Solved
+This repository is a research-oriented platform demonstrating **quantum operations as network-native services**.
 
-**Question**: Can quantum computers optimize financial portfolios faster than classical computers?
+A coordinator node (FastAPI + py-libp2p) discovers worker nodes via GossipSub pubsub, compiles OpenQASM circuits into execution plans, distributes circuit fragments to workers over libp2p streams, and assembles full quantum results using Qiskit statevector simulation. A Next.js operator console provides real-time visibility into the peer network, job lifecycle, and quantum analysis output.
 
-**Short Answer**: 
+A secondary research track uses the same infrastructure for **QAOA-based portfolio optimization**, with a detailed study of quantum scaling advantage over classical algorithms.
 
-- For small portfolios (≤20 assets): **No** (classical wins by 50-100×)
-- For large portfolios (≥40 assets): **Yes** (quantum wins by 2-10×)
+### What This Is Not
 
-**Why**: Quantum parameter search takes ~constant time regardless of portfolio size, while classical algorithms slow down exponentially.
+- A real quantum hardware stack (Qiskit statevector simulation only)
+- A production platform (auth is dev-mode stubs)
+- A finished open-node marketplace
 
-### Key Metrics
-
-
-| Portfolio Size | Classical Time | Quantum Time | Winner                     |
-| -------------- | -------------- | ------------ | -------------------------- |
-| 10 assets      | **20ms**       | 1,500ms      | Classical 75× faster       |
-| 20 assets      | **600ms**      | 1,700ms      | Classical 2.8× faster      |
-| 40 assets      | 6,000ms        | **1,900ms**  | **Quantum 3.2× faster** ✨  |
-| 60 assets      | 20,000ms       | **2,100ms**  | **Quantum 9.5× faster** 🚀 |
-
-
-### The Bottleneck We Found
-
-**97% of quantum runtime** is spent on classical parameter optimization (finding optimal QAOA parameters β, γ).
-
-**Why this matters**: 
-
-- ❌ More quantum processors/nodes → No speedup (Amdahl's Law: max 1.03× improvement)
-- ❌ Better quantum circuits → Marginal benefit (only 3% of runtime)
-- ✅ Exploit scaling behavior → Clear advantage at large problem sizes
-
-### What We Tried (And What Failed)
-
-✅ **Phase 1**: Reduced COBYLA iterations (87% faster, but bottleneck % increased)  
-❌ **Phase 2**: Parameter-shift gradients with L-BFGS-B (2-3× **SLOWER** - gradient overhead too high!)  
-✅ **Phase 3**: Focus on scaling instead of speed tricks
-
-  
-
+Treat it as a serious proof-of-concept with a growing operator console.
 
 ---
 
-## 📊 Visual Overview
+## Key Research Finding
 
-### Quantum vs Classical Performance
+**97% of quantum runtime is classical parameter search** (COBYLA optimizer inside the QAOA loop).
 
-```mermaid
-graph LR
-    A["Portfolio Size"] --> B{"N ≤ 20?"}
-    B -->|Yes| C["Classical Wins<br/>50-100× faster"]
-    B -->|No| D{"N ≥ 40?"}
-    D -->|Yes| E["Quantum Wins!<br/>2-10× faster"]
-    D -->|No| F["Competitive<br/>Similar performance"]
-    
-    style C fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
-    style E fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
-    style F fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
-```
+This means:
+- Adding more quantum nodes/processors yields at most **1.03× speedup** (Amdahl's Law)
+- Quantum advantage comes from **scaling behavior**, not raw speed
+- Portfolio optimization crossover: quantum wins at **N ≥ 40 assets**
 
+| Portfolio Size | Classical Time | Quantum Time | Winner |
+|---|---|---|---|
+| 10 assets | **20 ms** | 1,500 ms | Classical 75× faster |
+| 20 assets | **600 ms** | 1,700 ms | Classical 2.8× faster |
+| 40 assets | 6,000 ms | **1,900 ms** | **Quantum 3.2× faster** |
+| 60 assets | 20,000 ms | **2,100 ms** | **Quantum 9.5× faster** |
 
-
-### Bottleneck Breakdown
-
-```mermaid
-pie title "Quantum Runtime Composition"
-    "Parameter Search (COBYLA)" : 97
-    "Circuit Execution" : 2
-    "Overhead" : 1
-```
-
-
+Full analysis in [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md).
 
 ---
 
-## 📚 Documentation Guide
-
-> **Apple-style UX**: Clear paths, no guessing, you know exactly where to go.
-
-### 🎓 For Research & Publication
-
-**Main Paper** → [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)
-
-- 15,000 words, 9 sections, publication-ready
-- Abstract, introduction, methodology, results, conclusions
-- All experiments documented with exact numbers
-
-**Mathematical Proofs** → [docs/research/MATHEMATICAL_APPENDIX.md](docs/research/MATHEMATICAL_APPENDIX.md)
-
-- 8,000 words of rigorous derivations
-- QUBO→Ising conversion, parameter-shift rule proof
-- Amdahl's Law analysis, complexity comparisons
-
-**Current Strategy** → [docs/research/QUANTUM_SCALING_STRATEGY.md](docs/research/QUANTUM_SCALING_STRATEGY.md)
-
-- Why we pivoted from speed to scaling
-- Crossover point predictions (N=35-45 assets)
-- Success criteria and backup plans
-
-**Alternative Problems** → [docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md](docs/research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md)
-
-- Option pricing via Quantum Amplitude Estimation (100× proven speedup)
-- Credit risk, yield curves, other quantum finance applications
-- Backup plan if portfolio optimization doesn't show clear advantage
-
-### 🔧 For Development & Implementation
-
-**Technical Timeline** → [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)
-
-- Complete optimization journey with code changes
-- Before/after benchmarks for each phase
-- File modifications with line numbers
-
-**Gradient Optimization Failure** → [docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md](docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md)
-
-- Honest analysis of why gradients made it 2-3× slower
-- Root cause: 8× evaluation overhead dominated benefit
-- Lessons learned and when gradients actually work
-
-**Literature Review** → [docs/technical/QAOA_OPTIMIZATION_RESEARCH.md](docs/technical/QAOA_OPTIMIZATION_RESEARCH.md)
-
-- Survey of 10+ papers on QAOA optimization (2024-2025)
-- L-BFGS-B, transfer learning, layer-selective strategies
-- What research says vs what worked in practice
-
-**Original Benchmarks** → [docs/technical/BENCHMARK.md](docs/technical/BENCHMARK.md)
-
-- Initial bottleneck discovery (77% parameter search)
-- Peer scaling results (why 100 nodes ≈ 5 nodes)
-- Historical context showing evolution of understanding
-
-### 📁 For Historical Context
-
-**Archive** → [docs/archive/](docs/archive/)
-
-- Superseded documents and intermediate reports
-- Code reviews, optimization summaries
-- Kept for reproducibility and historical record
-
-  
-
-
----
-
-## 🏗️ Architecture
-
-### System Flow
-
-```mermaid
-graph TB
-    A["Portfolio Data"] --> B["QUBO Formulation"]
-    B --> C["Ising Hamiltonian"]
-    C --> D["QAOA Circuit"]
-    D --> E{"Optimization Loop"}
-    E --> F["Parameter Update<br/>COBYLA 97% time"]
-    F --> D
-    E --> G["Optimal Parameters"]
-    G --> H["Quantum State"]
-    H --> I["Solution Extraction"]
-    I --> J["Selected Portfolio"]
-    
-    K["Distributed Nodes"] -.-> D
-    K -.-> |Fragment Execution| H
-    
-    style F fill:#ffb3ba,stroke:#333,stroke-width:2px,color:#000
-    style E fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
-    style J fill:#a8e6cf,stroke:#333,stroke-width:2px,color:#000
-```
-
-
-
-### Directory Structure
+## Architecture
 
 ```
-├── README.md                          ← YOU ARE HERE
-├── CONTEXT.md                         ← Project overview & original goals
+                         ┌──────────────────────────────────┐
+                         │        Next.js Operator Console   │
+                         │  (dashboard · runs · finance)     │
+                         └──────────────┬───────────────────┘
+                                        │ BFF proxy (REST polling)
+                         ┌──────────────▼───────────────────┐
+                         │     FastAPI Coordinator           │
+                         │  ┌──────────┐  ┌─────────────┐   │
+                         │  │ Circuits │  │  Finance    │   │
+                         │  │  Jobs    │  │  (QAOA)     │   │
+                         │  └──────────┘  └─────────────┘   │
+                         │  ┌─────────────────────────────┐  │
+                         │  │    py-libp2p (Trio)          │  │
+                         │  │  GossipSub · Stream RPC      │  │
+                         │  └──────────────┬──────────────┘  │
+                         └─────────────────┼─────────────────┘
+                                           │ libp2p streams
+              ┌────────────────────────────┼──────────────────┐
+              │                            │                  │
+   ┌──────────▼──────┐          ┌──────────▼──────┐   ┌──────▼──────┐
+   │  Worker Peer 1  │          │  Worker Peer 2  │   │  Worker N   │
+   │  (hadamard/cnot)│          │  (qft/teleport) │   │  (custom)   │
+   └─────────────────┘          └─────────────────┘   └─────────────┘
+```
+
+**Persistence**: Postgres (event-sourced workflow runs, enrollments) + MongoDB (peer topology, benchmark results) + local JSONL (append-only peer log)
+
+---
+
+## Repository Structure
+
+```
+nodes-quantum-gates/
+├── backend/                    Python backend (FastAPI + py-libp2p + Qiskit)
+│   ├── src/quantum_backend_v2/ Core package
+│   │   ├── api/                FastAPI routers, models, auth, errors
+│   │   ├── application/        Business logic (circuit jobs, finance, enrollment)
+│   │   ├── libp2p/             py-libp2p host, GossipSub, stream RPC
+│   │   ├── discovery/          Peer registry, topology projections
+│   │   ├── reservations/       Event-sourced reservation state machine
+│   │   ├── persistence/        Postgres (SQLAlchemy) + MongoDB (Beanie) + JSONL
+│   │   └── quality/            Qiskit transpilation for service fidelity
+│   ├── scripts/                Benchmark scripts (QAOA scaling, datasets)
+│   ├── tests/                  Unit tests (pytest)
+│   ├── alembic/                Database migrations
+│   ├── Makefile                install · run · test · lint
+│   └── pyproject.toml          uv-managed Python project
 │
-├── docs/
-│   ├── research/                      ← 📄 Publication materials
-│   │   ├── RESEARCH_PAPER_DRAFT.md           Main paper (15k words)
-│   │   ├── MATHEMATICAL_APPENDIX.md          Proofs (8k words)
-│   │   ├── QUANTUM_SCALING_STRATEGY.md       Current approach
-│   │   └── ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md
-│   │
-│   ├── technical/                     ← 🔧 Implementation details
-│   │   ├── IMPLEMENTATION_NOTES.md           Technical timeline
-│   │   ├── GRADIENT_OPTIMIZATION_POSTMORTEM.md
-│   │   ├── QAOA_OPTIMIZATION_RESEARCH.md
-│   │   └── BENCHMARK.md
-│   │
-│   └── archive/                       ← 📦 Historical documents
-│       └── (superseded reports)
+├── frontend/                   Next.js 16 operator console
+│   ├── src/app/(main)/         Route pages (dashboard, runs, finance)
+│   ├── src/app/api/            BFF proxy route handlers
+│   ├── src/components/         Shared UI components
+│   ├── src/features/           Feature modules (network, runs, finance)
+│   ├── src/lib/                Backend client, transformers
+│   ├── src/store/              Zustand state stores
+│   └── DESIGN.md               Design system specification
 │
-├── backend/                        ← 💻 Main implementation
-│   ├── src/quantum_backend_v2/
-│   │   └── application/
-│   │       ├── financial_portfolio.py        Core QAOA implementation
-│   │       ├── financial_comparison.py       Classical baselines
-│   │       └── qaoa_parameter_optimization.py
-│   │
-│   └── scripts/
-│       ├── benchmark_massive_dataset.py      Scaling tests (20-60 assets)
-│       ├── run_node_scaling_benchmark.py     Distributed tests
-│       └── download_massive_dataset.py       Data acquisition
+├── docs/                       Project documentation
+│   ├── ARCHITECTURE.md         System architecture (deep dive)
+│   ├── design.md               Design goals and tradeoffs
+│   ├── requirements.md         Functional/non-functional requirements
+│   ├── research/               Research paper, proofs, scaling analysis
+│   └── technical/              Implementation notes, benchmarks, postmortem
 │
-└── benchmark-data/
-    └── sp500_top100_5y_daily.csv     ← 📊 100 assets, 5 years, 1256 days
+├── dataset/                    S&P 500 benchmark data (100 assets, 5 years)
+├── deploy/                     Caddyfile and deployment configs
+├── docker-compose.yaml         Full-stack deployment (backend + frontend + Caddy)
+├── .env.example                Environment variable template
+├── CONTEXT.md                  Detailed contributor context
+└── DEPLOYMENT-MANUAL.md        Production deployment runbook
 ```
-
-  
-
 
 ---
 
-## 🔬 Research Highlights
-
-### 1. Comprehensive Bottleneck Analysis
-
-**Discovery**: 97% of quantum runtime spent on classical parameter search (COBYLA optimizer)
-
-**Proof**: Amdahl's Law analysis shows:
-
-```
-Serial fraction (s) = 0.97
-Maximum speedup with infinite processors = 1/s = 1.03×
-Measured speedup (20 nodes vs 5 nodes) = 1.24×
-```
-
-**Implication**: Cannot solve by adding more quantum processors or nodes. Must exploit scaling behavior instead.
-
-### 2. Honest Optimization Assessment
-
-**What We Tried**: State-of-art parameter-shift gradients with L-BFGS-B optimizer
-
-**What Happened**: 2-3× performance **regression** instead of expected improvement
-
-**Root Cause**:
-
-```
-Gradient cost: 2 evaluations per parameter = 8 total per iteration
-COBYLA cost: 1 evaluation per iteration
-
-L-BFGS-B: 30 iterations × 8 evaluations = 240 evaluations
-COBYLA: 80 iterations × 1 evaluation = 80 evaluations
-
-Result: 3× MORE expensive!
-```
-
-**Lesson**: Research findings (gradients help for n≥20 qubits) don't transfer to our case (n=10 qubits, non-convex landscape)
-
-### 3. Scaling Behavior Characterization
-
-**Hypothesis**: Quantum parameter search stays constant (~1,500ms), classical grows exponentially
-
-**Test**: 5 scales (N = 20, 30, 40, 50, 60 assets) on massive dataset (1,256 trading days)
-
-**Expected Crossover**: N = 35-45 assets where quantum becomes faster than classical
-
-**Status**: Benchmark in progress (see below ⬇️)
-
-  
-
-
----
-
-## 📈 Current Status
-
-### ✅ Completed
-
-- Bottleneck identification (97% parameter search)
-- Amdahl's Law analysis (max 1.03× speedup from parallelization)
-- Phase 1 optimization (reduced time 87%, bottleneck % worsened)
-- Phase 2 gradient attempt (discovered 2-3× regression)
-- Gradient rollback (reverted to proven COBYLA baseline)
-- Comprehensive documentation (40,000+ words)
-- Massive dataset acquisition (100 assets, 5 years)
-
-### 🔄 In Progress
-
-- **Scaling benchmark** (N = 20, 30, 40, 50, 60 assets) - **RUNNING NOW**
-  - Finding crossover point where quantum becomes faster
-  - Validating constant-time hypothesis
-  - Expected completion: ~15-25 minutes total
-
-### ⏳ Next Steps (Depends on Benchmark)
-
-**Scenario A** (Quantum wins at N≥40): Polish paper for publication
-
-**Scenario B** (Quantum wins at N≥50): Run extended tests at N=70-80
-
-**Scenario C** (No clear advantage): Implement Option Pricing QAE (proven 100× speedup)
-
-  
-
-
----
-
-## 🎓 Academic Contributions
-
-### Novel Insights
-
-1. **First detailed profiling** of QAOA bottlenecks in financial applications
-2. **Amdahl's Law analysis** explaining why distributed execution doesn't help
-3. **Transparent failure documentation** (gradient optimization postmortem)
-4. **Scaling characterization** showing where quantum becomes competitive
-
-### Reproducibility
-
-- ✅ Complete source code (Python, Qiskit)
-- ✅ Large public dataset (S&P 500 top 100)
-- ✅ Detailed benchmarks with exact numbers
-- ✅ Classical baselines implemented fairly (Simulated Annealing)
-
-### Target Venues
-
-**Tier 1** (if strong quantum advantage):
-
-- IEEE Quantum Computing Conference (QCE)
-- npj Quantum Information (Nature)
-- Quantum Science and Technology (IOP)
-
-**Tier 2** (if comparative study):
-
-- ACM Transactions on Quantum Computing
-- Quantum Information Processing (Springer)
-- Journal of Computational Finance
-
-  
-
-
----
-
-## 🚀 Getting Started
+## Quick Start
 
 ### Prerequisites
 
-```bash
-# Python 3.11+
-# uv package manager (https://github.com/astral-sh/uv)
-```
+- Python 3.11+ with [uv](https://github.com/astral-sh/uv)
+- Node.js 20+ with npm
+- Docker (for full-stack deployment)
 
-### Installation
+### Run the Backend
 
 ```bash
 cd backend
-uv sync
+make install   # installs all Python dependencies via uv
+make run       # starts FastAPI on http://localhost:8081
 ```
 
-### Run Benchmarks
+To run with a clean slate (flush runtime artifacts):
 
 ```bash
-# Small test (10 assets, 5 nodes)
-uv run scripts/run_node_scaling_benchmark.py --peers 5
-
-# Scaling test (20-60 assets, 50 nodes) - Currently Running
-uv run scripts/benchmark_massive_dataset.py
+make run-clean
 ```
 
-### View Results
+### Run the Frontend
 
-Results saved to:
+```bash
+cd frontend
+npm install
+npm run dev    # starts Next.js on http://localhost:3000
+```
 
-- `backend/scripts/node_scaling_current_baseline.json`
-- `backend/scripts/massive_dataset_benchmark_results.json`
+Set `QUANTUM_BACKEND_URL=http://localhost:8081` in `frontend/.env.local` if needed.
 
-  
+### Run with Docker Compose
 
+```bash
+cp .env.example .env
+# Fill in Neon Postgres and MongoDB Atlas credentials in .env
+docker compose up --build
+```
+
+Services:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8081`
+- API docs: `http://localhost:8081/docs`
 
 ---
 
-## 💡 Key Insights for Practitioners
+## Backend: Key Concepts
 
-### When to Use Quantum
-
-✅ **Use quantum when**:
-
-- Portfolio size N ≥ 40 assets
-- Large historical dataset (1000+ days)
-- Need global optimization (not just "good enough")
-
-❌ **Don't use quantum when**:
-
-- Portfolio size N ≤ 20 assets (classical 50× faster)
-- Small dataset (<500 days)
-- Simulated Annealing sufficient
-
-### Parameter Search Bottleneck
-
-**The fundamental challenge**: QAOA requires classical optimization loop
+### Circuit Execution Flow
 
 ```
-repeat 80 times:
-    1. Propose new parameters (β, γ)
-    2. Run quantum circuit              ← Only 3% of time
-    3. Measure expectation value
-    4. Update parameters                ← 97% of time!
+POST /api/v1/circuits/submit  (OpenQASM string)
+        ↓
+  CircuitJobService  →  WorkflowRunRecord (QUEUED)
+        ↓
+  Wait for enrolled service peers
+        ↓
+  Compile execution plan  (fragment DAG)
+        ↓
+  Distribute fragments via libp2p stream RPC
+        ↓
+  Assemble quantum state  (Qiskit)
+        ↓
+  GET /api/v1/jobs/{job_id}
+  → counts · probabilities · statevector · Bloch vectors
+    entanglement entropy · density matrices · fidelity
 ```
 
-**Cannot be parallelized** → Distributed execution doesn't help
+### Supported Gate/Service Types
 
-**Only solution**: Exploit that optimization time stays constant while classical algorithms slow down
+`hadamard` · `cnot` · `cz` · `controlled_unitary` · `programmable_gate` · `qft` · `teleportation` · `bell_pair` · `syndrome_extraction` · `distillation` · `measurement_feedforward`
 
-  
+### Finance: QAOA Portfolio Optimization
 
+```
+POST /api/v1/finance/submit  (CSV of returns)
+        ↓
+  Build QUBO  →  Ising Hamiltonian  →  QAOA circuit
+        ↓
+  COBYLA parameter optimization loop
+  (97% of runtime — this is the bottleneck)
+        ↓
+  GET /api/v1/finance/{job_id}/comparison
+  → quantum result vs Simulated Annealing vs Random baseline
+```
 
 ---
 
-## 🤝 Contributing
+## Frontend: Key Views
 
-This is academic research code. For inquiries:
-
-- **Research questions**: See [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md)
-- **Technical details**: See [docs/technical/IMPLEMENTATION_NOTES.md](docs/technical/IMPLEMENTATION_NOTES.md)
-- **Bugs/Issues**: Check [backend/README.md](backend/README.md) for troubleshooting
-
-  
-
+| Route | What You See |
+|---|---|
+| `/dashboard` | Live 3D peer network graph, system metrics, recent runs table |
+| `/runs` | All circuit and finance jobs with status polling |
+| `/runs/new` | Visual circuit builder (drag-and-drop) + OpenQASM editor |
+| `/runs/[id]` | Job detail: fragment DAG, quantum analysis, Bloch spheres |
+| `/finance` | CSV upload → portfolio optimization → quantum-vs-classical comparison |
 
 ---
 
-## 📖 Citation
+## Testing
+
+```bash
+# Backend unit tests (20 tests)
+cd backend && make test
+
+# Run specific test
+cd backend && uv run pytest tests/unit/test_health.py -v
+```
+
+---
+
+## Deployment
+
+Full production deployment guide: [DEPLOYMENT-MANUAL.md](DEPLOYMENT-MANUAL.md)
+
+**Stack**: Next.js on Vercel + FastAPI on AWS Lightsail + Neon Postgres + MongoDB Atlas + Caddy (HTTPS)
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [CONTEXT.md](CONTEXT.md) | Deep contributor context — code organization, caveats, entry points |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture with Mermaid diagrams |
+| [docs/design.md](docs/design.md) | Design rationale and tradeoffs |
+| [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md) | Research paper on QAOA portfolio optimization |
+| [docs/technical/BENCHMARK.md](docs/technical/BENCHMARK.md) | Benchmark results and bottleneck analysis |
+| [docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md](docs/technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md) | Honest analysis of what failed and why |
+| [frontend/DESIGN.md](frontend/DESIGN.md) | Frontend design system specification |
+
+---
+
+## Contributing
+
+1. Fork and create a feature branch.
+2. Read [CONTEXT.md](CONTEXT.md) before making backend changes.
+3. Run `make lint` and `make test` in `backend/` before submitting.
+4. Run `npm run build` in `frontend/` to verify no TypeScript errors.
+5. Keep PRs focused — one logical change per PR.
+
+**Research questions or collaboration**: See [docs/research/RESEARCH_PAPER_DRAFT.md](docs/research/RESEARCH_PAPER_DRAFT.md) or open an issue.
+
+---
+
+## Citation
 
 If you use this work, please cite:
 
@@ -477,44 +286,23 @@ If you use this work, please cite:
   author={Bhoir, Soham and Gupta, Manusheel},
   journal={[Pending submission]},
   year={2026},
-  note={Comprehensive analysis of QAOA performance in financial optimization}
+  note={QAOA bottleneck analysis, Amdahl's Law, and scaling characterization for financial optimization}
 }
 ```
 
-  
+---
 
+## Acknowledgments
+
+- [Qiskit](https://qiskit.org/) (IBM) — quantum computing framework
+- [py-libp2p](https://github.com/libp2p/py-libp2p) — peer-to-peer networking
+- [FastAPI](https://fastapi.tiangolo.com/) — async Python API framework
+- [shadcn/ui](https://ui.shadcn.com/) — UI component library
 
 ---
 
-## 🙏 Acknowledgments
+<div align="center">
 
-- **Qiskit** (IBM) - Quantum computing framework
-- **py-libp2p** - Distributed execution infrastructure  
-- **Yahoo Finance** - Market data access
-- **Claude AI** - Research assistance
+**[Architecture](docs/ARCHITECTURE.md)** · **[Research Paper](docs/research/RESEARCH_PAPER_DRAFT.md)** · **[Deployment](DEPLOYMENT-MANUAL.md)** · **[Design System](frontend/DESIGN.md)**
 
-  
-
-
----
-
-## 📧 Contact
-
-**Author**: Soham Bhoir and Manusheel Gupta  
-**Project**: Quantum Computing for Financial Applications  
-**Last Updated**: April 26, 2026
-
-  
-
-
----
-
-
-
-**[📄 Read the Paper](docs/research/RESEARCH_PAPER_DRAFT.md)** · **[🔧 Implementation Details](docs/technical/IMPLEMENTATION_NOTES.md)** · **[📊 View Benchmarks](backend/scripts/)**
-
-  
-
-
-*Built with quantum circuits, debugged with patience, documented with care.*
-
+</div>

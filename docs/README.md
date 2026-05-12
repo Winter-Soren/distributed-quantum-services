@@ -1,43 +1,84 @@
 # Documentation Index
 
-This folder contains the reference documentation for the distributed quantum services project.
+This folder contains the reference documentation for the Distributed Quantum Services platform.
 
-If you are new, read in this order:
+**New here?** Start with [`../README.md`](../README.md) for a project overview, then follow the path below.
 
-1. [`../README.md`](../README.md) for setup and run paths
-2. [`ARCHITECTURE.md`](ARCHITECTURE.md) for how the system works
-3. [`tasks.md`](tasks.md) for implementation status
+---
 
-## Read By Goal
+## Reading Paths
 
-### I want to understand how the current system works
+### I want to understand the system architecture
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): end-to-end architecture, components, and execution flow
-- [`design.md`](design.md): design goals and tradeoffs for the POC
-- [`requirements.md`](requirements.md): functional and non-functional requirements
-- [`FINANCIAL_MODELING_FOUNDATIONS.md`](FINANCIAL_MODELING_FOUNDATIONS.md): finance terminology, dataset shapes, corporate-finance vs quantum-finance tracks, and recommended product direction
+1. [`ARCHITECTURE.md`](ARCHITECTURE.md) — end-to-end architecture, components, and execution flow
+2. [`design.md`](design.md) — design goals and tradeoffs
+3. [`requirements.md`](requirements.md) — functional and non-functional requirements
 
-### I want delivery status and execution plan
+### I want to understand the financial/quantum research
 
-- [`tasks.md`](tasks.md): milestone checklist and remaining work
-- [`PROGRESS.md`](PROGRESS.md): what has already been completed
+1. [`FINANCIAL_MODELING_FOUNDATIONS.md`](FINANCIAL_MODELING_FOUNDATIONS.md) — finance terminology, dataset shapes, QAOA vs classical comparison
+2. [`research/RESEARCH_PAPER_DRAFT.md`](research/RESEARCH_PAPER_DRAFT.md) — full research paper (15k words, publication-ready)
+3. [`research/MATHEMATICAL_APPENDIX.md`](research/MATHEMATICAL_APPENDIX.md) — formal proofs and derivations
 
-### I want long-term product direction
+### I want to deploy the platform
 
-- [`FUTURE_ROADMAP.md`](FUTURE_ROADMAP.md): big-picture roadmap
-- [`future-roadmap/README.md`](future-roadmap/README.md): detailed milestone index
+1. [`../DEPLOYMENT-MANUAL.md`](../DEPLOYMENT-MANUAL.md) — complete deployment guide (Vercel + Lightsail + managed DBs)
+2. [`LIGHTSAIL-DEPLOYMENT.md`](LIGHTSAIL-DEPLOYMENT.md) — Lightsail-specific setup
+3. [`START_HERE.md`](START_HERE.md) — local development onboarding
 
-### I want deployment and operations
+### I want to understand the long-term roadmap
 
-- [`../MANUAL.md`](../MANUAL.md): Docker, Caddy, EC2, and operational workflows
+1. [`FUTURE_ROADMAP.md`](FUTURE_ROADMAP.md) — milestone overview
+2. [`future-roadmap/`](future-roadmap/) — per-milestone detail docs
+3. [`IPFS_INTEGRATION_STRATEGIC_VISION.md`](IPFS_INTEGRATION_STRATEGIC_VISION.md) — VAULT / IPFS roadmap
 
-## Doc Types
+---
 
-- **Current-state docs**: `ARCHITECTURE.md`, `design.md`, `requirements.md`, `FINANCIAL_MODELING_FOUNDATIONS.md`
-- **Execution docs**: `tasks.md`, `PROGRESS.md`
-- **Future-state docs**: `FUTURE_ROADMAP.md`, `future-roadmap/*.md`
+## Doc Inventory
+
+### Core (current-state, always accurate)
+
+| File | Description |
+|---|---|
+| `ARCHITECTURE.md` | System architecture with Mermaid diagrams |
+| `design.md` | Design rationale, cost model, failure model |
+| `requirements.md` | Functional and non-functional requirements |
+| `FINANCIAL_MODELING_FOUNDATIONS.md` | Finance theory and quantum-vs-classical framing |
+| `START_HERE.md` | Local dev onboarding guide |
+
+### Research
+
+| File | Description |
+|---|---|
+| `research/RESEARCH_PAPER_DRAFT.md` | Main research paper (15k words) |
+| `research/MATHEMATICAL_APPENDIX.md` | Formal proofs and derivations |
+| `research/QUANTUM_SCALING_STRATEGY.md` | Scaling hypothesis and crossover analysis |
+| `research/ALTERNATIVE_QUANTUM_FINANCE_PROBLEMS.md` | Alternative quantum finance applications |
+| `research/DATASET_DOWNLOAD_STRATEGY.md` | Data acquisition notes |
+
+### Technical Notes
+
+| File | Description |
+|---|---|
+| `technical/IMPLEMENTATION_NOTES.md` | Optimization journey and code changes |
+| `technical/GRADIENT_OPTIMIZATION_POSTMORTEM.md` | Honest analysis of failed gradient approach |
+| `technical/QAOA_OPTIMIZATION_RESEARCH.md` | Literature survey on QAOA optimization |
+| `technical/BENCHMARK.md` | Benchmark results and bottleneck analysis |
+
+### Roadmap (aspirational, not yet implemented)
+
+| File | Description |
+|---|---|
+| `FUTURE_ROADMAP.md` | Big-picture 5-milestone evolution |
+| `future-roadmap/00-current-state.md` | Current POC baseline |
+| `future-roadmap/01-*.md` through `05-*.md` | Per-milestone details |
+| `IPFS_INTEGRATION_STRATEGIC_VISION.md` | VAULT / IPFS strategic vision |
+| `QAE_ENHANCEMENT_NOTE.md` | Quantum Amplitude Estimation extension ideas |
+
+---
 
 ## Maintainer Notes
 
-- Keep this index updated whenever a new top-level doc is added.
-- Prefer linking from this file rather than duplicating full navigation blocks in every doc.
+- Keep this index updated when adding new top-level docs.
+- Prefer linking from here rather than duplicating navigation blocks across every doc.
+- Aspirational docs (future-roadmap, IPFS) must not be confused with current-state docs.
