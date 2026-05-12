@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { NAV_CONFIG } from "@/constants";
+import { useTrialEnabled } from "@/features/auth";
 import { IconRail } from "./icon-rail";
 import { SidebarPanel } from "./sidebar-panel";
 import { SiteHeader } from "./site-header";
@@ -13,6 +14,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
+  const trialEnabled = useTrialEnabled();
 
   const activeRailItem =
     NAV_CONFIG.find((item) =>
@@ -38,11 +40,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <div className="absolute inset-0 dot-grid opacity-40" />
       </div>
 
-      <IconRail />
+      <div className={!trialEnabled ? "pointer-events-none blur-sm select-none" : undefined}>
+        <IconRail />
+      </div>
 
       <div className="relative ml-1.5 flex flex-1 overflow-hidden ring-1 ring-white/6"
         style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(2px)" }}>
-        <SidebarPanel activeRailItem={activeRailItem} />
+        <div className={!trialEnabled ? "pointer-events-none blur-sm select-none" : undefined}>
+          <SidebarPanel activeRailItem={activeRailItem} />
+        </div>
         <div className="flex flex-1 flex-col overflow-hidden">
           <SiteHeader />
           <TrialGate>

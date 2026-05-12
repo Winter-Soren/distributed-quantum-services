@@ -38,7 +38,7 @@ export function TrialBanner() {
             }
           />
           <Badge variant="secondary" className="text-xs">
-            Free Trial
+            1-Hour Trial
           </Badge>
           <p className="text-sm text-muted-foreground">{label}</p>
         </div>

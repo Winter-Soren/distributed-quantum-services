@@ -19,7 +19,7 @@ export function TrialExpiredOverlay({ endsAt }: TrialExpiredOverlayProps) {
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-lg text-center">
         <p className="text-xl font-normal text-foreground">
-          Your free trial has ended
+          Your 1-hour trial has ended
         </p>
         <p className="text-sm text-muted-foreground mt-2">
           Upgrade to continue using Distributed Quantum Services. Your data and
