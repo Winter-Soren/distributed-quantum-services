@@ -33,7 +33,7 @@ def _check_deps() -> None:
         from libp2p.peer.peerinfo import info_from_p2p_addr as _ifpa
         from libp2p.custom_types import TProtocol as _TP
         from libp2p.host.basic_host import BasicHost as _BH
-        from libp2p.network.stream.net_stream_interface import INetStream as _INS
+        from libp2p.abc import INetStream as _INS
         from libp2p.pubsub.gossipsub import GossipSub as _GS
         from libp2p.pubsub.pubsub import Pubsub as _PB
         new_host, create_new_key_pair, KeyType = _new_host, _cnkp, _KT
