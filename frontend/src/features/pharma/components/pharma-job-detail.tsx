@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import {
   Loader2,
+  FlaskConical,
   Star,
   Ban,
 } from "lucide-react";
@@ -172,13 +173,10 @@ export function PharmaJobDetail({ jobId }: { jobId: string }) {
 
   const isRunning = job.status === "queued" || job.status === "running";
 
-  if (isRunning) {
+  if (isRunning || job.status === "completed") {
     return (
       <PharmaLiveCanvas
-        jobId={jobId}
-        targetPdbId={job.target_pdb_id}
-        mode={job.mode}
-        status={job.status}
+        job={job}
         onCancel={() => cancelJob()}
         isCancelling={isCancelling}
       />

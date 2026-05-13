@@ -10,6 +10,18 @@ interface Props {
   height?: number;
 }
 
+// Injected into the SVG so bonds/atoms are visible on dark backgrounds
+// regardless of whether openchemlib uses inline attrs or CSS style attributes
+const DARK_THEME_STYLE = `
+  <style>
+    rect, polygon { fill: transparent !important; }
+    path, line { stroke: rgba(255,255,255,0.80) !important; fill: none !important; }
+    path[fill]:not([fill="none"]) { fill: rgba(255,255,255,0.80) !important; }
+    ellipse, circle { stroke: rgba(255,255,255,0.80) !important; }
+    text, tspan { fill: rgba(255,255,255,0.80) !important; stroke: none !important; }
+  </style>
+`;
+
 export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -30,21 +42,17 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
 
           const svgStr = mol.toSVG(width, height, undefined, {
             autoCrop: true,
-            autoCropMargin: 10,
+            autoCropMargin: 12,
             suppressChiralText: true,
             noStereoProblem: true,
           });
 
-          // Patch SVG colours to match dark theme
-          const patched = svgStr
-            .replace(/fill="white"/g, 'fill="transparent"')
-            .replace(/stroke="black"/g, 'stroke="rgba(255,255,255,0.75)"')
-            .replace(/fill="black"/g, 'fill="rgba(255,255,255,0.75)"')
-            .replace(/background[^"]*"/g, '"transparent"');
+          // Inject the dark-theme style block right after the opening <svg tag
+          const patched = svgStr.replace(/(<svg[^>]*>)/, `$1${DARK_THEME_STYLE}`);
 
           containerRef.current.innerHTML = patched;
           setLoading(false);
-        } catch (err) {
+        } catch {
           if (!cancelled) {
             setError("Invalid SMILES");
             setLoading(false);
@@ -58,14 +66,11 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [smiles, width, height]);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-white/6 bg-[#080b12]">
-      {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
         <Hexagon size={12} className="text-emerald-400/60" />
         <span className="text-[11px] font-medium uppercase tracking-wider text-white/25">
@@ -78,7 +83,6 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
         )}
       </div>
 
-      {/* SVG area */}
       <div
         className="relative flex items-center justify-center p-3"
         style={{ minHeight: height + 24 }}
@@ -92,20 +96,12 @@ export function LigandViewer({ smiles, label, width = 260, height = 180 }: Props
         {error && (
           <p className="text-center text-[11px] text-red-400/60">{error}</p>
         )}
-        {/* SVG injected here */}
-        <div
-          ref={containerRef}
-          className={loading || error ? "hidden" : "block"}
-        />
+        <div ref={containerRef} className={loading || error ? "hidden" : "block"} />
       </div>
 
-      {/* SMILES string */}
       {!loading && !error && (
         <div className="border-t border-white/5 px-3 py-1.5">
-          <p
-            className="truncate font-mono text-[9px] text-white/15"
-            title={smiles}
-          >
+          <p className="truncate font-mono text-[9px] text-white/15" title={smiles}>
             {smiles}
           </p>
         </div>

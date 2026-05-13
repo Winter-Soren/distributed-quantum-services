@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   Ban,
+  CheckCircle2,
   FlaskConical,
   Loader2,
+  Star,
 } from "lucide-react";
 import {
   LineChart,
@@ -20,8 +22,10 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { usePharmaJobLive } from "../hooks/use-pharma-job-live";
 import { LigandViewer } from "./ligand-viewer";
+import { CandidateCard } from "./candidate-card";
 import { STAGE_ICONS } from "../lib/pharma-stage-config";
-import type { PharmaJobStatus, PharmaMode } from "../types";
+import type { PharmaJob, PipelineLogEntry, PipelineLogLevel } from "../types";
+import type { ScorePoint } from "../types-live";
 
 // NGL viewer — SSR-guarded
 const ProteinViewer = dynamic(
@@ -37,25 +41,59 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "text-white/30 bg-white/5 border-white/10",
 };
 
+// Quantum-internal levels — excluded from biology metrics derivation
+const QUANTUM_LEVELS = new Set<PipelineLogLevel>(["vqe"]);
+
 interface Props {
-  jobId: string;
-  targetPdbId: string;
-  mode: PharmaMode;
-  status: PharmaJobStatus;
+  job: PharmaJob;
   onCancel: () => void;
   isCancelling: boolean;
 }
 
-// Animated stat card — pulses when value changes
-function StatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: string;
-}) {
+// ── Derive live metrics from log_lines when /live endpoint returns null ───────
+
+interface DerivedMetrics {
+  currentStage: string | null;
+  iterCount: number;
+  bestScore: number | null;
+  bestSmiles: string | null;
+  scoreHistory: ScorePoint[];
+  admetPasses: number;
+}
+
+function deriveMetricsFromLogs(logLines: PipelineLogEntry[]): DerivedMetrics {
+  let currentStage: string | null = null;
+  let iterCount = 0;
+  let bestScore: number | null = null;
+  let bestSmiles: string | null = null;
+  const scoreHistory: ScorePoint[] = [];
+  let admetPasses = 0;
+
+  for (const line of logLines) {
+    if (QUANTUM_LEVELS.has(line.level)) continue;
+    if (line.stage) currentStage = line.stage;
+    if (line.level === "iter") iterCount++;
+    if (line.level === "score") {
+      const m = line.message.match(/([-\d.]+)\s*kcal/);
+      if (m) {
+        const v = parseFloat(m[1]);
+        if (bestScore === null || v < bestScore) {
+          bestScore = v;
+          scoreHistory.push({ iteration: iterCount, score: v, ts: line.ts });
+        }
+      }
+    }
+    if (line.level === "admet" && line.message.toLowerCase().includes("pass")) {
+      admetPasses++;
+    }
+  }
+
+  return { currentStage, iterCount, bestScore, bestSmiles, scoreHistory, admetPasses };
+}
+
+// ── Animated stat card ────────────────────────────────────────────────────────
+
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <motion.div
       key={value}
@@ -70,62 +108,73 @@ function StatCard({
   );
 }
 
-export function PharmaLiveCanvas({
-  jobId,
-  targetPdbId,
-  mode,
-  status,
-  onCancel,
-  isCancelling,
-}: Props) {
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function PharmaLiveCanvas({ job, onCancel, isCancelling }: Props) {
+  const { job_id: jobId, target_pdb_id: targetPdbId, mode, status } = job;
   const isRunning = status === "queued" || status === "running";
+  const isCompleted = status === "completed";
+
   const { data: liveData } = usePharmaJobLive(jobId, isRunning);
 
-  // NGL stage handle — obtained via onStageReady callback from ProteinViewer
+  // Derive fallback metrics from log_lines (used when /live returns null OR when completed)
+  const logLines = job.log_lines ?? [];
+  const derived = deriveMetricsFromLogs(logLines);
+
+  // Final best smiles: prefer result candidate, then live data, then derived
+  const finalSmiles =
+    (isCompleted && job.result?.candidates[0]?.smiles) ||
+    liveData?.best_smiles ||
+    null;
+
+  // Effective metrics — live endpoint takes priority, log_lines fallback otherwise
+  const effectiveStage     = liveData?.current_stage   ?? derived.currentStage;
+  const effectiveIter      = liveData?.iteration_count ?? derived.iterCount;
+  const effectiveScore     = isCompleted
+    ? (job.result?.candidates[0]?.vqc_score?.binding_affinity_kcal ?? liveData?.best_score ?? derived.bestScore)
+    : (liveData?.best_score ?? derived.bestScore);
+  const effectiveAdmet     = liveData?.admet_passes ?? derived.admetPasses;
+  const effectiveHistory   = (liveData?.score_history && liveData.score_history.length > 0)
+    ? liveData.score_history
+    : derived.scoreHistory;
+  const effectiveSmiles    = finalSmiles ?? liveData?.best_smiles ?? null;
+
+  // NGL stage handle
   const stageRef = useRef<any>(null);
-  // Track previous best_smiles/score to detect changes
   const prevSmilesRef = useRef<string | null>(null);
-  const prevScoreRef = useRef<number | null>(null);
-  const prevStageRef = useRef<string | null>(null);
-  // Accumulated discovered SMILES (ADMET passes)
+  const prevScoreRef  = useRef<number | null>(null);
+  const prevStageRef  = useRef<string | null>(null);
+
+  // Discovered SMILES strip
   const [discoveredSmiles, setDiscoveredSmiles] = useState<string[]>([]);
   const discoveredScrollRef = useRef<HTMLDivElement>(null);
 
-  // Load / swap best ligand in NGL when best_smiles changes
+  // Load / swap ligand in NGL when smiles changes
   useEffect(() => {
     const stage = stageRef.current;
-    const smiles = liveData?.best_smiles ?? null;
+    const smiles = effectiveSmiles;
     if (!stage || !smiles || smiles === prevSmilesRef.current) return;
     prevSmilesRef.current = smiles;
 
-    // Remove any existing ligand overlay components (tagged with name "live-ligand")
     stage.compList
       .filter((c: any) => c.name === "live-ligand")
       .forEach((c: any) => stage.removeComponent(c));
 
-    // Load new ligand via NGL SMILES protocol
     stage
       .loadFile(`smiles://${smiles}`, { name: "live-ligand" })
       .then((comp: any) => {
         if (!comp) return;
-        comp.addRepresentation("ball+stick", {
-          colorScheme: "element",
-          quality: "high",
-        });
+        comp.addRepresentation("ball+stick", { colorScheme: "element", quality: "high" });
         comp.autoView(400);
       })
-      .catch(() => {
-        // Ligand load failed — silently ignore, protein still visible
-      });
-  }, [liveData?.best_smiles]);
+      .catch(() => {});
+  }, [effectiveSmiles]);
 
-  // Pocket pulse when a new better score arrives
+  // Pocket pulse on new best score
   useEffect(() => {
     const stage = stageRef.current;
-    const score = liveData?.best_score ?? null;
-    if (!stage || score === null || score === prevScoreRef.current) return;
-    prevScoreRef.current = score;
-
+    if (!stage || effectiveScore === null || effectiveScore === prevScoreRef.current) return;
+    prevScoreRef.current = effectiveScore;
     stage.compList.forEach((comp: any) => {
       comp.reprList
         .filter((r: any) => r.type === "surface")
@@ -134,43 +183,49 @@ export function PharmaLiveCanvas({
           setTimeout(() => r.setParameters({ opacity: 0.18 }), 600);
         });
     });
-  }, [liveData?.best_score]);
+  }, [effectiveScore]);
 
   // Camera refocus on stage change
   useEffect(() => {
     const stage = stageRef.current;
-    const currentStage = liveData?.current_stage ?? null;
-    if (!stage || !currentStage || currentStage === prevStageRef.current) return;
-    prevStageRef.current = currentStage;
+    if (!stage || !effectiveStage || effectiveStage === prevStageRef.current) return;
+    prevStageRef.current = effectiveStage;
     stage.autoView(800);
-  }, [liveData?.current_stage]);
+  }, [effectiveStage]);
 
-  // Accumulate discovered SMILES when admet_passes increases
+  // Accumulate discovered SMILES (ADMET passes)
   useEffect(() => {
-    const smiles = liveData?.best_smiles;
-    const passes = liveData?.admet_passes ?? 0;
-    if (!smiles || passes === 0) return;
+    const smiles = effectiveSmiles;
+    if (!smiles || effectiveAdmet === 0) return;
     setDiscoveredSmiles((prev) => {
       if (prev.includes(smiles)) return prev;
-      const next = [...prev, smiles].slice(-20); // keep latest 20
-      return next;
+      return [...prev, smiles].slice(-20);
     });
-  }, [liveData?.admet_passes, liveData?.best_smiles]);
+  }, [effectiveAdmet, effectiveSmiles]);
 
-  // Auto-scroll discovered strip right when new candidate added
+  // On completion, also add the final candidates' smiles to discovered strip
+  useEffect(() => {
+    if (!isCompleted || !job.result) return;
+    setDiscoveredSmiles((prev) => {
+      const newEntries = job.result!.candidates
+        .map((c) => c.smiles)
+        .filter((s) => !prev.includes(s));
+      return [...prev, ...newEntries].slice(-20);
+    });
+  }, [isCompleted, job.result]);
+
   useEffect(() => {
     const el = discoveredScrollRef.current;
     if (el) el.scrollLeft = el.scrollWidth;
   }, [discoveredSmiles.length]);
 
-  const stageMeta = liveData?.current_stage
-    ? STAGE_ICONS[liveData.current_stage]
-    : null;
-  const ActiveStageIcon = stageMeta?.icon ?? Activity;
+  const stageMeta = effectiveStage ? STAGE_ICONS[effectiveStage] : null;
+  const ActiveStageIcon = isCompleted ? CheckCircle2 : (stageMeta?.icon ?? Activity);
+  const stageColor = isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/30");
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#07090d]">
-      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <div className="flex shrink-0 items-center gap-3 border-b border-white/6 bg-white/[0.02] px-5 py-2.5">
         <FlaskConical size={14} className="text-emerald-400/60" />
         <span className="text-[13px] font-medium text-white/70">
@@ -183,10 +238,11 @@ export function PharmaLiveCanvas({
           ].join(" ")}
         >
           {isRunning && <Loader2 size={9} className="animate-spin" />}
+          {isCompleted && <CheckCircle2 size={9} />}
           <span className="capitalize">{status}</span>
         </span>
 
-        {isRunning && liveData && (
+        {isRunning && (
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -210,14 +266,15 @@ export function PharmaLiveCanvas({
         )}
       </div>
 
-      {/* ── Main split ─────────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 divide-x divide-white/5">
+      {/* ── Main split ───────────────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 divide-x divide-white/5 overflow-hidden">
+
         {/* Left — 3D protein viewer */}
         <div className="relative flex w-1/2 flex-col">
-          <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2">
-            <ActiveStageIcon size={12} className={stageMeta?.color ?? "text-white/30"} />
-            <span className={`text-[11px] font-medium ${stageMeta?.color ?? "text-white/30"}`}>
-              {stageMeta?.label ?? "Protein Structure"}
+          <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-2">
+            <ActiveStageIcon size={12} className={stageColor} />
+            <span className={`text-[11px] font-medium ${stageColor}`}>
+              {isCompleted ? "Completed" : (stageMeta?.label ?? "Protein Structure")}
             </span>
             <span className="ml-auto font-mono text-[10px] text-white/20">
               {targetPdbId.toUpperCase()}
@@ -226,34 +283,34 @@ export function PharmaLiveCanvas({
           <div className="min-h-0 flex-1">
             <ProteinViewer
               pdbId={targetPdbId}
-              height={undefined}
               onStageReady={(stage) => { stageRef.current = stage; }}
             />
           </div>
         </div>
 
-        {/* Right — live dashboard */}
+        {/* Right — dashboard */}
         <div className="flex w-1/2 flex-col overflow-y-auto">
+
           {/* Stat cards */}
           <div className="grid shrink-0 grid-cols-2 divide-x divide-y divide-white/5 border-b border-white/5 sm:grid-cols-4 sm:divide-y-0">
             <StatCard
               label="Stage"
-              value={stageMeta?.label ?? (liveData?.current_stage ?? "—")}
-              color={stageMeta?.color ?? "text-white/40"}
+              value={isCompleted ? "Done" : (stageMeta?.label ?? (effectiveStage ?? "—"))}
+              color={isCompleted ? "text-emerald-400" : (stageMeta?.color ?? "text-white/40")}
             />
             <StatCard
               label="Iterations"
-              value={liveData?.iteration_count ? String(liveData.iteration_count) : "—"}
+              value={effectiveIter > 0 ? String(effectiveIter) : "—"}
               color="text-violet-300"
             />
             <StatCard
               label="Best Score"
-              value={liveData?.best_score != null ? `${liveData.best_score.toFixed(2)} kcal/mol` : "—"}
+              value={effectiveScore != null ? `${effectiveScore.toFixed(2)}` : "—"}
               color="text-rose-300"
             />
             <StatCard
               label="ADMET Passes"
-              value={liveData?.admet_passes ? String(liveData.admet_passes) : "—"}
+              value={effectiveAdmet > 0 ? String(effectiveAdmet) : "—"}
               color="text-teal-300"
             />
           </div>
@@ -263,9 +320,9 @@ export function PharmaLiveCanvas({
             <p className="mb-2 text-[10px] uppercase tracking-wider text-white/25">
               Binding Affinity over Iterations
             </p>
-            {liveData && liveData.score_history.length > 0 ? (
+            {effectiveHistory.length > 0 ? (
               <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={liveData.score_history} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                <LineChart data={effectiveHistory} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                   <XAxis
                     dataKey="iteration"
                     tick={{ fontSize: 9, fill: "rgba(255,255,255,0.2)" }}
@@ -308,20 +365,18 @@ export function PharmaLiveCanvas({
                     <Loader2 size={11} className="animate-spin" />
                     Waiting for first score…
                   </span>
-                ) : (
-                  "No score data"
-                )}
+                ) : "No score data"}
               </div>
             )}
           </div>
 
-          {/* Best ligand */}
+          {/* Best / final ligand */}
           <div className="shrink-0 border-b border-white/5 px-4 py-3">
             <p className="mb-2 text-[10px] uppercase tracking-wider text-white/25">
-              Current Best Candidate
+              {isCompleted ? "Final Best Candidate" : "Current Best Candidate"}
             </p>
-            {liveData?.best_smiles ? (
-              <LigandViewer smiles={liveData.best_smiles} width={260} height={160} />
+            {effectiveSmiles ? (
+              <LigandViewer smiles={effectiveSmiles} width={260} height={160} />
             ) : (
               <div className="flex h-[160px] items-center justify-center rounded-xl border border-white/5 text-[11px] text-white/20">
                 {isRunning ? (
@@ -329,25 +384,20 @@ export function PharmaLiveCanvas({
                     <Loader2 size={11} className="animate-spin" />
                     Waiting for candidate…
                   </span>
-                ) : (
-                  "No candidate yet"
-                )}
+                ) : "No candidate"}
               </div>
             )}
           </div>
 
           {/* Discovered strip */}
           {discoveredSmiles.length > 0 && (
-            <div className="shrink-0 px-4 py-3">
+            <div className="shrink-0 border-b border-white/5 px-4 py-3">
               <p className="mb-2 text-[10px] uppercase tracking-wider text-white/25">
                 Discovered ({discoveredSmiles.length})
               </p>
-              <div
-                ref={discoveredScrollRef}
-                className="flex gap-2 overflow-x-auto pb-1"
-              >
+              <div ref={discoveredScrollRef} className="flex gap-2 overflow-x-auto pb-1">
                 <AnimatePresence initial={false}>
-                  {discoveredSmiles.map((smiles, i) => (
+                  {discoveredSmiles.map((smiles) => (
                     <motion.div
                       key={smiles}
                       initial={{ opacity: 0, scale: 0.85 }}
@@ -363,10 +413,30 @@ export function PharmaLiveCanvas({
             </div>
           )}
 
+          {/* Completed — show full candidate cards */}
+          {isCompleted && job.result && job.result.candidates.length > 0 && (
+            <div className="px-4 py-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Star size={12} className="text-emerald-400/60" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                  Top Candidates ({job.result.candidates.length})
+                </p>
+                <span className="ml-auto text-[10px] text-white/20">
+                  {job.result.total_runtime_seconds.toFixed(1)}s · {job.result.iterations_used} iters
+                </span>
+              </div>
+              <div className="space-y-4">
+                {job.result.candidates.map((c) => (
+                  <CandidateCard key={c.rank} candidate={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {isRunning && (
             <p className="mt-auto shrink-0 px-5 py-2 text-[10px] text-white/20">
               <Loader2 size={9} className="inline animate-spin mr-1" />
-              Refreshing every 2 s
+              Refreshing every 2 s · log events: {logLines.filter(l => !QUANTUM_LEVELS.has(l.level)).length}
             </p>
           )}
         </div>
