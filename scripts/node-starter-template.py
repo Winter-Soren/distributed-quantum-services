@@ -31,7 +31,7 @@ def _check_deps() -> None:
         from libp2p import create_new_ed25519_key_pair as _cnkp
         from libp2p.crypto.keys import KeyType as _KT
         from libp2p.peer.peerinfo import info_from_p2p_addr as _ifpa
-        from libp2p.typing import TProtocol as _TP
+        from libp2p.custom_types import TProtocol as _TP
         from libp2p.host.basic_host import BasicHost as _BH
         from libp2p.network.stream.net_stream_interface import INetStream as _INS
         from libp2p.pubsub.gossipsub import GossipSub as _GS
