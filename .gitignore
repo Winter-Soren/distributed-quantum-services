@@ -52,4 +52,5 @@ backend/data/quantum_coordinator.db-wal
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 docs/superpowers/
+compute/
 
