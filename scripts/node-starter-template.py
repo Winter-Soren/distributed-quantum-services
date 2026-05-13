@@ -4,7 +4,7 @@ Run: python node-starter-template.py --coordinator <MULTIADDR> --label my-node
 """
 
 # stdlib
-import asyncio
+import trio
 import argparse
 import json
 import logging
@@ -18,12 +18,13 @@ from typing import Any
 # pip install "git+https://github.com/libp2p/py-libp2p.git@main" qiskit qiskit-aer pydantic
 # Imports are deferred to _check_deps() so --help works without dependencies installed.
 new_host = create_new_key_pair = KeyType = info_from_p2p_addr = TProtocol = None
+background_trio_service = None
 BasicHost = INetStream = GossipSub = Pubsub = None
 QuantumCircuit = Statevector = AerSimulator = QFTGate = UGate = None
 
 
 def _check_deps() -> None:
-    global new_host, create_new_key_pair, KeyType, info_from_p2p_addr, TProtocol
+    global new_host, create_new_key_pair, KeyType, info_from_p2p_addr, TProtocol, background_trio_service
     global BasicHost, INetStream, GossipSub, Pubsub
     global QuantumCircuit, Statevector, AerSimulator, QFTGate, UGate
     try:
@@ -36,7 +37,9 @@ def _check_deps() -> None:
         from libp2p.abc import INetStream as _INS
         from libp2p.pubsub.gossipsub import GossipSub as _GS
         from libp2p.pubsub.pubsub import Pubsub as _PB
+        from libp2p.tools.anyio_service import background_trio_service as _bts
         new_host, create_new_key_pair, KeyType = _new_host, _cnkp, _KT
+        background_trio_service = _bts
         info_from_p2p_addr, TProtocol = _ifpa, _TP
         BasicHost, INetStream, GossipSub, Pubsub = _BH, _INS, _GS, _PB
     except ImportError as e:
@@ -624,7 +627,7 @@ class QuantumNode:
         self.protocol_ids: dict[str, str] = build_execution_protocol_ids(args.namespace)
         self._advertisement_topic = f"{args.namespace}.peer-advertisement.v1"
         self._heartbeat_topic = f"{args.namespace}.peer-heartbeat.v1"
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = trio.Event()
 
     async def start(self) -> None:
         # Deterministic Ed25519 key from label
@@ -659,7 +662,8 @@ class QuantumNode:
             self._make_handler(self.worker.handle_dispatch),
         )
 
-        await self.host.get_network().listen(listen_addr)
+        from multiaddr import Multiaddr as _MA
+        listen_addrs = [_MA(listen_addr)]
 
         # GossipSub setup
         gossipsub = GossipSub(
@@ -671,32 +675,42 @@ class QuantumNode:
         )
         self.pubsub = Pubsub(self.host, gossipsub, self.peer_id)
 
-        await self.pubsub.subscribe(self._advertisement_topic)
-        await self.pubsub.subscribe(self._heartbeat_topic)
-
-        # Connect to coordinator
-        await self._connect_coordinator()
-
-        # Print startup banner
         listen_multiaddr = f"/ip4/0.0.0.0/tcp/{self.args.port}/p2p/{self.peer_id}"
         advertise_addr = self.args.advertise_addr or listen_multiaddr
         services = [s.strip() for s in self.args.services.split(",") if s.strip()]
-        print("" * 60)
-        print(f"  QB2 Node starting up")
-        print(f"  Label     : {self.args.label}")
-        print(f"  Peer ID   : {self.peer_id}")
-        print(f"  Listen    : {listen_multiaddr}")
-        print(f"  Advertise : {advertise_addr}")
-        print(f"  Coordinator: {self.args.coordinator}")
-        print(f"  Services  : {services}")
-        print(f"  Max qubits: {self.args.max_qubits}")
-        print("" * 60)
 
-        # Publish initial advertisement
-        await self._publish_advertisement(services, advertise_addr)
+        async with self.host.run(listen_addrs=listen_addrs):
+            async with background_trio_service(gossipsub):
+                async with background_trio_service(self.pubsub):
+                    await self.pubsub.wait_until_ready()
+                    await trio.sleep(0.2)
 
-        # Heartbeat loop
-        asyncio.ensure_future(self._heartbeat_loop(services, advertise_addr))
+                    await self.pubsub.subscribe(self._advertisement_topic)
+                    await self.pubsub.subscribe(self._heartbeat_topic)
+
+                    # Connect to coordinator
+                    await self._connect_coordinator()
+
+                    # Print startup banner
+                    print("=" * 60)
+                    print(f"  QB2 Node running")
+                    print(f"  Label     : {self.args.label}")
+                    print(f"  Peer ID   : {self.peer_id}")
+                    print(f"  Listen    : {listen_multiaddr}")
+                    print(f"  Advertise : {advertise_addr}")
+                    print(f"  Coordinator: {self.args.coordinator}")
+                    print(f"  Services  : {services}")
+                    print(f"  Max qubits: {self.args.max_qubits}")
+                    print("=" * 60)
+
+                    # Publish initial advertisement
+                    await self._publish_advertisement(services, advertise_addr)
+
+                    # Run heartbeat in nursery until shutdown
+                    async with trio.open_nursery() as nursery:
+                        nursery.start_soon(self._heartbeat_loop, services, advertise_addr)
+                        await self._shutdown_event.wait()
+                        nursery.cancel_scope.cancel()
 
     def _make_handler(self, handler_fn: Any):
         async def _handle_stream(stream: INetStream) -> None:
@@ -715,7 +729,8 @@ class QuantumNode:
         if not coordinator_addr:
             return
         try:
-            peer_info = info_from_p2p_addr(coordinator_addr)
+            from multiaddr import Multiaddr as _MA2
+            peer_info = info_from_p2p_addr(_MA2(coordinator_addr))
             await self.host.connect(peer_info)
             logger.info("Connected to coordinator %s", coordinator_addr)
         except Exception as exc:
@@ -749,13 +764,7 @@ class QuantumNode:
 
     async def _heartbeat_loop(self, services: list[str], advertise_addr: str) -> None:
         while not self._shutdown_event.is_set():
-            try:
-                await asyncio.wait_for(
-                    self._shutdown_event.wait(),
-                    timeout=self.args.heartbeat_interval,
-                )
-            except asyncio.TimeoutError:
-                pass
+            await trio.sleep(self.args.heartbeat_interval)
             if self._shutdown_event.is_set():
                 break
             await self._send_heartbeat()
@@ -837,7 +846,7 @@ def _parse_args() -> Any:
     )
     parser.add_argument(
         "--namespace",
-        default="qb2",
+        default="quantum-backend",
         help="Protocol namespace (must match coordinator)",
     )
     parser.add_argument(
@@ -871,18 +880,8 @@ async def main() -> None:
 
     node = QuantumNode(args)
 
-    loop = asyncio.get_event_loop()
-
-    def _handle_sigterm(*_: Any) -> None:
-        logger.info("SIGTERM received, shutting down...")
-        asyncio.ensure_future(node.stop())
-        loop.stop()
-
-    signal.signal(signal.SIGTERM, _handle_sigterm)
-
     try:
         await node.start()
-        await node._shutdown_event.wait()
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt — shutting down...")
     finally:
@@ -890,4 +889,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    trio.run(main)
