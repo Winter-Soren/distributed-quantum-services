@@ -2,14 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { NAV_CONFIG } from "@/constants";
+import { useTrialEnabled } from "@/features/auth";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { RailItem } from "./rail-item";
 
 export function IconRail() {
   const pathname = usePathname();
+  const trialEnabled = useTrialEnabled();
 
   return (
-    <nav className="flex w-[68px] flex-col items-center bg-transparent py-3">
+    <nav className={`flex w-[68px] flex-col items-center bg-transparent py-3${!trialEnabled ? " pointer-events-none blur-sm select-none" : ""}`}>
       <WorkspaceSwitcher />
       <div className="mt-4 flex flex-col items-center gap-1">
         {NAV_CONFIG.map((item) => {

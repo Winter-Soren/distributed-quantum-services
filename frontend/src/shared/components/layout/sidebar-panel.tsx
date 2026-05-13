@@ -1,6 +1,7 @@
 "use client";
 
 import type { RailItem } from "@/constants";
+import { useTrialEnabled } from "@/features/auth";
 import { SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
 import { StaticSidebar } from "./static-sidebar";
 import { DynamicSidebar } from "./dynamic-sidebar";
@@ -11,6 +12,8 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({ activeRailItem }: SidebarPanelProps) {
+  const trialEnabled = useTrialEnabled();
+
   if (!activeRailItem || !activeRailItem.hasSidebar || !activeRailItem.sidebar) {
     return null;
   }
@@ -18,7 +21,7 @@ export function SidebarPanel({ activeRailItem }: SidebarPanelProps) {
   const { sidebar } = activeRailItem;
 
   return (
-    <SidebarProvider defaultOpen className="!w-auto !min-h-0 flex-none">
+    <SidebarProvider defaultOpen className={`!w-auto !min-h-0 flex-none${!trialEnabled ? " pointer-events-none blur-sm select-none" : ""}`}>
       <aside className="flex w-[220px] flex-col border-r border-hairline">
         <SidebarContent className="flex-1">
           {sidebar.type === "static" ? (
