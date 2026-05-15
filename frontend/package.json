@@ -2,6 +2,7 @@
   "name": "frontend-v3",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -33,7 +34,7 @@
     "mongodb": "^7.2.0",
     "motion": "^12.38.0",
     "multiformats": "^14.0.0",
-    "next": "16.2.4",
+    "next": "16.2.6",
     "next-themes": "^0.4.6",
     "ngl": "^2.4.0",
     "openchemlib": "^9.22.1",
@@ -72,5 +73,18 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "overrides": {
+    "postcss": ">=8.5.10"
+  },
+  "pnpm": {
+    "allowedDeprecatedVersions": {},
+    "allowBuilds": {
+      "sharp": true,
+      "unrs-resolver": true,
+      "node-datachannel": true,
+      "msw": true,
+      "@scarf/scarf": false
+    }
+  }
 }
