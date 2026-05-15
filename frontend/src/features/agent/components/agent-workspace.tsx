@@ -1,12 +1,23 @@
 "use client";
 
+import { SessionSidebar } from "./session-sidebar";
+import { ConversationPanel } from "./conversation-panel";
+import { ExecutionContext } from "./execution-context";
+import { useAgentStore } from "../stores/agent-store";
+
 export function AgentWorkspace() {
+  const activeSessionId = useAgentStore((s) => s.activeSessionId);
+
   return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">Agent Workspace</h1>
-        <p className="text-muted-foreground">Coming soon...</p>
-      </div>
+    <div className="flex h-[calc(100vh-3.5rem)] bg-background">
+      {/* Left: Session History */}
+      <SessionSidebar />
+
+      {/* Center: Conversation */}
+      <ConversationPanel sessionId={activeSessionId} />
+
+      {/* Right: Execution Context */}
+      <ExecutionContext sessionId={activeSessionId} />
     </div>
   );
 }

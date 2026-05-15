@@ -1,9 +1,16 @@
 export { AgentWorkspace } from "./components/agent-workspace";
-export { ThinkingBlock } from "./components/thinking-block";
-export { MessageItem } from "./components/message-item";
-export { ApprovalCard } from "./components/approval-card";
-export { ChatInput } from "./components/chat-input";
-export { ProgressCard } from "./components/progress-card";
+export { SessionSidebar } from "./components/session-sidebar";
+export { ConversationPanel } from "./components/conversation-panel";
+export { ExecutionContext } from "./components/execution-context";
+
 export { useAgentSessions } from "./hooks/use-agent-sessions";
+export { useAgentSession } from "./hooks/use-agent-session";
 export { useCreateSession } from "./hooks/use-create-session";
-export type { AgentSession, CreateSessionRequest } from "./types";
+export { useSendMessage } from "./hooks/use-send-message";
+export { useApproveAction } from "./hooks/use-approve-action";
+export { useAgentStream } from "./hooks/use-agent-stream";
+export { useBudgetStatus } from "./hooks/use-budget-status";
+
+export { useAgentStore } from "./stores/agent-store";
+
+export type * from "./types";
